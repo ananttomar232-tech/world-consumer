@@ -15,6 +15,8 @@ cd RealityShop
 Options: `--force` (overwrite generated files), `--texture-size 64|128|256|512|1024` (procedural textures, default 256),
 `--models DIR`, `--overrides DIR` (see "Your own assets").
 
+**Prebuilt jar:** [`dist/realityshop-1.0.0.jar`](dist/realityshop-1.0.0.jar) (Minecraft 1.20.1, Fabric Loader 0.15+, Fabric API, Java 17; drop it into `mods/`).
+
 Stack: Fabric Loom 1.10.5, Gradle 8.14.3 (wrapper embedded), Yarn `1.20.1+build.10`, Fabric Loader 0.16.14,
 Fabric API 0.92.12+1.20.1. Client-only code lives in its own source set (`src/client`), so a dedicated server never
 loads a client class.
