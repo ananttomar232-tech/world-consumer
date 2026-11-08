@@ -6,13 +6,17 @@ RealityShop - Minecraft FABRIC 1.20.1 workspace generator  (Java 17, Fabric Loom
 
 Writes a complete, buildable Fabric Loom workspace for the "RealityShop" mod:
 
-  * ConsumedBlocks player capability (a persistent Fabric data attachment, long, kept on death) + crisp HUD
-  * BlackMarket dimension + instant portal block + Crying Obsidian shop room
-  * ShopPedestal block entity (floating 3D item + red/green "Cost: X Blocks" tag, right-click to buy)
+  * ConsumedBlocks player capability (a persistent Fabric data attachment, long, kept on death) + a neon counter top left
+  * The Reality Gate: a 3x3 block multiblock with a THIN frame and a big shader-drawn block-consumer vortex (it assembles when
+    placed, collapses into an orb on pick-up, and carries you to the Black Market with a seamless swirl - no loading screen)
+  * BlackMarket dimension: a round cathedral (55 blocks across) of many different blocks with stained-glass windows, a lit
+    shrine window behind every pedestal and a permanent exit gate; Bedrock Realm dimension (no way back)
+  * ShopPedestal block entity (floating 3D item, its power, red/green "Cost: X Blocks" tag, right-click to buy)
   * Six shop items: glitch_pickaxe, glitchy_floppy, cursed_kitty_phone, hacked_rgb_furnace,
-    beacon_5g, quantum_usb  (+ DerpChicken, Void Realm, section-bulk destruction engine, FX)
+    beacon_5g, quantum_usb  (+ DerpChicken, section-bulk destruction engine that consumes the area IN FRONT of you, FX)
   * A runtime glTF/GLB reader + PBR core shader: your 3D models are shipped and rendered UNMODIFIED
-    (no mesh edits, no texture downsampling, 8K PBR maps supported).
+    (no mesh edits, no texture downsampling, 8K PBR maps supported; far-away chickens use decimated copies made at load time)
+  * /cinematic: a client command that flies a 360 degree orbit camera around every item (player, hand and HUD hidden)
 
 Usage
 -----
@@ -60,7 +64,7 @@ LOADER_VERSION = "0.16.14"
 FABRIC_API_VERSION = "0.92.12+1.20.1"
 LOOM_VERSION = "1.10.5"
 GRADLE_VERSION = "8.14.3"
-MOD_VERSION = "1.0.0"
+MOD_VERSION = "2.0.0"
 
 CREDITS = (
     'DerpChicken model: "Chicken" by joshuacaca973 (https://sketchfab.com/3d-models/chicken-59590091ec7647a4beae2e08acb1903a), '
@@ -1167,20 +1171,102 @@ def _poly(cv, pts, color):
 
 
 # ---------------------------------------------------------------------------- block textures
-def _portal(u, v, t):
+def _gate_rune(u, v, t):
+    """Glowing circuit glyph for the gate's strips and emblem: pulses run upwards, colours drift cyan <-> magenta."""
     ph = _TAU * t
-    cx, cy = u - 0.5, v - 0.5
-    r = math.hypot(cx, cy)
-    a = math.atan2(cy, cx)
-    swirl = 0.5 + 0.5 * math.sin(3.0 * a + 13.0 * r - 2.0 * ph)
-    n = _noise(u * 6.0 + 1.3 * math.cos(ph), v * 6.0 + 1.3 * math.sin(ph), 11, 6)
-    k = 0.55 * swirl + 0.45 * n
-    col = _mix((52, 8, 98), (222, 84, 255), k * k)
-    streak = _smooth(0.82, 0.97, n) * 0.8
-    col = _mix(col, _CYAN, streak)
-    edge = min(u, v, 1.0 - u, 1.0 - v)
-    col = _mix(col, (18, 4, 34), (1.0 - _smooth(0.0, 0.07, edge)) * 0.85)
-    return _rgb(col, min(1.0, 0.70 + 0.26 * k + 0.2 * streak))
+    n = 0.5 * _noise(u * 8.0, v * 8.0, 41, 8) + 0.5 * _noise(u * 16.0, v * 16.0, 42, 16)
+    base = (14 + 16 * n, 10 + 10 * n, 24 + 28 * n)
+    pulse = 0.5 + 0.5 * math.sin(ph - v * 6.0)
+    spine = math.exp(-((u - 0.5) / 0.07) ** 2)
+    ticks = math.exp(-((((v * 6.0) % 1.0) - 0.5) / 0.07) ** 2) * (1.0 if abs(u - 0.5) < 0.30 else 0.0)
+    diamond = math.exp(-((abs(u - 0.5) + abs(v - 0.5) - 0.34) / 0.03) ** 2)
+    frame = math.exp(-((min(u, v, 1.0 - u, 1.0 - v) - 0.04) / 0.02) ** 2)
+    glow = _clamp01((spine * 0.9 + ticks * 0.7 + diamond * 0.8 + frame * 0.6) * (0.55 + 0.6 * pulse))
+    hot = _mix(_CYAN, _MAGENTA, 0.5 + 0.5 * math.sin(ph + u * 3.0))
+    col = _mix(base, hot, glow)
+    return _rgb(_mix(col, (255, 255, 255), glow * glow * 0.35), 1.0)
+
+
+_SWIRL_TONES = ((0.20, (247, 242, 255)), (0.36, (71, 219, 255)), (0.54, (224, 61, 214)), (0.76, (143, 43, 230)),
+                (0.88, (56, 15, 117)), (9.0, (10, 3, 28)))
+
+
+def _swirl_rgb(px, py, spin=0.0):
+    """The vortex's flat pixel-art tones at (px, py) in -1..1 - the same maths as the portal_vortex shader."""
+    r = math.hypot(px, py)
+    if r < 0.16:
+        return _SWIRL_TONES[-1][1]
+    if r < 0.225:
+        return _SWIRL_TONES[0][1]
+    s = math.atan2(py, px) / _TAU * 2.0 + math.log(r + 0.08) * 0.95 - spin
+    f = s - math.floor(s)
+    for limit, col in _SWIRL_TONES:
+        if f < limit:
+            return col
+    return _SWIRL_TONES[-1][1]
+
+
+def _gate_line(u, v, t):
+    """The glowing 1 px inlay along the inside of the gate frame: columns 7 and 8 are hot, pulses run along the strip."""
+    ph = _TAU * t
+    core = math.exp(-((u - 0.5) / 0.09) ** 2)
+    pulse = 0.55 + 0.45 * math.sin(ph - v * _TAU * 2.0)
+    glow = _clamp01(core * (0.7 + 0.5 * pulse))
+    hot = _mix(_CYAN, _MAGENTA, 0.5 + 0.5 * math.sin(ph + v * _TAU))
+    col = _mix((12, 8, 24), hot, glow)
+    return _rgb(_mix(col, (255, 255, 255), glow * glow * 0.4), 1.0)
+
+
+def _gate_glow(u, v, t):
+    """A pulsing glow dot (the eyes in the frame's corner stones, the nodes on its sides, the crest plate)."""
+    d = math.hypot(u - 0.5, v - 0.5) / 0.5
+    pulse = 0.7 + 0.3 * math.sin(_TAU * t)
+    core = max(0.0, 1.0 - d) ** 1.4
+    hot = _mix(_CYAN, _MAGENTA, 0.5 + 0.5 * math.sin(_TAU * t + d * 2.0))
+    col = _mix((14, 8, 28), hot, _clamp01(core * 1.2 * pulse))
+    return _rgb(_mix(col, (255, 255, 255), max(0.0, core - 0.55) * 1.6 * pulse), 1.0)
+
+
+def _tri(u, v, bx, by, w, h, lean=0.0):
+    k = (by - v) / h
+    if not 0.0 <= k <= 1.0:
+        return -1.0
+    return k if abs(u - (bx + lean * k * h)) <= 0.5 * w * (1.0 - k) else -1.0
+
+
+def _gate_icon(u, v, t):
+    """Item icon: the thin-framed gate, amethyst crystals on its corners and the block-consuming swirl in the opening."""
+    x0, x1, y0, y1 = 0.09, 0.91, 0.22, 0.95
+    b = 0.07
+    ix0, ix1, iy0, iy1 = x0 + b, x1 - b, y0 + b, y1 - b
+    for bx, w, h, lean in ((0.15, 0.09, 0.19, -0.22), (0.23, 0.07, 0.12, 0.0), (0.85, 0.09, 0.19, 0.22), (0.77, 0.07, 0.12, 0.0)):
+        k = _tri(u, v, bx, y0 + 0.02, w, h, lean)
+        if k >= 0.0:
+            return _rgb(_mix((150, 90, 225), (225, 185, 255), k * 0.9 + (0.25 if u < bx else 0.0)), 1.0)
+    if 0.42 <= u <= 0.58 and 0.10 <= v <= y0 + 0.01:                       # the crest
+        c = (212, 168, 60) if v > 0.15 else (54, 50, 68)
+        return _rgb(c, 1.0)
+    if not (x0 <= u <= x1 and y0 <= v <= y1):
+        return (0.0, 0.0, 0.0, 0.0)
+    if ix0 <= u <= ix1 and iy0 <= v <= iy1:
+        cells = 20
+        gx = min(cells - 1, int((u - ix0) / (ix1 - ix0) * cells))
+        gy = min(cells - 1, int((v - iy0) / (iy1 - iy0) * cells))
+        if gx in (0, cells - 1) or gy in (0, cells - 1):
+            return _rgb(_SWIRL_TONES[-1][1], 1.0)
+        px = ((gx + 0.5) / cells - 0.5) * 2.0
+        py = (0.5 - (gy + 0.5) / cells) * 2.0
+        return _rgb(_swirl_rgb(px, py), 1.0)
+    corner = (u < x0 + 0.13 or u > x1 - 0.13) and (v < y0 + 0.13 or v > y1 - 0.13)
+    if corner:
+        n = _noise(u * 24.0, v * 24.0, 61, 0)
+        return _rgb(_mix((50, 18, 98), (150, 70, 230), 0.15 + 0.5 * (n > 0.72)), 1.0)
+    if min(abs(u - ix0), abs(u - ix1), abs(v - iy0), abs(v - iy1)) < 0.012:
+        return _rgb(_CYAN, 1.0)
+    brick = (_noise(u * 12.0, v * 12.0, 51, 0) - 0.5) * 20.0
+    mortar = abs(math.sin(v * math.pi * 12.0)) < 0.12
+    c = (40 + brick, 38 + brick, 54 + brick) if not mortar else (22, 20, 32)
+    return _rgb(c, 1.0)
 
 
 def _pedestal_top(u, v, t):
@@ -1406,7 +1492,7 @@ def _icon(size):
 
 
 # ---------------------------------------------------------------------------- HUD font + plate
-_HUD_CHARS = "BCcdeklmnosu:,0123456789"
+_HUD_CHARS = "BCcdeklmnosu:,+-0123456789"
 _HUD_PAD = 0.10
 _HUD_STROKE = 0.085
 
@@ -1438,6 +1524,8 @@ def _hud_glyphs():
                     [(0.39, 0.545)] + _arc(0.555, 0.545, 0.165, 0.165, -180, 0) + [(0.72, B)]])
     add("n", 0.52, [[(0.06, X), (0.06, B)], [(0.06, X + 0.2)] + _arc(0.26, X + 0.2, 0.2, 0.2, -180, 0) + [(0.46, B)]])
     add("u", 0.52, [[(0.06, X), (0.06, B - 0.2)] + _arc(0.26, B - 0.2, 0.2, 0.2, 180, 0) + [(0.46, X)], [(0.46, X), (0.46, B)]])
+    add("+", 0.40, [[(0.04, 0.47), (0.36, 0.47)], [(0.20, 0.31), (0.20, 0.63)]])
+    add("-", 0.34, [[(0.04, 0.47), (0.30, 0.47)]])
     add(":", 0.14, [], [(0.07, 0.46, 0.05), (0.07, 0.75, 0.05)])
     add(",", 0.16, [[(0.08, B), (0.03, 0.90)]], [(0.08, 0.77, 0.055)])
     add("0", 0.52, [_arc(0.26, (T + B) / 2, 0.26, 0.33, 0, 360, 44)])
@@ -1480,6 +1568,35 @@ def gen_hud(out, opts):
     })
     out.texture("gui/hud_glyphs.png", cv.to_png())
     out.texture("gui/hud_plate.png", _hud_plate())
+    out.texture("gui/hud_icon.png", _hud_icon(128))
+
+
+def _hud_icon(size):
+    """The counter's icon: a neon "consumed block" - an isometric cube with a vortex bite taken out of its top."""
+    cv = Canvas(size, size)
+    s = size / 128.0
+    top, ur, lr, bot, ll, ul, mid = ((64, 10), (112, 36), (112, 92), (64, 118), (16, 92), (16, 36), (64, 62))
+
+    def p(pt):
+        return (pt[0] * s, pt[1] * s)
+
+    _poly(cv, [p(top), p(ur), p(mid), p(ul)], (176, 84, 250, 255))
+    _poly(cv, [p(ul), p(mid), p(bot), p(ll)], (90, 30, 156, 255))
+    _poly(cv, [p(mid), p(ur), p(lr), p(bot)], (50, 16, 108, 255))
+    # the bite: a dark elliptical hole in the top face, a swirl ring around its rim
+    hole = [(64 * s + 24 * s * math.cos(a), 36 * s + 12 * s * math.sin(a)) for a in [i * _TAU / 28 for i in range(28)]]
+    _poly(cv, hole, (5, 0, 14, 255))
+    for i in range(60):
+        a0, a1 = 0.1 * i, 0.1 * (i + 1)
+        r0, r1 = 5.0 + a0 * 3.2, 5.0 + a1 * 3.2
+        col = tuple(_mix(_MAGENTA, _CYAN, i / 59.0)) + (255,)
+        cv.line(64 * s + r0 * math.cos(a0 * 2.2) * 1.9 * s, 36 * s + r0 * math.sin(a0 * 2.2) * 0.95 * s,
+                64 * s + r1 * math.cos(a1 * 2.2) * 1.9 * s, 36 * s + r1 * math.sin(a1 * 2.2) * 0.95 * s, 2.2 * s, col)
+    for a, b in ((top, ur), (ur, lr), (lr, bot), (bot, ll), (ll, ul), (ul, top), (ul, mid), (mid, ur), (mid, bot)):
+        cv.line(a[0] * s, a[1] * s, b[0] * s, b[1] * s, 3.0 * s, _CYAN + (255,))
+    for x, y, w, c in ((96, 22, 7, (150, 150, 158)), (104, 30, 5, (134, 96, 66)), (90, 17, 4, (92, 156, 60))):   # swallowed block bits
+        cv.rect((x - w / 2) * s, (y - w / 2) * s, (x + w / 2) * s, (y + w / 2) * s, c + (255,))
+    return cv.to_png()
 
 
 def _hud_plate():
@@ -1542,8 +1659,13 @@ def gen_textures(out, opts):
     animation("item/quantum_usb_led", None, frametime=4, interpolate=True)
 
     # blocks
-    out.texture("block/black_market_portal.png", paint_strip(anim, 8, _portal))
-    animation("block/black_market_portal", None, frametime=3, interpolate=True)
+    out.texture("block/gate_rune.png", paint_strip(anim, 8, _gate_rune))
+    animation("block/gate_rune", None, frametime=3, interpolate=True)
+    out.texture("block/gate_line.png", paint_strip(anim, 8, _gate_line))
+    animation("block/gate_line", None, frametime=3, interpolate=True)
+    out.texture("block/gate_glow.png", paint_strip(anim, 8, _gate_glow))
+    animation("block/gate_glow", None, frametime=3, interpolate=True)
+    out.texture("item/black_market_portal.png", paint_strip(size, 1, _gate_icon))
     out.texture("block/shop_pedestal_top.png", paint_strip(size, 1, _pedestal_top))
     out.texture("block/hacked_rgb_furnace_glow.png", paint_strip(anim, 8, _furnace_glow))
     animation("block/hacked_rgb_furnace_glow", None, frametime=3, interpolate=True)
@@ -1555,8 +1677,204 @@ def gen_textures(out, opts):
     out.put("src/main/resources/assets/%s/icon.png" % MOD_ID, _icon(256))
 
 
+# ---------------------------------------------------------------------------- the portal vortex core shader
+PORTAL_VSH = """\
+#version 150
+
+in vec3 Position;
+in vec2 UV0;
+
+uniform mat4 ModelViewMat;
+uniform mat4 ProjMat;
+
+out vec2 uv;
+
+void main() {
+    gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
+    uv = UV0;
+}
+"""
+
+PORTAL_FSH = """\
+#version 150
+
+// The block-consumer vortex, drawn as flat pixel-art tones (like a block texture): a bold two-armed swirl around a black
+// hole, with swallowed blocks orbiting in it. Mode 0 = the opening of a gate (40 x 40 px, 16 px per block), 1 = the full-screen
+// transition (the vortex spreads from the middle), 2 = the orb of a collapsing gate. Everything is computed per pixel from
+// Time, so it flows at any frame rate.
+
+uniform vec4 ColorModulator;
+uniform float Time;     // seconds
+uniform float Open;     // 0..1 summon animation
+uniform float Close;    // 0..1 collapse (pick-up)
+uniform float Mode;
+uniform float Alpha;
+uniform vec2 Aspect;
+
+in vec2 uv;
+out vec4 fragColor;
+
+const float PI = 3.14159265;
+
+float hash21(vec2 p) {
+    p = fract(p * vec2(233.34, 851.73));
+    p += dot(p, p + 23.45);
+    return fract(p.x * p.y);
+}
+
+vec3 tone(float f) {            // the flat tones of the spiral: white, cyan, magenta, violet, deep violet, void
+    if (f < 0.20) return vec3(0.97, 0.95, 1.00);
+    if (f < 0.36) return vec3(0.28, 0.86, 1.00);
+    if (f < 0.54) return vec3(0.88, 0.24, 0.84);
+    if (f < 0.76) return vec3(0.56, 0.17, 0.90);
+    if (f < 0.88) return vec3(0.22, 0.06, 0.46);
+    return vec3(0.04, 0.01, 0.11);
+}
+
+vec3 blockColor(float h) {      // what the vortex is swallowing: stone, dirt, grass, planks, deepslate, gold
+    if (h < 0.17) return vec3(0.55, 0.55, 0.58);
+    if (h < 0.34) return vec3(0.58, 0.40, 0.26);
+    if (h < 0.51) return vec3(0.38, 0.66, 0.25);
+    if (h < 0.68) return vec3(0.74, 0.60, 0.38);
+    if (h < 0.85) return vec3(0.30, 0.30, 0.35);
+    return vec3(0.95, 0.77, 0.22);
+}
+
+void main() {
+    if (Mode > 1.5 && Mode < 2.5) {           // orb
+        vec2 d = (uv - 0.5) * 2.0;
+        float r2 = dot(d, d);
+        float glow = exp(-r2 * 5.0);
+        vec3 c = mix(vec3(0.55, 0.22, 1.0), vec3(1.0), glow * glow);
+        c = mix(c, vec3(0.25, 0.85, 1.0), smoothstep(0.35, 0.9, sqrt(r2)) * 0.6);
+        fragColor = vec4(c, glow * Alpha) * ColorModulator;
+        return;
+    }
+
+    if (Mode > 2.5 && Mode < 3.5) {      // the /cinematic backdrop: a dark violet studio with a drifting pixel starfield
+        vec2 g = vec2(160.0 * Aspect.x / 1.7778, 90.0);
+        vec2 id = floor(uv * g);
+        vec2 q = (uv - 0.5) * vec2(Aspect.x, 1.0) * 2.0;
+        float r = length(q);
+        vec3 col = mix(vec3(0.16, 0.05, 0.30), vec3(0.015, 0.0, 0.05), smoothstep(0.0, 1.5, r));
+        float sx = (q.x * 0.8 + q.y * 0.35 + 0.15 * sin(Time * 0.2)) / 0.22;
+        col += vec3(0.35, 0.15, 0.7) * exp(-sx * sx) * 0.10;                              // a soft light shaft
+        float h = hash21(id);
+        float tw = 0.55 + 0.45 * sin(Time * (1.0 + h * 2.0) + h * 40.0);
+        col += vec3(0.75, 0.85, 1.0) * step(0.9935, h) * tw;                                // stars
+        col += vec3(0.95, 0.4, 0.9) * step(0.9975, fract(h * 7.31)) * tw;
+        float hz = (q.y - 0.55) / 0.10;
+        col += vec3(0.10, 0.35, 0.55) * exp(-hz * hz) * 0.20;                              // glow of the floor on the horizon
+        fragColor = vec4(col, 1.0) * ColorModulator;
+        return;
+    }
+    if (Mode > 3.5 && Mode < 4.5) {      // the /cinematic floor: a dark glossy disc with neon rings and spokes
+        vec2 d = (uv - 0.5) * 2.0;
+        float r = length(d);
+        float a = atan(d.y, d.x);
+        float disc = 1.0 - smoothstep(0.92, 1.0, r);
+        float r1 = (r - 0.22) / 0.012;
+        float r2 = (r - 0.42) / 0.009;
+        float r3 = (r - 0.66) / 0.007;
+        float r4 = (r - 0.90) / 0.005;
+        float ring = exp(-r1 * r1) + 0.8 * exp(-r2 * r2) + 0.6 * exp(-r3 * r3) + 0.5 * exp(-r4 * r4);
+        float spokes = pow(abs(cos(a * 6.0)), 80.0) * smoothstep(0.1, 0.3, r) * (1.0 - smoothstep(0.5, 0.95, r)) * 0.5;
+        float pulse = 0.5 + 0.5 * sin(Time * 1.6 - r * 14.0);
+        vec3 neon = mix(vec3(0.25, 0.85, 1.0), vec3(0.95, 0.25, 0.85), 0.5 + 0.5 * sin(a * 3.0 + Time * 0.8));
+        float glow = exp(-r * r * 6.0) * 0.45;
+        vec3 col = vec3(0.02, 0.0, 0.07) + neon * (ring * (0.6 + 0.5 * pulse) + spokes + glow);
+        fragColor = vec4(col, disc * (0.80 + 0.20 * min(1.0, ring + glow))) * ColorModulator;
+        return;
+    }
+
+    vec2 grid = Mode < 0.5 ? vec2(40.0, 40.0) : vec2(48.0 * Aspect.x, 48.0);
+    vec2 id = floor(uv * grid);
+    vec2 uvq = (id + 0.5) / grid;                              // the pixel-art look of a block texture
+    vec2 p = vec2(uvq.x - 0.5, 0.5 - uvq.y) * 2.0;             // -1..1, +y up
+    if (Mode > 0.5) {
+        p.x *= Aspect.x;                                       // full screen: keep the swirl round
+    }
+
+    vec2 pz = p * (1.0 + Close * Close * 9.0);                 // collapsing: zoom into the centre
+    float r = length(pz);
+    float a = atan(pz.y, pz.x);
+    float spin = Time * (0.45 + Close * 2.5);
+    float s = a / (2.0 * PI) * 2.0 + log(r + 0.08) * 0.95 - spin;
+    vec3 col = tone(fract(s));
+
+    float ang = spin * PI * 1.15;                              // swallowed blocks orbit with the vortex
+    float ca = cos(-ang);
+    float sa = sin(-ang);
+    vec2 qd = vec2(pz.x * ca - pz.y * sa, pz.x * sa + pz.y * ca) * (grid.y * 0.25);
+    float h = hash21(floor(qd) + vec2(11.0, 5.0));
+    if (h > 0.962 && r > 0.30 && r < 0.95) {
+        col = blockColor(fract(h * 977.0));
+    }
+    if (r < 0.16) {                                            // the black hole and its bright rim
+        col = vec3(0.04, 0.01, 0.11);
+    } else if (r < 0.225) {
+        col = vec3(0.97, 0.95, 1.00);
+    }
+
+    float alpha = 1.0;
+    if (Mode < 0.5) {
+        vec2 e = min(id, grid - 1.0 - id);                     // a 1 px dark rim against the frame
+        if (min(e.x, e.y) < 0.5) {
+            col = vec3(0.04, 0.01, 0.11);
+        }
+        float o = clamp(Open, 0.0, 1.0);                       // summon: a slit tears open, then widens to the full opening
+        float slitH = smoothstep(0.0, 0.30, o);
+        float slitW = mix(0.035, 1.0, smoothstep(0.25, 0.95, o));
+        float inSlit = (1.0 - step(slitW, abs(p.x))) * (1.0 - step(slitH, abs(p.y)));
+        col = mix(col, vec3(1.0, 0.95, 1.0), (1.0 - smoothstep(0.0, 0.5, o)) * inSlit * 0.8);
+        float ring = (1.0 - step(0.07, abs(length(p) - o * 1.5))) * (1.0 - o);    // a shock ring runs out from the middle
+        col = mix(col, vec3(1.0), ring * 0.85);
+        alpha *= inSlit;
+        float shrink = 1.0 - smoothstep(0.0, 1.0, Close) * 0.95;                  // pick-up: the vortex contracts into a point
+        alpha *= 1.0 - step(shrink, max(abs(p.x), abs(p.y)));
+        alpha *= 1.0 - smoothstep(0.85, 1.0, Close);
+        col = mix(col, vec3(1.0), Close * Close * 0.6);
+    } else {
+        float reach = Alpha * (length(vec2(Aspect.x, 1.0)) + 0.4);                // the vortex spreads over the screen ...
+        float wob = 0.10 * sin(a * 5.0 + Time * 2.5) + 0.06 * sin(a * 9.0 - Time * 3.7);
+        alpha = 1.0 - step(reach, r + wob * Alpha);                               // ... with a hard, pixel-crisp edge
+    }
+    fragColor = vec4(col, alpha) * ColorModulator;
+}
+"""
+
+
+def _gen_portal_shader(out):
+    base = "src/main/resources/assets/%s/shaders/core/portal_vortex" % MOD_ID
+    mat4 = [1.0 if i % 5 == 0 else 0.0 for i in range(16)]
+
+    def uniform(name, kind, count, values):
+        return {"name": name, "type": kind, "count": count, "values": values}
+
+    out.json(base + ".json", {
+        "blend": {"func": "add", "srcrgb": "srcalpha", "dstrgb": "1-srcalpha"},
+        "vertex": "%s:portal_vortex" % MOD_ID,
+        "fragment": "%s:portal_vortex" % MOD_ID,
+        "attributes": ["Position", "UV0"],
+        "samplers": [],
+        "uniforms": [
+            uniform("ModelViewMat", "matrix4x4", 16, mat4),
+            uniform("ProjMat", "matrix4x4", 16, mat4),
+            uniform("ColorModulator", "float", 4, [1.0, 1.0, 1.0, 1.0]),
+            uniform("Time", "float", 1, [0.0]),
+            uniform("Open", "float", 1, [1.0]),
+            uniform("Close", "float", 1, [0.0]),
+            uniform("Mode", "float", 1, [0.0]),
+            uniform("Alpha", "float", 1, [1.0]),
+            uniform("Aspect", "float", 2, [1.0, 2.0]),
+        ]})
+    out.put(base + ".vsh", PORTAL_VSH)
+    out.put(base + ".fsh", PORTAL_FSH)
+
+
 # ---------------------------------------------------------------------------- the glTF PBR core shader
 def gen_shaders(out, opts):
+    _gen_portal_shader(out)
     base = "src/main/resources/assets/%s/shaders/core/gltf_pbr" % MOD_ID
     mat4 = [1.0 if i % 5 == 0 else 0.0 for i in range(16)]
     mat3 = [1.0 if i % 4 == 0 else 0.0 for i in range(9)]
@@ -1787,6 +2105,13 @@ loom {
     }
 }
 
+// every game test run starts in a fresh world (leftovers of earlier runs must not influence the results)
+tasks.configureEach { task ->
+    if (task.name == "runGametest") {
+        task.doFirst { delete layout.buildDirectory.dir("gametest/world") }
+    }
+}
+
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
@@ -1885,7 +2210,7 @@ run/
             "client": [PKG + ".client.RealityShopClient"],
             "fabric-gametest": [PKG + ".gametest.RealityShopGameTests"],
         },
-        "mixins": ["%s.mixins.json" % MOD_ID],
+        "mixins": [{"config": "%s.client.mixins.json" % MOD_ID, "environment": "client"}],
         "depends": {
             "fabricloader": ">=0.15.0",
             "minecraft": "~" + MC_VERSION,
@@ -1893,14 +2218,14 @@ run/
             "fabric-api": "*",
         },
     })
-    # An (intentionally empty) mixin slot: add classes under com.realityshop.mixin and list them here.
-    out.json("src/main/resources/%s.mixins.json" % MOD_ID, {
+    # Three client mixins: no "Loading terrain" / "Joining world" screens while a gate carries you (see PortalTransition),
+    # and the camera of /cinematic (see CinematicDirector).
+    out.json("src/client/resources/%s.client.mixins.json" % MOD_ID, {
         "required": True,
         "minVersion": "0.8",
-        "package": PKG + ".mixin",
+        "package": PKG + ".client.mixin",
         "compatibilityLevel": "JAVA_17",
-        "mixins": [],
-        "client": [],
+        "client": ["ClientPlayNetworkHandlerMixin", "MinecraftClientMixin", "CameraMixin"],
         "injectors": {"defaultRequire": 1},
     })
     out.text("CREDITS.txt", asset("CREDITS.txt").decode("utf-8"))
@@ -2043,12 +2368,16 @@ import @@PKG@@.command.RealityShopCommand;
 import @@PKG@@.economy.ConsumedBlocksCapability;
 import @@PKG@@.economy.EconomyEvents;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import @@PKG@@.destroy.DestructionManager;
 import @@PKG@@.entity.DerpChickenEntity;
 import @@PKG@@.entity.SuckedBlockEntity;
+import @@PKG@@.shop.BlackMarketRoom;
+import @@PKG@@.shop.ShopDimensions;
 import @@PKG@@.util.GlowLights;
 import @@PKG@@.util.ServerTasks;
 import @@PKG@@.item.GlitchPickaxeItem;
@@ -2064,6 +2393,8 @@ import @@PKG@@.registry.ModSounds;
 public class RealityShopMod implements ModInitializer {
     public static final String MODID = "@@MODID@@";
     public static final Logger LOGGER = LoggerFactory.getLogger("RealityShop");
+    /** -Drealityshop.debug=true logs the gate trips (positions, timings) - for bug reports. */
+    public static final boolean DEBUG = Boolean.getBoolean("realityshop.debug");
 
     public static Identifier id(String path) {
         return new Identifier(MODID, path);
@@ -2089,6 +2420,14 @@ public class RealityShopMod implements ModInitializer {
         SuckedBlockEntity.registerEvents();
         ServerTasks.register();
         GlowLights.register();
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            ServerWorld market = server.getWorld(ShopDimensions.BLACK_MARKET);
+            if (market != null) {
+                long t0 = System.nanoTime();
+                BlackMarketRoom.ensureBuilt(market);
+                LOGGER.info("Black Market ready ({} ms)", (System.nanoTime() - t0) / 1_000_000);
+            }
+        });
         // <<INIT_EVENTS>>
         LOGGER.info("RealityShop ready: consume the world, spend it in the Black Market.");
     }
@@ -2099,6 +2438,10 @@ J("client/RealityShopClient.java", r'''
 package @@PKG@@.client;
 
 import @@PKG@@.RealityShopMod;
+import @@PKG@@.client.gate.PortalGateRenderer;
+import @@PKG@@.client.cinematic.CinematicDirector;
+import @@PKG@@.client.gate.PortalShader;
+import @@PKG@@.client.gate.PortalTransition;
 import @@PKG@@.client.gltf.GltfModels;
 import @@PKG@@.client.gltf.GltfRenderer;
 import @@PKG@@.client.hud.ConsumedBlocksHud;
@@ -2115,6 +2458,7 @@ import @@PKG@@.registry.ModItems;
 import @@PKG@@.registry.ModParticles;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.blockrenderlayer.v1.BlockRenderLayerMap;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.particle.v1.ParticleFactoryRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.ColorProviderRegistry;
@@ -2138,16 +2482,19 @@ public class RealityShopClient implements ClientModInitializer {
     public void onInitializeClient() {
         ClientNet.register();
         GltfRenderer.registerShader();
+        PortalShader.register();
+        PortalTransition.register();
         ConsumedBlocksHud.register();
+        CinematicDirector.register();
 
         BlockEntityRendererFactories.register(ModBlockEntities.SHOP_PEDESTAL, ShopPedestalRenderer::new);
+        BlockEntityRendererFactories.register(ModBlockEntities.PORTAL_GATE, PortalGateRenderer::new);
         EntityRendererRegistry.register(ModEntities.DERP_CHICKEN, DerpChickenRenderer::new);
         EntityRendererRegistry.register(ModEntities.FLOPPY_PROJECTILE, FlyingItemEntityRenderer::new);
         EntityRendererRegistry.register(ModEntities.SUCKED_BLOCK, SuckedBlockRenderer::new);
         ParticleFactoryRegistry.getInstance().register(ModParticles.GREEN_LASER, GreenLaserParticle.Factory::new);
         BuiltinItemRendererRegistry.INSTANCE.register(ModItems.CURSED_KITTY_PHONE, new PhoneItemRenderer());
 
-        BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.BLACK_MARKET_PORTAL, RenderLayer.getTranslucent());
         BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.HACKED_RGB_FURNACE, RenderLayer.getTranslucent());
         BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.BEACON_5G, RenderLayer.getTranslucent());
         ColorProviderRegistry.BLOCK.register((state, world, pos, tintIndex) -> tintIndex == 0 ? FURNACE_TINT : -1, ModBlocks.HACKED_RGB_FURNACE);
@@ -2168,6 +2515,7 @@ public class RealityShopClient implements ClientModInitializer {
                 HudTextures.reload(manager);
             }
         });
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(GltfModels::preload));
         // <<CLIENT_INIT>>
     }
 }
@@ -2214,12 +2562,17 @@ public final class RSConfig {
     public int beaconPurgeSeconds = 60;
     /** Seconds the Hacked RGB Furnace needs to eat its area. */
     public int furnacePurgeSeconds = 10;
+    /** Side of the square the Quantum USB purges in front of you (500 x 2.95 = 1475). Only loaded chunks are touched unless loadMissingChunks is on. */
+    public int usbPurgeSize = 1475;
     /** Seconds an invisible glow light stays at a Glitchy Floppy impact so the hole is not pitch black (0 = off). */
     public int floppyGlowSeconds = 45;
 
     // ---- client visuals
     public boolean hudEnabled = true;
     public double hudScale = 1.0;
+    /** Position of the counter's top-left corner in GUI units. */
+    public int hudX = 6;
+    public int hudY = 6;
     /** Multiplier for laser / tornado particle counts (lower it on weak GPUs). */
     public double particleDensity = 1.0;
 
@@ -2261,6 +2614,8 @@ public final class RSConfig {
         furnacePurgeSeconds = Math.max(2, Math.min(3600, furnacePurgeSeconds));
         floppyGlowSeconds = Math.max(0, Math.min(600, floppyGlowSeconds));
         hudScale = Math.max(0.5, Math.min(3.0, hudScale));
+        hudX = Math.max(0, Math.min(4000, hudX));
+        hudY = Math.max(0, Math.min(4000, hudY));
         particleDensity = Math.max(0.05, Math.min(4.0, particleDensity));
         if (protectedDimensions == null) {
             protectedDimensions = new ArrayList<>();
@@ -2456,6 +2811,8 @@ import net.minecraft.util.Identifier;
 public final class ModNetwork {
     public static final Identifier SYNC_BALANCE = RealityShopMod.id("sync_balance");
     public static final Identifier LASER_BURST = RealityShopMod.id("laser_burst");
+    /** One boolean: true = a gate transition starts (fade into the vortex), false = it was cancelled. */
+    public static final Identifier GATE_TRANSITION = RealityShopMod.id("gate_transition");
 
     private ModNetwork() {}
 }
@@ -2467,6 +2824,7 @@ package @@PKG@@.command;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import @@PKG@@.economy.ConsumedBlocks;
+import @@PKG@@.shop.PortalGateBlock;
 import @@PKG@@.shop.BlackMarketRoom;
 import @@PKG@@.shop.ShopDimensions;
 import java.text.NumberFormat;
@@ -2477,8 +2835,10 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
-/** /realityshop balance | add &lt;n&gt; | set &lt;n&gt; | market | bedrock | back | rebuild   (all but balance need op level 2). */
+/** /realityshop balance | add &lt;n&gt; | set &lt;n&gt; | market | bedrock | back | gate | rebuild   (all but balance need op level 2). */
 public final class RealityShopCommand {
     private RealityShopCommand() {}
 
@@ -2519,6 +2879,19 @@ public final class RealityShopCommand {
             }));
             root.then(CommandManager.literal("back").requires(s -> s.hasPermissionLevel(2)).executes(ctx -> {
                 ShopDimensions.leave(ctx.getSource().getPlayerOrThrow());
+                return 1;
+            }));
+            // place a Reality Gate four blocks in front of you (for ops: the same gate the item places)
+            root.then(CommandManager.literal("gate").requires(s -> s.hasPermissionLevel(2)).executes(ctx -> {
+                ServerPlayerEntity p = ctx.getSource().getPlayerOrThrow();
+                ServerWorld w = p.getServerWorld();
+                Direction look = p.getHorizontalFacing();
+                BlockPos base = p.getBlockPos().offset(look, 4);
+                if (ShopDimensions.isShopDimension(w) || !PortalGateBlock.canPlace(w, base, look.getOpposite(), p)) {
+                    ctx.getSource().sendError(Text.literal("No room for a gate here (3 wide, 3 tall, not in the shop dimensions)"));
+                    return 0;
+                }
+                PortalGateBlock.place(w, base, look.getOpposite());
                 return 1;
             }));
             root.then(CommandManager.literal("rebuild").requires(s -> s.hasPermissionLevel(2)).executes(ctx -> {
@@ -2631,6 +3004,8 @@ public final class ModSounds {
     public static final SoundEvent SHOP_DENIED = register("shop_denied");
     public static final SoundEvent KITTY_PHONE_CURSE = register("kitty_phone_curse");
     public static final SoundEvent QUANTUM_PURGE = register("quantum_purge");
+    public static final SoundEvent PORTAL_OPEN = register("portal_open");
+    public static final SoundEvent PORTAL_CLOSE = register("portal_close");
     // <<SOUNDS>>
 
     private ModSounds() {}
@@ -2650,7 +3025,7 @@ package @@PKG@@.registry;
 import @@PKG@@.RealityShopMod;
 import @@PKG@@.block.Beacon5GBlock;
 import @@PKG@@.block.HackedRgbFurnaceBlock;
-import @@PKG@@.shop.BlackMarketPortalBlock;
+import @@PKG@@.shop.PortalGateBlock;
 import @@PKG@@.shop.ShopPedestalBlock;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
@@ -2662,10 +3037,11 @@ import net.minecraft.sound.BlockSoundGroup;
 // <<BLOCK_IMPORTS>>
 
 public final class ModBlocks {
-    public static final Block BLACK_MARKET_PORTAL = register("black_market_portal", new BlackMarketPortalBlock(
-            AbstractBlock.Settings.create().mapColor(MapColor.PURPLE).noCollision().nonOpaque()
-                    .strength(-1.0F, 3600000.0F).luminance(state -> 15).sounds(BlockSoundGroup.GLASS)
-                    .pistonBehavior(PistonBehavior.BLOCK)));
+    /** The Reality Gate (3 x 3 multiblock, see PortalGateBlock). The id stays black_market_portal. */
+    public static final Block BLACK_MARKET_PORTAL = register("black_market_portal", new PortalGateBlock(
+            AbstractBlock.Settings.create().mapColor(MapColor.PURPLE).strength(-1.0F, 3600000.0F).nonOpaque()
+                    .luminance(state -> PortalGateBlock.isCenter(state) ? 15 : 11).sounds(BlockSoundGroup.DEEPSLATE_BRICKS)
+                    .pistonBehavior(PistonBehavior.BLOCK).dropsNothing()));
     public static final Block SHOP_PEDESTAL = register("shop_pedestal", new ShopPedestalBlock(
             AbstractBlock.Settings.create().mapColor(MapColor.PURPLE).strength(-1.0F, 3600000.0F)
                     .luminance(state -> 12).nonOpaque().sounds(BlockSoundGroup.AMETHYST_BLOCK)
@@ -2695,6 +3071,7 @@ import @@PKG@@.RealityShopMod;
 import @@PKG@@.item.CursedKittyPhoneItem;
 import @@PKG@@.item.GlitchPickaxeItem;
 import @@PKG@@.item.GlitchyFloppyItem;
+import @@PKG@@.item.PortalGateItem;
 import @@PKG@@.item.PowerBlockItem;
 import @@PKG@@.item.QuantumUsbItem;
 import java.util.ArrayList;
@@ -2712,7 +3089,7 @@ public final class ModItems {
     public static final List<Item> ALL = new ArrayList<>();
 
     public static final Item BLACK_MARKET_PORTAL = register("black_market_portal",
-            new BlockItem(ModBlocks.BLACK_MARKET_PORTAL, new Item.Settings().rarity(Rarity.EPIC)));
+            new PortalGateItem(new Item.Settings().rarity(Rarity.EPIC)));
     public static final Item SHOP_PEDESTAL = register("shop_pedestal",
             new BlockItem(ModBlocks.SHOP_PEDESTAL, new Item.Settings().rarity(Rarity.RARE)));
     public static final Item GLITCH_PICKAXE = register("glitch_pickaxe",
@@ -2748,6 +3125,7 @@ package @@PKG@@.registry;
 import @@PKG@@.RealityShopMod;
 import @@PKG@@.block.Beacon5GBlockEntity;
 import @@PKG@@.block.HackedRgbFurnaceBlockEntity;
+import @@PKG@@.shop.PortalGateBlockEntity;
 import @@PKG@@.shop.ShopPedestalBlockEntity;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.registry.Registries;
@@ -2764,6 +3142,9 @@ public final class ModBlockEntities {
     public static final BlockEntityType<Beacon5GBlockEntity> BEACON_5G = Registry.register(
             Registries.BLOCK_ENTITY_TYPE, RealityShopMod.id("beacon_5g"),
             BlockEntityType.Builder.create(Beacon5GBlockEntity::new, ModBlocks.BEACON_5G).build(null));
+    public static final BlockEntityType<PortalGateBlockEntity> PORTAL_GATE = Registry.register(
+            Registries.BLOCK_ENTITY_TYPE, RealityShopMod.id("portal_gate"),
+            BlockEntityType.Builder.create(PortalGateBlockEntity::new, ModBlocks.BLACK_MARKET_PORTAL).build(null));
     // <<BLOCK_ENTITIES>>
 
     private ModBlockEntities() {}
@@ -2984,59 +3365,6 @@ public class ShopPedestalBlock extends BlockWithEntity {
 }
 ''')
 
-J("shop/BlackMarketPortalBlock.java", r'''
-package @@PKG@@.shop;
-
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.ShapeContext;
-import net.minecraft.entity.Entity;
-import net.minecraft.particle.ParticleTypes;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.random.Random;
-import net.minecraft.util.shape.VoxelShape;
-import net.minecraft.util.shape.VoxelShapes;
-import net.minecraft.world.BlockView;
-import net.minecraft.world.World;
-
-/** Walk into it: you are teleported instantly (to the Black Market, or back out if you are already there). */
-public class BlackMarketPortalBlock extends Block {
-    public BlackMarketPortalBlock(Settings settings) {
-        super(settings);
-    }
-
-    @Override
-    public VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-        return VoxelShapes.fullCube();
-    }
-
-    @Override
-    public void onEntityCollision(BlockState state, World world, BlockPos pos, Entity entity) {
-        if (!world.isClient && entity instanceof ServerPlayerEntity player) {
-            ShopDimensions.useGate(player);
-        }
-    }
-
-    @Override
-    public boolean isSideInvisible(BlockState state, BlockState stateFrom, Direction direction) {
-        return stateFrom.isOf(this) || super.isSideInvisible(state, stateFrom, direction);
-    }
-
-    @Override
-    @Environment(EnvType.CLIENT)
-    public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-        for (int i = 0; i < 3; i++) {
-            world.addParticle(ParticleTypes.REVERSE_PORTAL, pos.getX() + random.nextDouble(), pos.getY() + random.nextDouble(),
-                    pos.getZ() + random.nextDouble(), (random.nextDouble() - 0.5) * 0.1, random.nextDouble() * 0.1, (random.nextDouble() - 0.5) * 0.1);
-        }
-    }
-}
-''')
-
 J("shop/ShopDimensions.java", r'''
 package @@PKG@@.shop;
 
@@ -3044,11 +3372,14 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import @@PKG@@.RealityShopMod;
 import @@PKG@@.economy.ConsumedBlocks;
+import @@PKG@@.net.TransitionPackets;
+import @@PKG@@.util.ServerTasks;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentType;
+import net.minecraft.block.BlockState;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.MinecraftServer;
@@ -3058,22 +3389,34 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.World;
 
-/** The BlackMarket and Bedrock Realm dimensions: keys, entering/leaving, and the remembered way back. */
+/**
+ * The BlackMarket and Bedrock Realm dimensions: keys, entering/leaving, and the remembered way back. Every trip is
+ * "smooth": the client fades into the gate's vortex, is moved without a loading screen and fades out again.
+ */
 public final class ShopDimensions {
     public static final RegistryKey<World> BLACK_MARKET = RegistryKey.of(RegistryKeys.WORLD, RealityShopMod.id("black_market"));
     public static final RegistryKey<World> BEDROCK_REALM = RegistryKey.of(RegistryKeys.WORLD, RealityShopMod.id("bedrock_realm"));
 
-    /** Where a player stood before entering the shop / void (saved with the player, survives death). */
-    public record ReturnPoint(String dimension, double x, double y, double z, float yaw) {
+    /**
+     * Where a player stood before entering the shop (saved with the player, survives death). If they came through a gate, that
+     * gate's cell and facing are remembered too, so they step out in FRONT of it instead of into the doorway again.
+     */
+    public record ReturnPoint(String dimension, double x, double y, double z, float yaw, int gateX, int gateY, int gateZ, int gateFacing) {
+        public static final int NO_GATE = Integer.MIN_VALUE;
         public static final Codec<ReturnPoint> CODEC = RecordCodecBuilder.create(i -> i.group(
                 Codec.STRING.fieldOf("dim").forGetter(ReturnPoint::dimension),
                 Codec.DOUBLE.fieldOf("x").forGetter(ReturnPoint::x),
                 Codec.DOUBLE.fieldOf("y").forGetter(ReturnPoint::y),
                 Codec.DOUBLE.fieldOf("z").forGetter(ReturnPoint::z),
-                Codec.FLOAT.fieldOf("yaw").forGetter(ReturnPoint::yaw)).apply(i, ReturnPoint::new));
+                Codec.FLOAT.fieldOf("yaw").forGetter(ReturnPoint::yaw),
+                Codec.INT.optionalFieldOf("gx", NO_GATE).forGetter(ReturnPoint::gateX),
+                Codec.INT.optionalFieldOf("gy", 0).forGetter(ReturnPoint::gateY),
+                Codec.INT.optionalFieldOf("gz", 0).forGetter(ReturnPoint::gateZ),
+                Codec.INT.optionalFieldOf("gf", 0).forGetter(ReturnPoint::gateFacing)).apply(i, ReturnPoint::new));
     }
 
     private static final AttachmentType<ReturnPoint> RETURN_POINT = AttachmentRegistry.<ReturnPoint>builder()
@@ -3081,6 +3424,10 @@ public final class ShopDimensions {
 
     private static final Map<UUID, Long> LAST_GATE = new HashMap<>();
     private static final long GATE_COOLDOWN_TICKS = 40;
+    /** Fade lead-in for trips that do not start by walking into a gate (commands, the USB). */
+    private static final int LEAD_TICKS = 12;
+    /** Counts walk-throughs (game tests use it: the test server has no shop dimensions to arrive in). */
+    public static long gateUses;
 
     private ShopDimensions() {}
 
@@ -3088,35 +3435,43 @@ public final class ShopDimensions {
         return world.getRegistryKey() == BLACK_MARKET || world.getRegistryKey() == BEDROCK_REALM;
     }
 
-    /** Called from the portal block. The actual teleport is deferred to after the entity-collision loop. */
-    public static void useGate(ServerPlayerEntity player) {
+    // ------------------------------------------------------------------------------------------ gates
+    /** A player walked into a gate: out of the shop if they are in it, into the shop otherwise. */
+    public static void useGate(ServerPlayerEntity player, BlockPos gateMaster, Direction gateFacing) {
+        gateUses++;
         long now = player.getServerWorld().getTime();
         Long last = LAST_GATE.get(player.getUuid());
         if (last != null && now - last < GATE_COOLDOWN_TICKS) {
+            TransitionPackets.send(player, false);
             return;
         }
         LAST_GATE.put(player.getUuid(), now);
-        player.server.execute(() -> {
-            if (isShopDimension(player.getServerWorld())) {
-                leave(player);
-            } else {
-                enterMarket(player);
-            }
-        });
+        if (isShopDimension(player.getServerWorld())) {
+            leave(player, 0);
+        } else {
+            enterMarket(player, 0, gateMaster, gateFacing);
+        }
     }
 
+    // ------------------------------------------------------------------------------------------ trips
+    /** Admin shortcut: to the Black Market, no gate involved. */
     public static void enterMarket(ServerPlayerEntity player) {
+        enterMarket(player, LEAD_TICKS, null, null);
+    }
+
+    private static void enterMarket(ServerPlayerEntity player, int lead, BlockPos gateMaster, Direction gateFacing) {
         ServerWorld market = player.server.getWorld(BLACK_MARKET);
         if (market == null) {
             player.sendMessage(Text.literal("The Black Market dimension is not loaded (is the realityshop datapack active?)").formatted(Formatting.RED), false);
+            TransitionPackets.send(player, false);
             return;
         }
-        rememberReturn(player);
+        if (!isShopDimension(player.getServerWorld())) {
+            rememberReturn(player, gateMaster, gateFacing);
+        }
         BlackMarketRoom.ensureBuilt(market);
         BlockPos spawn = BlackMarketRoom.SPAWN;
-        player.teleport(market, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, 180.0f, 0.0f);
-        player.fallDistance = 0;
-        ConsumedBlocks.sync(player);
+        smooth(player, market, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, BlackMarketRoom.SPAWN_YAW, 0.0f, lead);
     }
 
     /** Teleports to the Bedrock Realm (used by the Quantum USB once its purge has finished). There is no gate back. */
@@ -3124,25 +3479,32 @@ public final class ShopDimensions {
         ServerWorld realm = player.server.getWorld(BEDROCK_REALM);
         if (realm == null) {
             player.sendMessage(Text.literal("The Bedrock Realm dimension is not loaded").formatted(Formatting.RED), false);
+            TransitionPackets.send(player, false);
             return;
         }
         if (!isShopDimension(player.getServerWorld())) {
-            rememberReturn(player);
+            rememberReturn(player, null, null);
         }
         BedrockRealm.ensureBuilt(realm);
         BlockPos spawn = BedrockRealm.SPAWN;
-        player.teleport(realm, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, 0.0f, 0.0f);
-        player.fallDistance = 0;
-        ConsumedBlocks.sync(player);
+        smooth(player, realm, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, 0.0f, 0.0f, LEAD_TICKS);
     }
 
     public static void leave(ServerPlayerEntity player) {
+        leave(player, LEAD_TICKS);
+    }
+
+    private static void leave(ServerPlayerEntity player, int lead) {
         MinecraftServer server = player.server;
         ReturnPoint point = player.getAttached(RETURN_POINT);
+        if (RealityShopMod.DEBUG) {
+            RealityShopMod.LOGGER.info("[gate] leave from {} at ({}, {}, {}) return point = {}", player.getServerWorld().getRegistryKey().getValue(),
+                    player.getX(), player.getY(), player.getZ(), point);
+        }
         ServerWorld target = null;
-        double x;
-        double y;
-        double z;
+        double x = 0;
+        double y = 0;
+        double z = 0;
         float yaw = 0.0f;
         if (point != null) {
             Identifier id = Identifier.tryParse(point.dimension());
@@ -3153,8 +3515,6 @@ public final class ShopDimensions {
             y = point.y();
             z = point.z();
             yaw = point.yaw();
-        } else {
-            x = y = z = 0;
         }
         if (target == null || isShopDimension(target)) {
             target = server.getOverworld();
@@ -3162,15 +3522,83 @@ public final class ShopDimensions {
             x = spawn.getX() + 0.5;
             z = spawn.getZ() + 0.5;
             y = target.getTopY(Heightmap.Type.MOTION_BLOCKING, spawn.getX(), spawn.getZ());
+            point = null;
         }
-        player.teleport(target, x, y, z, yaw, 0.0f);
-        player.fallDistance = 0;
-        ConsumedBlocks.sync(player);
+        // came through a gate that is still standing: step out in front of it, looking away from it (never into the doorway)
+        if (point != null && point.gateX() != ReturnPoint.NO_GATE) {
+            BlockPos master = new BlockPos(point.gateX(), point.gateY(), point.gateZ());
+            Direction facing = Direction.byId(point.gateFacing());
+            if (facing.getAxis().isHorizontal() && PortalGateBlock.intact(target, master, facing)) {
+                BlockPos out = findFree(target, master.offset(facing, 2));
+                if (out == null) {
+                    out = findFree(target, master.offset(facing.getOpposite(), 2));
+                    yaw = facing.getOpposite().asRotation();
+                } else {
+                    yaw = facing.asRotation();
+                }
+                if (out != null) {
+                    x = out.getX() + 0.5;
+                    y = out.getY();
+                    z = out.getZ() + 0.5;
+                }
+            }
+        }
+        smooth(player, target, x, y, z, yaw, 0.0f, lead);
     }
 
-    private static void rememberReturn(ServerPlayerEntity player) {
+    /** The first position at or just above/below {@code pos} with two free blocks and solid ground, or null. */
+    private static BlockPos findFree(ServerWorld world, BlockPos pos) {
+        for (int dy : new int[]{0, 1, -1, 2, -2}) {
+            BlockPos p = pos.up(dy);
+            BlockState below = world.getBlockState(p.down());
+            if (world.getBlockState(p).getCollisionShape(world, p).isEmpty() && world.getBlockState(p.up()).getCollisionShape(world, p.up()).isEmpty()
+                    && !below.getCollisionShape(world, p.down()).isEmpty()) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+    /** Fades the client into the vortex, moves the player (no loading screen on the client) and syncs the HUD. */
+    private static void smooth(ServerPlayerEntity player, ServerWorld target, double x, double y, double z, float yaw, float pitch, int lead) {
+        Runnable go = () -> {
+            if (player.isRemoved() || !player.isAlive()) {
+                return;
+            }
+            if (RealityShopMod.DEBUG) {
+                RealityShopMod.LOGGER.info("[gate] teleport {} -> {} to ({}, {}, {}) yaw {}", player.getServerWorld().getRegistryKey().getValue(),
+                        target.getRegistryKey().getValue(), x, y, z, yaw);
+            }
+            player.teleport(target, x, y, z, yaw, pitch);
+            player.fallDistance = 0;
+            ConsumedBlocks.sync(player);
+            trace(player, target.getRegistryKey().getValue().getPath());
+        };
+        if (lead <= 0) {
+            go.run();
+        } else {
+            TransitionPackets.send(player, true);
+            ServerTasks.later(lead, go);
+        }
+    }
+
+    private static void trace(ServerPlayerEntity player, String label) {
+        if (!RealityShopMod.DEBUG) {
+            return;
+        }
+        for (int t : new int[]{1, 2, 5, 10, 20, 40, 60, 80}) {
+            ServerTasks.later(t, () -> RealityShopMod.LOGGER.info("[gate-trace] {} +{}t world={} pos=({}, {}, {}) fall={} onGround={} alive={}",
+                    label, t, player.getServerWorld().getRegistryKey().getValue(), String.format("%.2f", player.getX()),
+                    String.format("%.2f", player.getY()), String.format("%.2f", player.getZ()), String.format("%.1f", player.fallDistance),
+                    player.isOnGround(), player.isAlive()));
+        }
+    }
+
+    private static void rememberReturn(ServerPlayerEntity player, BlockPos gateMaster, Direction gateFacing) {
         player.setAttached(RETURN_POINT, new ReturnPoint(player.getServerWorld().getRegistryKey().getValue().toString(),
-                player.getX(), player.getY(), player.getZ(), player.getYaw()));
+                player.getX(), player.getY(), player.getZ(), player.getYaw(),
+                gateMaster == null ? ReturnPoint.NO_GATE : gateMaster.getX(), gateMaster == null ? 0 : gateMaster.getY(),
+                gateMaster == null ? 0 : gateMaster.getZ(), gateFacing == null ? 0 : gateFacing.getId()));
     }
 }
 ''')
@@ -3182,79 +3610,56 @@ import @@PKG@@.registry.ModBlocks;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.LightBlock;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
-/** Builds the predefined Crying Obsidian shop hall (and the small Void Realm platform) the first time it is needed. */
+/**
+ * The Black Market: a round cathedral 55 blocks across. A patterned floor around a glowing "consumption well", six
+ * pedestals on radial spokes, a windowed wall with coloured stained glass and pillars, a ribbed dome with a chandelier, a lit shrine window
+ * behind every pedestal, and the permanent exit gate in a recess of the south wall. Built from many different blocks (blackstone, deepslate, gilded blackstone, amethyst, crying
+ * obsidian, glass, sea lanterns, shroomlight ...). It is built once, when the dimension first loads or is first visited.
+ */
 public final class BlackMarketRoom {
-    public static final int HALF = 10;                 // shell half-size: the hall is 21 x 21
-    public static final int FLOOR_Y = 64;              // floor layer; air from FLOOR_Y + 1 .. FLOOR_Y + 6; ceiling at FLOOR_Y + 7
-    public static final int CEILING_Y = FLOOR_Y + 7;
-    public static final BlockPos SPAWN = new BlockPos(0, FLOOR_Y + 1, 0);
-    private static final int PEDESTAL_RADIUS = 6;
+    public static final int FLOOR_Y = 64;
+    /** Hall radius (the clear floor is a disc of this radius). */
+    public static final int R = 27;
+    private static final int WALL = 4;
+    /** Height of the straight wall; the dome springs from there. */
+    public static final int WALL_H = 13;
+    public static final int DOME_H = 15;
+    public static final int PEDESTAL_R = 14;
+    /** The exit gate's master cell (the bottom of its doorway): in the south wall, facing north into the hall. */
+    public static final BlockPos GATE = new BlockPos(0, FLOOR_Y + 1, R);
+    public static final BlockPos SPAWN = new BlockPos(0, FLOOR_Y + 1, R - 5);
+    public static final float SPAWN_YAW = 180.0f;
+    /** The highest layer of air under the dome; the oculus glass sits one above it. */
+    public static final int APEX_Y = FLOOR_Y + WALL_H + DOME_H;
+    /** Highest block the build touches (the dome's apex plus its shell). */
+    public static final int TOP_Y = APEX_Y + 7;
 
     private BlackMarketRoom() {}
 
+    /** Pedestal i stands at 60, 0, -60, -120, 180 and 120 degrees: the first ones nearest the entrance, going round the hall. */
+    public static double pedestalAngle(int i) {
+        return Math.toRadians(60 - 60 * i);
+    }
+
+    public static BlockPos pedestalPos(int i) {
+        double a = pedestalAngle(i);
+        return new BlockPos((int) Math.round(PEDESTAL_R * Math.cos(a)), FLOOR_Y + 1, (int) Math.round(PEDESTAL_R * Math.sin(a)));
+    }
+
     public static boolean isBuilt(ServerWorld world) {
-        return world.getBlockState(new BlockPos(0, FLOOR_Y, 0)).isOf(Blocks.CRYING_OBSIDIAN)
-                && world.getBlockState(new BlockPos(0, FLOOR_Y + 1, PEDESTAL_RADIUS)).isOf(ModBlocks.SHOP_PEDESTAL);
+        return world.getBlockState(new BlockPos(0, FLOOR_Y, 0)).isOf(Blocks.PURPLE_STAINED_GLASS)
+                && world.getBlockState(pedestalPos(0)).isOf(ModBlocks.SHOP_PEDESTAL)
+                && world.getBlockState(GATE).isOf(ModBlocks.BLACK_MARKET_PORTAL);
     }
 
     public static void ensureBuilt(ServerWorld world) {
         if (!isBuilt(world)) {
             build(world);
-        }
-    }
-
-    public static void build(ServerWorld world) {
-        for (int cx = -1; cx <= 0; cx++) {
-            for (int cz = -1; cz <= 0; cz++) {
-                world.getChunk(cx, cz);   // make sure the chunks exist before placing blocks
-            }
-        }
-        BlockState cry = Blocks.CRYING_OBSIDIAN.getDefaultState();
-        BlockState air = Blocks.AIR.getDefaultState();
-        for (int x = -HALF; x <= HALF; x++) {
-            for (int z = -HALF; z <= HALF; z++) {
-                for (int y = FLOOR_Y; y <= CEILING_Y; y++) {
-                    boolean shell = Math.abs(x) == HALF || Math.abs(z) == HALF || y == FLOOR_Y || y == CEILING_Y;
-                    set(world, new BlockPos(x, y, z), shell ? cry : air);
-                }
-            }
-        }
-        // four corner pillars (2x2) so the hall is not just a box
-        for (int sx = -1; sx <= 1; sx += 2) {
-            for (int sz = -1; sz <= 1; sz += 2) {
-                for (int dx = 0; dx < 2; dx++) {
-                    for (int dz = 0; dz < 2; dz++) {
-                        for (int y = FLOOR_Y + 1; y < CEILING_Y; y++) {
-                            set(world, new BlockPos(sx * (HALF - 3) + dx * -sx, y, sz * (HALF - 3) + dz * -sz), cry);
-                        }
-                    }
-                }
-            }
-        }
-        // the gate back out: a doorway frame in front of the south wall with two portal blocks
-        int gz = HALF - 1;
-        for (int y = FLOOR_Y + 1; y <= FLOOR_Y + 4; y++) {
-            set(world, new BlockPos(-2, y, gz), cry);
-            set(world, new BlockPos(2, y, gz), cry);
-        }
-        for (int x = -2; x <= 2; x++) {
-            set(world, new BlockPos(x, FLOOR_Y + 4, gz), cry);
-        }
-        for (int y = FLOOR_Y + 1; y <= FLOOR_Y + 3; y++) {
-            for (int x = -1; x <= 1; x++) {
-                set(world, new BlockPos(x, y, gz), ModBlocks.BLACK_MARKET_PORTAL.getDefaultState());
-            }
-        }
-        // the six pedestals on a ring around the centre, cheapest first, clockwise from the north
-        ShopOffer[] offers = ShopOffer.values();
-        for (int i = 0; i < offers.length; i++) {
-            double angle = Math.toRadians(-90 + i * 60);
-            BlockPos pos = new BlockPos((int) Math.round(PEDESTAL_RADIUS * Math.cos(angle)), FLOOR_Y + 1,
-                    (int) Math.round(PEDESTAL_RADIUS * Math.sin(angle)));
-            placePedestal(world, pos, offers[i]);
         }
     }
 
@@ -3265,8 +3670,389 @@ public final class BlackMarketRoom {
         }
     }
 
-    private static void set(ServerWorld world, BlockPos pos, BlockState state) {
-        world.setBlockState(pos, state, Block.NOTIFY_LISTENERS);
+    // ------------------------------------------------------------------------------------------ the build
+    public static void build(ServerWorld world) {
+        int reach = R + WALL + 1;
+        for (int cx = Math.floorDiv(-reach, 16); cx <= Math.floorDiv(reach, 16); cx++) {
+            for (int cz = Math.floorDiv(-reach, 16); cz <= Math.floorDiv(reach, 16); cz++) {
+                world.getChunk(cx, cz);   // make sure the chunks exist before placing blocks
+            }
+        }
+        Builder b = new Builder(world);
+        boolean fresh = world.getBlockState(new BlockPos(0, FLOOR_Y, 0)).isAir() && world.getBlockState(new BlockPos(R - 5, FLOOR_Y, 0)).isAir();
+        if (!fresh) {
+            b.clear(reach);    // an older hall (or a rebuild): wipe the whole volume first
+        }
+        b.floor();
+        b.walls();
+        b.dome();
+        b.lamps();
+        b.entrance();
+        b.pedestals();
+        b.chandelier();
+    }
+
+    private static final class Builder {
+        final ServerWorld world;
+        final BlockPos.Mutable pos = new BlockPos.Mutable();
+        final BlockState air = Blocks.AIR.getDefaultState();
+        final BlockState brick = Blocks.POLISHED_BLACKSTONE_BRICKS.getDefaultState();
+        final BlockState polished = Blocks.POLISHED_BLACKSTONE.getDefaultState();
+        final BlockState black = Blocks.BLACKSTONE.getDefaultState();
+        final BlockState basalt = Blocks.POLISHED_BASALT.getDefaultState();
+        final BlockState cracked = Blocks.CRACKED_POLISHED_BLACKSTONE_BRICKS.getDefaultState();
+        final BlockState gilded = Blocks.GILDED_BLACKSTONE.getDefaultState();
+        final BlockState tiles = Blocks.DEEPSLATE_TILES.getDefaultState();
+        final BlockState deepBricks = Blocks.DEEPSLATE_BRICKS.getDefaultState();
+        final BlockState deepPolished = Blocks.POLISHED_DEEPSLATE.getDefaultState();
+        final BlockState amethyst = Blocks.AMETHYST_BLOCK.getDefaultState();
+        final BlockState cry = Blocks.CRYING_OBSIDIAN.getDefaultState();
+        final BlockState glass = Blocks.PURPLE_STAINED_GLASS.getDefaultState();
+        final BlockState lantern = Blocks.SEA_LANTERN.getDefaultState();
+        final BlockState shroom = Blocks.SHROOMLIGHT.getDefaultState();
+        final BlockState concrete = Blocks.PURPLE_CONCRETE.getDefaultState();
+        final BlockState lamp = Blocks.LIGHT.getDefaultState().with(LightBlock.LEVEL_15, 14);
+        /** The tall windows run through these colours, bay by bay. */
+        final BlockState[] windows = {
+                Blocks.PURPLE_STAINED_GLASS.getDefaultState(), Blocks.MAGENTA_STAINED_GLASS.getDefaultState(),
+                Blocks.LIGHT_BLUE_STAINED_GLASS.getDefaultState(), Blocks.CYAN_STAINED_GLASS.getDefaultState(),
+                Blocks.PINK_STAINED_GLASS.getDefaultState(), Blocks.BLUE_STAINED_GLASS.getDefaultState()};
+        /** The shrine window behind each pedestal matches its item: pickaxe, floppy, kitty phone, furnace, beacon, USB. */
+        final BlockState[] shrines = {
+                Blocks.MAGENTA_STAINED_GLASS.getDefaultState(), Blocks.LIGHT_BLUE_STAINED_GLASS.getDefaultState(),
+                Blocks.PINK_STAINED_GLASS.getDefaultState(), Blocks.LIME_STAINED_GLASS.getDefaultState(),
+                Blocks.RED_STAINED_GLASS.getDefaultState(), Blocks.CYAN_STAINED_GLASS.getDefaultState()};
+
+        Builder(ServerWorld world) {
+            this.world = world;
+        }
+
+        void set(int x, int y, int z, BlockState state) {
+            pos.set(x, y, z);
+            if (world.getBlockState(pos) != state) {
+                world.setBlockState(pos, state, Block.NOTIFY_LISTENERS);
+            }
+        }
+
+        void clear(int reach) {
+            for (int x = -reach; x <= reach; x++) {
+                for (int z = -reach; z <= reach; z++) {
+                    for (int y = FLOOR_Y - 4; y <= TOP_Y + 3; y++) {
+                        set(x, y, z, air);
+                    }
+                }
+            }
+        }
+
+        static int hash(int x, int z) {
+            int h = x * 73856093 ^ z * 19349663;
+            h ^= h >>> 13;
+            return h & 0x7fffffff;
+        }
+
+        // ---------------------------------------------------------------------------------- floor
+        void floor() {
+            int reach = R + WALL;
+            for (int x = -reach; x <= reach; x++) {
+                for (int z = -reach; z <= reach; z++) {
+                    double d = Math.sqrt((double) x * x + (double) z * z);
+                    if (d > reach) {
+                        continue;
+                    }
+                    set(x, FLOOR_Y, z, floorBlock(x, z, d));
+                    for (int dy = 1; dy <= 3; dy++) {   // foundation, with the consumption well hollowed out in the middle
+                        BlockState under = deepBricks;
+                        if (d < 3.0) {
+                            under = dy == 3 ? lantern : air;
+                        }
+                        set(x, FLOOR_Y - dy, z, under);
+                    }
+                }
+            }
+            // lanterns sunk into the floor on a ring between the pedestals
+            for (int k = 0; k < 12; k++) {
+                double a = Math.toRadians(15 + k * 30);
+                set((int) Math.round(Math.cos(a) * (PEDESTAL_R + 3.5)), FLOOR_Y, (int) Math.round(Math.sin(a) * (PEDESTAL_R + 3.5)), lantern);
+            }
+        }
+
+        BlockState floorBlock(int x, int z, double d) {
+            // pedestal pads first
+            for (int i = 0; i < 6; i++) {
+                BlockPos p = pedestalPos(i);
+                double pd = Math.sqrt((x - p.getX()) * (x - p.getX()) + (double) (z - p.getZ()) * (z - p.getZ()));
+                if (pd < 2.6) {
+                    return gilded;
+                }
+                if (pd < 3.6) {
+                    return cry;
+                }
+            }
+            if (d < 3.0) {
+                return glass;              // the consumption well: a purple glow from far below
+            }
+            if (d < 4.0) {
+                return gilded;
+            }
+            if (d < 5.0) {
+                return polished;
+            }
+            if (d < 6.0) {
+                return amethyst;
+            }
+            if (z >= 6 && Math.abs(x) <= 2) {
+                return Math.abs(x) == 2 ? gilded : (z % 3 == 0 ? cry : concrete);    // the carpet from the exit gate straight to the well
+            }
+            if (d < PEDESTAL_R + 3.0) {
+                if (onSpoke(x, z)) {
+                    return ((x + z) & 1) == 0 ? cry : concrete;
+                }
+                return ((x + z) & 1) == 0 ? deepPolished : tiles;
+            }
+            if (d < PEDESTAL_R + 4.0) {
+                return gilded;
+            }
+            if (d < R - 5) {
+                int h = hash(x, z) % 10;
+                return ((x / 2 + z / 2) & 1) == 0 ? (h == 0 ? black : brick) : (h == 1 ? cracked : polished);
+            }
+            if (d < R - 1) {
+                int h = hash(x, z) % 6;
+                return h == 0 ? black : (h == 1 ? basalt : brick);
+            }
+            return d < R ? gilded : deepBricks;
+        }
+
+        boolean onSpoke(int x, int z) {
+            for (int i = 0; i < 6; i++) {
+                double a = pedestalAngle(i);
+                double along = x * Math.cos(a) + z * Math.sin(a);
+                double across = Math.abs(-x * Math.sin(a) + z * Math.cos(a));
+                if (along > 0 && across < 1.6) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // ---------------------------------------------------------------------------------- walls
+        void walls() {
+            int reach = R + WALL;
+            for (int x = -reach; x <= reach; x++) {
+                for (int z = -reach; z <= reach; z++) {
+                    double d = Math.sqrt((double) x * x + (double) z * z);
+                    if (d < R - 1 || d >= reach) {
+                        continue;
+                    }
+                    double ang = (Math.toDegrees(Math.atan2(z, x)) + 360.0) % 360.0;
+                    double phi = ((ang + 15.0) % 30.0) - 15.0;                 // degrees from the centre of this bay
+                    int bay = (int) Math.floor(((ang + 15.0) % 360.0) / 30.0);
+                    double s = Math.toRadians(phi) * d;                         // blocks from the centre of the bay
+                    boolean pillar = Math.abs(s) >= 5.4;
+                    for (int rel = 1; rel <= WALL_H; rel++) {
+                        BlockState state = null;
+                        if (d >= R - 1 && d < R) {
+                            state = pillar && Math.abs(s) >= 5.8 ? pillarBlock(rel) : null;   // pillars stand 1 block into the hall
+                        } else if (pillar && Math.abs(s) >= 5.6) {
+                            state = pillarBlock(rel);
+                        } else if (d < R + 2) {
+                            state = panelBlock(rel, s, d, bay);
+                        } else {
+                            state = (d < R + 3 && Math.abs(s) <= 1.8 && rel >= 4 && rel <= 10) ? lantern : deepBricks;   // glowing backing behind the windows
+                        }
+                        if (state != null) {
+                            set(x, FLOOR_Y + rel, z, state);
+                        }
+                    }
+                }
+            }
+        }
+
+        BlockState pillarBlock(int rel) {
+            if (rel == 1) {
+                return gilded;
+            }
+            if (rel == 2) {
+                return gilded;
+            }
+            if (rel == WALL_H - 1 || rel == WALL_H) {
+                return deepPolished;
+            }
+            if (rel == 7) {
+                return shroom;       // a warm lamp set into each pillar
+            }
+            return polished;
+        }
+
+        BlockState panelBlock(int rel, double s, double d, int bay) {
+            double hw = rel <= 8 ? 1.8 : (rel == 9 ? 1.2 : 0.6);
+            boolean windowRows = rel >= 4 && rel <= 10;
+            if (windowRows && Math.abs(s) <= hw) {
+                return windows[bay % windows.length];
+            }
+            if (windowRows && Math.abs(s) <= hw + 1.0) {
+                return gilded;          // gold frame around the window
+            }
+            if (rel <= 2) {
+                return brick;
+            }
+            if (rel == 3 || rel == 11) {
+                return gilded;
+            }
+            if (rel >= 12) {
+                return tiles;
+            }
+            return (rel & 1) == 0 ? brick : deepPolished;
+        }
+
+        // ---------------------------------------------------------------------------------- dome
+        void dome() {
+            double aIn = R;
+            double cIn = DOME_H;
+            double aOut = R + WALL;
+            double cOut = DOME_H + 6;
+            int reach = R + WALL;
+            for (int h = 1; h <= (int) cOut; h++) {
+                int y = FLOOR_Y + WALL_H + h;
+                for (int x = -reach; x <= reach; x++) {
+                    for (int z = -reach; z <= reach; z++) {
+                        double rho2 = (double) x * x + (double) z * z;
+                        double eOut = rho2 / (aOut * aOut) + (double) h * h / (cOut * cOut);
+                        if (eOut > 1.0) {
+                            continue;
+                        }
+                        double eIn = rho2 / (aIn * aIn) + (double) h * h / (cIn * cIn);
+                        if (eIn <= 1.0) {
+                            continue;     // the hall's air
+                        }
+                        set(x, y, z, domeBlock(x, z, h, Math.sqrt(rho2), eIn));
+                    }
+                }
+            }
+        }
+
+        BlockState domeBlock(int x, int z, int h, double rho, double eIn) {
+            boolean surface = eIn <= 1.14;
+            if (!surface) {
+                return tiles;
+            }
+            if (rho < 3.4 && h >= DOME_H - 2) {
+                return glass;                     // the oculus
+            }
+            double ang = (Math.toDegrees(Math.atan2(z, x)) + 360.0) % 360.0;
+            double rib = Math.abs(((ang + 7.5) % 15.0) - 7.5) * Math.toRadians(1.0) * rho;   // blocks from the nearest rib
+            if (rib < 0.7) {
+                return (h % 6 == 3) ? lantern : cry;
+            }
+            if (h == 4 || h == 9) {
+                return gilded;
+            }
+            return (hash(x, z) % 23 == 0) ? lantern : deepBricks;
+        }
+
+        // ---------------------------------------------------------------------------------- entrance gate in the south wall
+        void entrance() {
+            for (int x = -4; x <= 4; x++) {
+                for (int y = 1; y <= 7; y++) {
+                    for (int z = R - 1; z <= R + 2; z++) {
+                        boolean pillar = Math.abs(x) >= 3;
+                        boolean lintel = y >= 6;
+                        BlockState state = air;
+                        if (pillar || lintel) {
+                            state = y == 6 || y == 1 ? gilded : (y == 7 ? deepBricks : (Math.abs(x) == 4 ? deepBricks : polished));
+                            if (y == 7 && Math.abs(x) >= 3) {
+                                state = air;                                  // the pediment steps in: 9 wide at the lintel, 5 wide above it
+                            }
+                        }
+                        set(x, FLOOR_Y + y, z, state);
+                    }
+                }
+            }
+            for (int x = -2; x <= 2; x++) {
+                set(x, FLOOR_Y + 7, R - 1, x == 0 ? lantern : cry);
+                for (int y = 1; y <= 5; y++) {
+                    set(x, FLOOR_Y + y, R + 3, y == 5 || Math.abs(x) == 2 ? cry : black);   // a dark backdrop for the swirl
+                }
+            }
+            for (int y = 2; y <= 5; y++) {
+                set(-3, FLOOR_Y + y, R - 1, y == 4 ? lantern : polished);
+                set(3, FLOOR_Y + y, R - 1, y == 4 ? lantern : polished);
+            }
+            set(-3, FLOOR_Y + 5, R - 1, amethyst);
+            set(3, FLOOR_Y + 5, R - 1, amethyst);
+            for (int x = -1; x <= 1; x++) {                                    // glow under the gate
+                set(x, FLOOR_Y, R, lantern);
+                set(x, FLOOR_Y, R + 1, lantern);
+            }
+            PortalGateBlock.placeNow(world, GATE, Direction.NORTH, true);
+        }
+
+        // ---------------------------------------------------------------------------------- invisible lamps: the prices stay readable
+        void lamps() {
+            for (int x = -24; x <= 24; x += 8) {
+                for (int z = -24; z <= 24; z += 8) {
+                    if (x * x + z * z <= 22 * 22) {
+                        set(x, FLOOR_Y + 3, z, lamp);
+                    }
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------------------------- pedestals + their shrine windows
+        void pedestals() {
+            ShopOffer[] offers = ShopOffer.values();
+            for (int i = 0; i < offers.length; i++) {
+                BlockPos p = pedestalPos(i);
+                placePedestal(world, p, offers[i]);
+                double a = pedestalAngle(i);
+                double ux = Math.cos(a);                   // outwards (away from the centre of the hall)
+                double uz = Math.sin(a);
+                double tx = -uz;                           // sideways
+                double tz = ux;
+                BlockState tint = shrines[i % shrines.length];
+                for (double k = -2.5; k <= 2.5; k += 0.5) {      // sea lanterns behind ...
+                    int lx = (int) Math.round(p.getX() + ux * 4.0 + tx * k);
+                    int lz = (int) Math.round(p.getZ() + uz * 4.0 + tz * k);
+                    for (int y = 1; y <= 4; y++) {
+                        set(lx, FLOOR_Y + y, lz, lantern);
+                    }
+                }
+                for (double k = -2.5; k <= 2.5; k += 0.5) {      // ... a stained-glass window in a gilded frame
+                    int gx = (int) Math.round(p.getX() + ux * 3.0 + tx * k);
+                    int gz = (int) Math.round(p.getZ() + uz * 3.0 + tz * k);
+                    boolean side = Math.abs(k) > 2.2;
+                    for (int y = 1; y <= 5; y++) {
+                        set(gx, FLOOR_Y + y, gz, side ? (y == 1 || y == 5 ? gilded : polished) : (y == 5 ? gilded : tint));
+                    }
+                }
+                for (int side = -1; side <= 1; side += 2) {      // a low crystal brazier on each side of the pedestal
+                    int bx = (int) Math.round(p.getX() + ux * 1.5 + tx * 3.0 * side);
+                    int bz = (int) Math.round(p.getZ() + uz * 1.5 + tz * 3.0 * side);
+                    set(bx, FLOOR_Y + 1, bz, cry);
+                    set(bx, FLOOR_Y + 2, bz, shroom);
+                    set(bx, FLOOR_Y + 3, bz, Blocks.AMETHYST_CLUSTER.getDefaultState());
+                }
+                set(p.getX(), FLOOR_Y + 4, p.getZ(), lamp);    // so the price label above the pedestal is always bright
+            }
+        }
+
+        // ---------------------------------------------------------------------------------- chandelier under the oculus
+        void chandelier() {
+            int top = APEX_Y;
+            BlockState chain = Blocks.CHAIN.getDefaultState();
+            for (int y = top; y >= FLOOR_Y + 17; y--) {
+                set(0, y, 0, chain);
+            }
+            set(0, FLOOR_Y + 16, 0, lantern);
+            for (int k = 0; k < 8; k++) {
+                double a = Math.toRadians(k * 45);
+                int x = (int) Math.round(Math.cos(a) * 3);
+                int z = (int) Math.round(Math.sin(a) * 3);
+                set(x, FLOOR_Y + 16, z, k % 2 == 0 ? shroom : lantern);
+                set(x, FLOOR_Y + 17, z, chain);
+                set(x, FLOOR_Y + 18, z, chain);
+            }
+        }
     }
 }
 ''')
@@ -3288,12 +4074,13 @@ import net.minecraft.client.render.entity.EntityRenderDispatcher;
 import net.minecraft.client.render.item.ItemRenderer;
 import net.minecraft.client.render.model.json.ModelTransformationMode;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.RotationAxis;
 import org.joml.Matrix4f;
 
 /**
- * Floating 3D item + a billboard "Cost: X Blocks" tag above a {@link ShopPedestalBlockEntity}.
+ * Floating 3D item + a billboard tag above a {@link ShopPedestalBlockEntity}: its power, its name and "Cost: X Blocks".
  * The tag is green when the local player's balance covers the cost, red otherwise (computed per viewer).
  */
 public class ShopPedestalRenderer implements BlockEntityRenderer<ShopPedestalBlockEntity> {
@@ -3330,11 +4117,14 @@ public class ShopPedestalRenderer implements BlockEntityRenderer<ShopPedestalBlo
         boolean affordable = ClientBalance.get() >= offer.cost;
         Text name = offer.stack().getName();
         Text cost = Text.literal("Cost: " + RealityShopCommand.fmt(offer.cost) + " Blocks");
+        Text power = Text.translatable("tooltip.realityshop." + Registries.ITEM.getId(offer.stack().getItem()).getPath() + ".1");   // "Power: ..."
         matrices.push();
         matrices.translate(0.5, 2.45, 0.5);
         matrices.multiply(dispatcher.getRotation());
         matrices.scale(-0.022f, -0.022f, 0.022f);
         Matrix4f m = matrices.peek().getPositionMatrix();
+        textRenderer.draw(power, -textRenderer.getWidth(power) / 2.0f, -22, 0xC8B4FF, false, m, vcp,
+                TextRenderer.TextLayerType.SEE_THROUGH, 0x44000000, LightmapTextureManager.MAX_LIGHT_COORDINATE);
         textRenderer.draw(name, -textRenderer.getWidth(name) / 2.0f, -11, 0xFFFFFF, false, m, vcp,
                 TextRenderer.TextLayerType.SEE_THROUGH, 0x55000000, LightmapTextureManager.MAX_LIGHT_COORDINATE);
         textRenderer.draw(cost, -textRenderer.getWidth(cost) / 2.0f, 0, affordable ? GREEN : RED, false, m, vcp,
@@ -4702,6 +5492,7 @@ public class CursedKittyPhoneItem extends Item {
 J("item/QuantumUsbItem.java", r'''
 package @@PKG@@.item;
 
+import @@PKG@@.RSConfig;
 import @@PKG@@.command.RealityShopCommand;
 import @@PKG@@.destroy.DestructionManager;
 import @@PKG@@.destroy.Front;
@@ -4726,12 +5517,12 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Right-click: a 500 x 500 area over the full world height (clipped to the dimension's build height) is purged over ten
- * seconds - starting right in FRONT of you, so the ground under your feet stays. When it is done you are pulled into the
- * Bedrock Realm. There is no portal back.
+ * Right-click: a 1475 x 1475 area (500 x 2.95, config usbPurgeSize) over the full world height (clipped to the dimension's
+ * build height) is purged over ten seconds - starting right in FRONT of you, so the ground under your feet stays. When it is
+ * done you are pulled into the Bedrock Realm. There is no portal back.
  */
 public class QuantumUsbItem extends Item {
-    public static final int SIZE = 500;
+    public static final int SIZE = 1475;
     public static final int PURGE_TICKS = 200;
 
     public QuantumUsbItem(Settings settings) {
@@ -4750,7 +5541,7 @@ public class QuantumUsbItem extends Item {
         }
         ServerWorld sw = (ServerWorld) world;
         BlockPos pos = sp.getBlockPos();
-        RegionClearJob job = new RegionClearJob(sw, Front.of(sp).box(1, SIZE, SIZE, sw.getBottomY(), sw.getTopY() - 1))
+        RegionClearJob job = new RegionClearJob(sw, Front.of(sp).box(1, RSConfig.get().usbPurgeSize, RSConfig.get().usbPurgeSize, sw.getBottomY(), sw.getTopY() - 1))
                 .owner(sp.getUuid()).origin(pos).targetTicks(PURGE_TICKS)
                 .onProgress(j -> {
                     if (sw.getTime() % 10 == 0) {
@@ -5251,6 +6042,8 @@ import @@PKG@@.util.GlowLights;
 import @@PKG@@.registry.ModBlocks;
 import @@PKG@@.registry.ModItems;
 import @@PKG@@.shop.BlackMarketRoom;
+import @@PKG@@.shop.PortalGateBlock;
+import @@PKG@@.shop.PortalGateBlockEntity;
 import @@PKG@@.shop.ShopDimensions;
 import @@PKG@@.shop.ShopOffer;
 import @@PKG@@.shop.ShopPedestalBlockEntity;
@@ -5275,6 +6068,7 @@ public class RealityShopGameTests implements FabricGameTest {
 
     private static void check(TestContext ctx, boolean ok, String message) {
         if (!ok) {
+            RealityShopGameTestsLog.info("CHECK FAILED: " + message);
             ctx.throwGameTestException(message);
         }
     }
@@ -5389,34 +6183,137 @@ public class RealityShopGameTests implements FabricGameTest {
         ctx.complete();
     }
 
-    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200)
-    public void shopRoomBuildsCorrectly(TestContext ctx) {
-        ServerWorld world = ctx.getWorld();   // the room builder works in any world, so test it in the test world
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 400)
+    public void shopHallBuildsCorrectly(TestContext ctx) {
+        ServerWorld world = ctx.getWorld();   // the hall builder works in any world, so test it in the test world
+        long t0 = System.nanoTime();
         BlackMarketRoom.build(world);
-        check(ctx, world.getBlockState(new BlockPos(0, BlackMarketRoom.FLOOR_Y, 0)).isOf(Blocks.CRYING_OBSIDIAN), "floor is Crying Obsidian");
-        check(ctx, world.getBlockState(new BlockPos(BlackMarketRoom.HALF, BlackMarketRoom.FLOOR_Y + 3, 0)).isOf(Blocks.CRYING_OBSIDIAN), "walls are Crying Obsidian");
-        check(ctx, world.getBlockState(new BlockPos(0, BlackMarketRoom.CEILING_Y, 0)).isOf(Blocks.CRYING_OBSIDIAN), "ceiling is Crying Obsidian");
-        check(ctx, world.getBlockState(BlackMarketRoom.SPAWN).isAir() && world.getBlockState(BlackMarketRoom.SPAWN.up()).isAir(), "the arrival spot is free");
-        int pedestals = 0;
+        long ms = (System.nanoTime() - t0) / 1_000_000;
+        RealityShopGameTestsLog.info("shop hall built in " + ms + " ms");
+        int fy = BlackMarketRoom.FLOOR_Y;
+        check(ctx, BlackMarketRoom.isBuilt(world), "isBuilt() recognises the finished hall");
+        check(ctx, world.getBlockState(new BlockPos(0, fy, 0)).isOf(Blocks.PURPLE_STAINED_GLASS), "the consumption well is covered with purple glass");
+        check(ctx, world.getBlockState(new BlockPos(0, fy - 3, 0)).isOf(Blocks.SEA_LANTERN), "and lit from far below");
+        check(ctx, world.getBlockState(BlackMarketRoom.SPAWN).isAir() && world.getBlockState(BlackMarketRoom.SPAWN.up()).isAir()
+                && !world.getBlockState(BlackMarketRoom.SPAWN.down()).isAir(), "the arrival spot is free and has a floor");
+        check(ctx, world.getBlockState(new BlockPos(BlackMarketRoom.R, fy + 6, 0)).isOf(Blocks.PURPLE_STAINED_GLASS), "windows in the wall");
+        check(ctx, world.getBlockState(new BlockPos(0, BlackMarketRoom.APEX_Y + 1, 0)).isOf(Blocks.PURPLE_STAINED_GLASS), "the dome has its oculus");
+        // the dome is an ellipsoid: at 20 blocks from the centre its inside surface is about 10 blocks above the wall top
+        int springline = fy + BlackMarketRoom.WALL_H;
+        check(ctx, world.getBlockState(new BlockPos(20, springline + 8, 0)).isAir() && !world.getBlockState(new BlockPos(20, springline + 13, 0)).isAir(),
+                "the dome shell curves down towards the walls");
         ShopOffer[] seen = new ShopOffer[6];
-        for (int x = -BlackMarketRoom.HALF; x <= BlackMarketRoom.HALF; x++) {
-            for (int z = -BlackMarketRoom.HALF; z <= BlackMarketRoom.HALF; z++) {
-                BlockPos pos = new BlockPos(x, BlackMarketRoom.FLOOR_Y + 1, z);
-                if (world.getBlockState(pos).isOf(ModBlocks.SHOP_PEDESTAL)) {
-                    check(ctx, world.getBlockEntity(pos) instanceof ShopPedestalBlockEntity, "pedestal has its block entity");
-                    if (pedestals < 6) {
-                        seen[pedestals] = ((ShopPedestalBlockEntity) world.getBlockEntity(pos)).getOffer();
+        for (int i = 0; i < 6; i++) {
+            BlockPos p = BlackMarketRoom.pedestalPos(i);
+            check(ctx, world.getBlockState(p).isOf(ModBlocks.SHOP_PEDESTAL) && world.getBlockEntity(p) instanceof ShopPedestalBlockEntity, "pedestal " + i + " exists with its block entity");
+            seen[i] = ((ShopPedestalBlockEntity) world.getBlockEntity(p)).getOffer();
+        }
+        check(ctx, new java.util.HashSet<>(java.util.Arrays.asList(seen)).size() == 6, "every one of the six offers has its own pedestal");
+        check(ctx, PortalGateBlock.intact(world, BlackMarketRoom.GATE, net.minecraft.util.math.Direction.NORTH), "the exit gate is complete");
+        check(ctx, world.getBlockEntity(BlackMarketRoom.GATE) instanceof PortalGateBlockEntity g && g.isPermanent(), "and cannot be picked up");
+        java.util.Set<net.minecraft.block.Block> kinds = new java.util.HashSet<>();
+        int reach = BlackMarketRoom.R + 4;
+        for (int x = -reach; x <= reach; x += 1) {
+            for (int z = -reach; z <= reach; z += 1) {
+                for (int y = fy - 3; y <= BlackMarketRoom.TOP_Y; y += 1) {
+                    BlockState s = world.getBlockState(new BlockPos(x, y, z));
+                    if (!s.isAir()) {
+                        kinds.add(s.getBlock());
                     }
-                    pedestals++;
                 }
             }
         }
-        check(ctx, pedestals == 6, "six pedestals in the room (found " + pedestals + ")");
-        java.util.Set<ShopOffer> distinct = new java.util.HashSet<>(java.util.Arrays.asList(seen));
-        check(ctx, distinct.size() == 6, "every one of the six offers has its own pedestal");
-        check(ctx, world.getBlockState(new BlockPos(0, BlackMarketRoom.FLOOR_Y + 1, BlackMarketRoom.HALF - 1)).isOf(ModBlocks.BLACK_MARKET_PORTAL),
-                "exit portal exists");
+        check(ctx, kinds.size() >= 16, "the hall is built from many different blocks (" + kinds.size() + " kinds)");
+        check(ctx, ms < 8000, "built in a reasonable time (" + ms + " ms)");
         ctx.complete();
+    }
+
+    // ------------------------------------------------------------------------------------------ the Reality Gate
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200)
+    public void gatePlacesAndPicksUp(TestContext ctx) {
+        ServerWorld world = ctx.getWorld();
+        net.minecraft.util.math.Direction facing = net.minecraft.util.math.Direction.EAST;
+        BlockPos master = scratch(ctx, 2, 16).add(8, 8, 8);
+        fill(world, master.getX() - 4, master.getY(), master.getZ() - 4, master.getX() + 4, master.getY() + 4, master.getZ() + 4, Blocks.AIR.getDefaultState());
+        check(ctx, PortalGateBlock.canPlace(world, master, facing, null), "nine free cells: the gate can be placed");
+        BlockPos blocker = PortalGateBlock.partPos(master, facing, 2, 2);
+        world.setBlockState(blocker, Blocks.STONE.getDefaultState(), 2);
+        check(ctx, !PortalGateBlock.canPlace(world, master, facing, null), "a block in one of the nine cells refuses the gate");
+        world.setBlockState(blocker, Blocks.AIR.getDefaultState(), 2);
+
+        PortalGateBlock.placeNow(world, master, facing, false);
+        check(ctx, PortalGateBlock.intact(world, master, facing), "all nine cells are gate parts");
+        check(ctx, world.getBlockEntity(master) instanceof PortalGateBlockEntity be && !be.isPermanent() && !be.isClosing(), "the master has its block entity");
+        BlockPos centre = PortalGateBlock.partPos(master, facing, 1, 1);
+        BlockState centreState = world.getBlockState(centre);
+        check(ctx, PortalGateBlock.isCenter(centreState) && centreState.getCollisionShape(world, centre).isEmpty(), "the middle of the opening is empty: you can walk through");
+        check(ctx, centreState.getOutlineShape(world, centre).isEmpty(), "and it has no selection box drawn over the vortex");
+        BlockPos side = PortalGateBlock.partPos(master, facing, 0, 1);
+        check(ctx, !world.getBlockState(side).getCollisionShape(world, side).isEmpty(), "the side bars are solid");
+        BlockPos top = PortalGateBlock.partPos(master, facing, 1, 2);
+        net.minecraft.util.shape.VoxelShape topBar = world.getBlockState(top).getCollisionShape(world, top);
+        check(ctx, !topBar.isEmpty() && topBar.getMin(net.minecraft.util.math.Direction.Axis.Y) > 0.7, "the top bar sits at the top of its cell, the opening below it is free");
+        BlockPos floorBar = master;
+        net.minecraft.util.shape.VoxelShape threshold = world.getBlockState(floorBar).getCollisionShape(world, floorBar);
+        check(ctx, !threshold.isEmpty() && threshold.getMax(net.minecraft.util.math.Direction.Axis.Y) <= 0.26, "the threshold is a low step (" + threshold.getMax(net.minecraft.util.math.Direction.Axis.Y) + ")");
+        net.minecraft.util.shape.VoxelShape sideShape = world.getBlockState(side).getCollisionShape(world, side);
+        double sideThickness = Math.min(sideShape.getMax(net.minecraft.util.math.Direction.Axis.X) - sideShape.getMin(net.minecraft.util.math.Direction.Axis.X),
+                sideShape.getMax(net.minecraft.util.math.Direction.Axis.Z) - sideShape.getMin(net.minecraft.util.math.Direction.Axis.Z));
+        check(ctx, sideThickness > 0.2 && sideThickness < 0.3, "the frame is THIN: a side bar is " + sideThickness + " blocks wide in the plane of the gate");
+
+        ServerPlayerEntity p = ctx.createMockCreativeServerPlayerInWorld();
+        int itemsBefore = p.getInventory().count(ModItems.BLACK_MARKET_PORTAL);   // the mock player got the starter gate when it "joined"
+        PortalGateBlockEntity gate = (PortalGateBlockEntity) world.getBlockEntity(master);
+        check(ctx, gate.requestClose(p), "right-click folds the gate up");
+        check(ctx, gate.isClosing() && !gate.requestClose(p), "it is closing and cannot be closed twice");
+        ctx.runAtTick(PortalGateBlockEntity.CLOSE_TICKS + 6, () -> {
+            check(ctx, !PortalGateBlock.intact(world, master, facing) && world.getBlockState(master).isAir()
+                    && world.getBlockState(PortalGateBlock.partPos(master, facing, 1, 2)).isAir(), "after the collapse all nine cells are gone");
+            int items = p.getInventory().count(ModItems.BLACK_MARKET_PORTAL) - itemsBefore;
+            int dropped = world.getEntitiesByClass(net.minecraft.entity.ItemEntity.class, new net.minecraft.util.math.Box(master).expand(6.0),
+                    e -> e.getStack().isOf(ModItems.BLACK_MARKET_PORTAL)).size();
+            check(ctx, items + dropped == 1, "exactly one gate item came back (inventory " + items + ", dropped " + dropped + ")");
+            ctx.complete();
+        });
+    }
+
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200)
+    public void walkingIntoTheGateActivatesIt(TestContext ctx) {
+        ServerWorld world = ctx.getWorld();
+        net.minecraft.util.math.Direction facing = net.minecraft.util.math.Direction.SOUTH;
+        BlockPos master = scratch(ctx, 2, 16).add(8, 12, 8);
+        fill(world, master.getX() - 4, master.getY() - 1, master.getZ() - 4, master.getX() + 4, master.getY() + 4, master.getZ() + 4, Blocks.AIR.getDefaultState());
+        PortalGateBlock.placeNow(world, master, facing, false);
+        ServerPlayerEntity p = ctx.createMockCreativeServerPlayerInWorld();
+        long before = ShopDimensions.gateUses;
+        ctx.runAtTick(30, () -> p.setPosition(master.getX() + 0.5, master.getY(), master.getZ() + 0.5 - 0.4));   // the gate is open by now: step into the swirl ...
+        ctx.runAtTick(32, () -> p.setPosition(master.getX() + 0.5, master.getY(), master.getZ() + 0.5 + 1.4));    // ... and keep walking: out the other side
+        ctx.runAtTick(30 + PortalGateBlockEntity.ENTER_TICKS + 6, () -> {
+            check(ctx, ShopDimensions.gateUses > before, "touching the swirl used the gate even though the player walked on");
+            ctx.complete();
+        });
+    }
+
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200)
+    public void gateAssemblesThenOpens(TestContext ctx) {
+        ServerWorld world = ctx.getWorld();
+        net.minecraft.util.math.Direction facing = net.minecraft.util.math.Direction.WEST;
+        BlockPos master = scratch(ctx, 2, 16).add(8, 8, 8);
+        fill(world, master.getX() - 4, master.getY(), master.getZ() - 4, master.getX() + 4, master.getY() + 4, master.getZ() + 4, Blocks.AIR.getDefaultState());
+        PortalGateBlock.place(world, master, facing);
+        check(ctx, world.getBlockState(master).getBlock() instanceof PortalGateBlock, "the first piece (the master) is there at once");
+        check(ctx, !PortalGateBlock.intact(world, master, facing), "the rest is still assembling");
+        ctx.runAtTick(PortalGateBlock.ASSEMBLY_TICKS - 1, () -> {
+            check(ctx, PortalGateBlock.intact(world, master, facing), "after the assembly all nine cells stand");
+            PortalGateBlockEntity be = (PortalGateBlockEntity) world.getBlockEntity(master);
+            check(ctx, be.openProgress(world.getTime(), 0.0f) < 0.05f, "the vortex has not started to open yet");
+        });
+        ctx.runAtTick(PortalGateBlock.ASSEMBLY_TICKS + PortalGateBlockEntity.OPEN_TICKS + 3, () -> {
+            PortalGateBlockEntity be = (PortalGateBlockEntity) world.getBlockEntity(master);
+            check(ctx, be.openProgress(world.getTime(), 0.0f) >= 0.99f, "and then it tears open");
+            check(ctx, PortalGateBlock.intact(world, master, facing), "the gate is still whole (the validator does not mistake the assembly for damage)");
+            ctx.complete();
+        });
     }
 
     // ------------------------------------------------------------------------------------------ destruction engine
@@ -5496,6 +6393,9 @@ public class RealityShopGameTests implements FabricGameTest {
         BoxRegion region = new BoxRegion(cx - half, world.getBottomY(), cz - half, cx + half - 1, world.getTopY() - 1, cz + half - 1);
         // stone columns that reach into the sky, replacing the flat terrain (and its bedrock) underneath them
         fill(world, cx - 8, y - 4, cz - 8, cx + 7, y + 40, cz + 7, Blocks.STONE.getDefaultState());
+        // two bedrock markers outside the columns (the world may have holes from other tests): the purge must leave them alone
+        world.setBlockState(new BlockPos(cx + 20, world.getBottomY(), cz), Blocks.BEDROCK.getDefaultState(), 2);
+        world.setBlockState(new BlockPos(cx - 30, world.getBottomY() + 1, cz + 12), Blocks.BEDROCK.getDefaultState(), 2);
         RegionClearJob[] holder = new RegionClearJob[1];
         ctx.runAtTick(10, () -> {
             holder[0] = new RegionClearJob(world, region).origin(new BlockPos(cx, y, cz)).targetTicks(30);
@@ -5507,8 +6407,8 @@ public class RealityShopGameTests implements FabricGameTest {
             check(ctx, job.isFinished(), "purge finished within its pace (progress " + job.progress() + ")");
             check(ctx, job.skippedColumns() == 0, "no loaded column was skipped");
             check(ctx, world.getBlockState(new BlockPos(cx, y, cz)).isAir(), "centre of the purge is air");
-            check(ctx, world.getBlockState(new BlockPos(cx, world.getBottomY(), cz)).isOf(Blocks.BEDROCK) || world.getBlockState(new BlockPos(cx + 20, world.getBottomY(), cz)).isOf(Blocks.BEDROCK),
-                    "the bedrock floor survives a purge");
+            check(ctx, world.getBlockState(new BlockPos(cx + 20, world.getBottomY(), cz)).isOf(Blocks.BEDROCK)
+                    && world.getBlockState(new BlockPos(cx - 30, world.getBottomY() + 1, cz + 12)).isOf(Blocks.BEDROCK), "bedrock survives a purge (destroyBedrock=false)");
             ctx.complete();
         });
     }
@@ -5765,7 +6665,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.VertexBuffer;
 import net.minecraft.util.Identifier;
 
-/** A glTF/GLB model uploaded to the GPU exactly as authored (no mesh or texture processing). */
+/** A glTF/GLB model uploaded to the GPU exactly as authored (plus decimated distance LODs built from it at load time). */
 public final class GltfModel {
     public static final class Material {
         public Identifier baseColor;
@@ -5783,6 +6683,9 @@ public final class GltfModel {
         public VertexBuffer buffer;
         public int vertexCount;
         public int material;
+        /** Decimated copies for far-away drawing (index 0 = lod 1 ...), built at load time from the full mesh; empty for small meshes. */
+        public VertexBuffer[] lodBuffers = new VertexBuffer[0];
+        public int[] lodVertexCounts = new int[0];
     }
 
     public final String name;
@@ -5810,6 +6713,9 @@ public final class GltfModel {
         for (Primitive p : primitives) {
             if (p.buffer != null) {
                 p.buffer.close();
+            }
+            for (VertexBuffer lod : p.lodBuffers) {
+                lod.close();
             }
         }
         for (Identifier id : textureIds) {
@@ -5883,6 +6789,8 @@ import java.util.List;
 import java.util.Optional;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.VertexBuffer;
+import java.util.HashMap;
+import java.util.Map;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.VertexFormat;
@@ -6007,8 +6915,14 @@ public final class GltfLoader {
         for (int i = 0; i < primitivesToBuild.size(); i++) {
             buildPrimitive(model, primitivesToBuild.get(i), worlds.get(i), accessors, views, buffers);
         }
-        RealityShopMod.LOGGER.info("glTF '{}' loaded: {} primitives, {} triangles, {} materials, bounds {}..{}", name,
-                model.primitives.size(), model.triangleCount, model.materials.size(),
+        int[] lodTriangles = new int[LOD_DIVISIONS.length];
+        for (GltfModel.Primitive primitive : model.primitives) {
+            for (int k = 0; k < lodTriangles.length; k++) {
+                lodTriangles[k] += k < primitive.lodVertexCounts.length ? primitive.lodVertexCounts[k] / 3 : primitive.vertexCount / 3;
+            }
+        }
+        RealityShopMod.LOGGER.info("glTF '{}' loaded: {} primitives, {} triangles (distance LODs: {}), {} materials, bounds {}..{}", name,
+                model.primitives.size(), model.triangleCount, java.util.Arrays.toString(lodTriangles), model.materials.size(),
                 java.util.Arrays.toString(model.min), java.util.Arrays.toString(model.max));
         return model;
     }
@@ -6231,8 +7145,23 @@ public final class GltfLoader {
             generateTangents(positions, normals, uvs, indices, tangents);
         }
 
-        // upload as plain TRIANGLES in the vanilla entity vertex format: the tangent rides in the (otherwise unused)
-        // colour attribute (xyz * 0.5 + 0.5, w = handedness) and is decoded by the gltf_pbr core shader.
+        GltfModel.Primitive primitive = new GltfModel.Primitive();
+        primitive.vertexCount = indices.length;
+        primitive.material = prim.has("material") ? prim.get("material").getAsInt() : 0;
+        if (primitive.material >= model.materials.size()) {
+            primitive.material = 0;
+        }
+        primitive.buffer = upload(positions, tangents, uvs, normals, indices);
+        buildLods(primitive, positions, normals, uvs, tangents, indices);
+        model.primitives.add(primitive);
+        model.triangleCount += indices.length / 3;
+    }
+
+    /**
+     * Uploads plain TRIANGLES in the vanilla entity vertex format: the tangent rides in the (otherwise unused) colour
+     * attribute (xyz * 0.5 + 0.5, w = handedness) and is decoded by the gltf_pbr core shader.
+     */
+    private static VertexBuffer upload(float[] positions, float[] tangents, float[] uvs, float[] normals, int[] indices) {
         VertexFormat format = VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL;
         BufferBuilder builder = new BufferBuilder(indices.length * format.getVertexSizeByte() + 256);
         builder.begin(VertexFormat.DrawMode.TRIANGLES, format);
@@ -6243,18 +7172,130 @@ public final class GltfLoader {
                     uvs[index * 2], uvs[index * 2 + 1], OverlayTexture.DEFAULT_UV, 0,
                     normals[index * 3], normals[index * 3 + 1], normals[index * 3 + 2]);
         }
-        GltfModel.Primitive primitive = new GltfModel.Primitive();
-        primitive.vertexCount = indices.length;
-        primitive.material = prim.has("material") ? prim.get("material").getAsInt() : 0;
-        if (primitive.material >= model.materials.size()) {
-            primitive.material = 0;
-        }
-        primitive.buffer = new VertexBuffer(VertexBuffer.Usage.STATIC);
-        primitive.buffer.bind();
-        primitive.buffer.upload(builder.end());
+        VertexBuffer buffer = new VertexBuffer(VertexBuffer.Usage.STATIC);
+        buffer.bind();
+        buffer.upload(builder.end());
         VertexBuffer.unbind();
-        model.primitives.add(primitive);
-        model.triangleCount += indices.length / 3;
+        return buffer;
+    }
+
+    /** Grid divisions of the longest side for LOD 1 and LOD 2: roughly 12% and 2% of the triangles of a dense scan. */
+    private static final float[] LOD_DIVISIONS = {64.0f, 26.0f};
+    /** UV cells per unit for the same two levels: vertices of different texture islands are never merged. */
+    private static final float[] LOD_UV_DIVISIONS = {48.0f, 20.0f};
+    /** Meshes below this many triangles are drawn at full detail at every distance. */
+    private static final int LOD_MIN_TRIANGLES = 30000;
+
+    /**
+     * Distance LODs by vertex clustering: every vertex falls into a cell of a 3D grid (and of the UV map, so texture islands stay
+     * apart), a cell becomes one vertex (the average of its members) and triangles that collapse are dropped. The full mesh above is untouched and still what you see up close.
+     */
+    private static void buildLods(GltfModel.Primitive primitive, float[] p, float[] n, float[] uv, float[] t, int[] indices) {
+        if (indices.length / 3 < LOD_MIN_TRIANGLES) {
+            return;
+        }
+        float[] lo = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE};
+        float[] hi = {-Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
+        for (int i = 0; i < p.length; i += 3) {
+            for (int k = 0; k < 3; k++) {
+                lo[k] = Math.min(lo[k], p[i + k]);
+                hi[k] = Math.max(hi[k], p[i + k]);
+            }
+        }
+        float longest = Math.max(hi[0] - lo[0], Math.max(hi[1] - lo[1], hi[2] - lo[2]));
+        if (longest <= 0.0f) {
+            return;
+        }
+        List<VertexBuffer> buffers = new ArrayList<>();
+        List<Integer> counts = new ArrayList<>();
+        for (int level = 0; level < LOD_DIVISIONS.length; level++) {
+            float cell = longest / LOD_DIVISIONS[level];
+            float uvDivisions = LOD_UV_DIVISIONS[level];
+            int vc = p.length / 3;
+            Map<Long, Integer> cells = new HashMap<>();
+            int[] cluster = new int[vc];
+            int clusters = 0;
+            for (int i = 0; i < vc; i++) {
+                long cx = (long) Math.floor((p[i * 3] - lo[0]) / cell);
+                long cy = (long) Math.floor((p[i * 3 + 1] - lo[1]) / cell);
+                long cz = (long) Math.floor((p[i * 3 + 2] - lo[2]) / cell);
+                float fu = uv[i * 2] - (float) Math.floor(uv[i * 2]);
+                float fv = uv[i * 2 + 1] - (float) Math.floor(uv[i * 2 + 1]);
+                long cu = (long) Math.floor(fu * uvDivisions);
+                long cv = (long) Math.floor(fv * uvDivisions);
+                long key = (cx & 0x7FL) | ((cy & 0x7FL) << 7) | ((cz & 0x7FL) << 14) | ((cu & 0x7FL) << 21) | ((cv & 0x7FL) << 28);
+                Integer id = cells.get(key);
+                if (id == null) {
+                    id = clusters++;
+                    cells.put(key, id);
+                }
+                cluster[i] = id;
+            }
+            float[] lp = new float[clusters * 3];
+            float[] ln = new float[clusters * 3];
+            float[] luv = new float[clusters * 2];
+            float[] lt = new float[clusters * 4];
+            int[] members = new int[clusters];
+            for (int i = 0; i < vc; i++) {
+                int c = cluster[i];
+                members[c]++;
+                for (int k = 0; k < 3; k++) {
+                    lp[c * 3 + k] += p[i * 3 + k];
+                    ln[c * 3 + k] += n[i * 3 + k];
+                    lt[c * 4 + k] += t[i * 4 + k];
+                }
+                lt[c * 4 + 3] += t[i * 4 + 3];
+                luv[c * 2] += uv[i * 2];
+                luv[c * 2 + 1] += uv[i * 2 + 1];
+            }
+            for (int c = 0; c < clusters; c++) {
+                float inv = 1.0f / members[c];
+                for (int k = 0; k < 3; k++) {
+                    lp[c * 3 + k] *= inv;
+                }
+                luv[c * 2] *= inv;
+                luv[c * 2 + 1] *= inv;
+                normalize(ln, c * 3, 3);
+                normalize(lt, c * 4, 3);
+                lt[c * 4 + 3] = lt[c * 4 + 3] >= 0 ? 1.0f : -1.0f;
+            }
+            int[] tri = new int[indices.length];
+            int out = 0;
+            for (int i = 0; i + 2 < indices.length; i += 3) {
+                int a = cluster[indices[i]];
+                int b = cluster[indices[i + 1]];
+                int c = cluster[indices[i + 2]];
+                if (a != b && b != c && a != c) {
+                    tri[out++] = a;
+                    tri[out++] = b;
+                    tri[out++] = c;
+                }
+            }
+            if (out < 3 || out > indices.length * 0.6) {
+                continue;   // not worth a copy
+            }
+            buffers.add(upload(lp, lt, luv, ln, java.util.Arrays.copyOf(tri, out)));
+            counts.add(out);
+        }
+        primitive.lodBuffers = buffers.toArray(new VertexBuffer[0]);
+        primitive.lodVertexCounts = counts.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    private static void normalize(float[] a, int at, int n) {
+        double len = 0;
+        for (int k = 0; k < n; k++) {
+            len += (double) a[at + k] * a[at + k];
+        }
+        len = Math.sqrt(len);
+        if (len < 1e-8) {
+            a[at] = 0.0f;
+            a[at + 1] = 1.0f;
+            a[at + 2] = 0.0f;
+            return;
+        }
+        for (int k = 0; k < n; k++) {
+            a[at + k] /= (float) len;
+        }
     }
 
     private static void generateNormals(float[] p, int[] idx, float[] n) {
@@ -6451,8 +7492,13 @@ public final class GltfRenderer {
         return MinecraftClient.getInstance().getTextureManager().getTexture(id != null ? id : MissingSprite.getMissingSpriteId()).getGlId();
     }
 
-    /** Draws in the current matrix space (works for world, item-in-hand, GUI and item-frame contexts). */
+    /** Draws in the current matrix space (works for world, item-in-hand, GUI and item-frame contexts) at full detail. */
     public static void render(GltfModel model, MatrixStack matrices, int packedLight, float r, float g, float b, float a) {
+        render(model, matrices, packedLight, r, g, b, a, 0);
+    }
+
+    /** @param lod 0 = the full mesh, 1 and 2 = decimated copies for distant drawing (where a model has them) */
+    public static void render(GltfModel model, MatrixStack matrices, int packedLight, float r, float g, float b, float a, int lod) {
         if (program == null) {
             if (!loggedMissingShader) {
                 loggedMissingShader = true;
@@ -6507,8 +7553,12 @@ public final class GltfRenderer {
             } else {
                 RenderSystem.enableCull();
             }
-            primitive.buffer.bind();
-            primitive.buffer.draw(modelView, RenderSystem.getProjectionMatrix(), program);
+            VertexBuffer buffer = primitive.buffer;
+            if (lod > 0 && primitive.lodBuffers.length > 0) {
+                buffer = primitive.lodBuffers[Math.min(lod, primitive.lodBuffers.length) - 1];
+            }
+            buffer.bind();
+            buffer.draw(modelView, RenderSystem.getProjectionMatrix(), program);
         }
         VertexBuffer.unbind();
         lightmap.disable();
@@ -6553,6 +7603,15 @@ public final class GltfModels {
             RealityShopMod.LOGGER.error("Could not load glTF model '{}'", name, t);
             return null;
         }
+    }
+
+    /** Loads the models the mod uses now (on joining a world), so the first DerpChicken or phone does not cause a hitch. */
+    public static void preload() {
+        long t0 = System.nanoTime();
+        for (String name : new String[]{"derp_chicken", "cursed_kitty_phone"}) {
+            get(name);
+        }
+        RealityShopMod.LOGGER.info("glTF models preloaded in {} ms", (System.nanoTime() - t0) / 1_000_000);
     }
 
     /** Frees the GPU buffers and textures (called on every resource reload so edited assets are picked up). */
@@ -6617,13 +7676,16 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 
 /**
- * Renders the DerpChicken from the user's glTF (273k triangles, 2048px textures, untouched) as one GPU-resident mesh.
+ * Renders the DerpChicken from the user's glTF (273k triangles, 2048px textures, untouched) as one GPU-resident mesh;
+ * beyond 12 and 32 blocks it draws decimated copies of that mesh (made at load time) instead.
  * The model has no skeleton, so it is animated as a whole: a waddle, a head-bob tilt and a panic wobble.
  */
 public class DerpChickenRenderer extends EntityRenderer<DerpChickenEntity> {
     private static final Identifier UNUSED = RealityShopMod.id("textures/gltf_unused.png");
     private static final float HEIGHT = 0.9f;
     private static final double MAX_DISTANCE_SQ = 64.0 * 64.0;
+    private static final double LOD1_DISTANCE_SQ = 12.0 * 12.0;
+    private static final double LOD2_DISTANCE_SQ = 32.0 * 32.0;
 
     public DerpChickenRenderer(EntityRendererFactory.Context context) {
         super(context);
@@ -6656,7 +7718,9 @@ public class DerpChickenRenderer extends EntityRenderer<DerpChickenEntity> {
             matrices.scale(s, s, s);
             matrices.translate(-model.centerX(), -model.min[1], -model.centerZ());    // feet on the ground, centred
             float hurt = entity.hurtTime > 0 ? 1.0f : 0.0f;
-            GltfRenderer.render(model, matrices, light, 1.0f, 1.0f - 0.55f * hurt, 1.0f - 0.55f * hurt, 1.0f);
+            double distanceSq = dispatcher.getSquaredDistanceToCamera(entity);
+            int lod = distanceSq > LOD2_DISTANCE_SQ ? 2 : (distanceSq > LOD1_DISTANCE_SQ ? 1 : 0);   // 273k triangles up close, far fewer further away
+            GltfRenderer.render(model, matrices, light, 1.0f, 1.0f - 0.55f * hurt, 1.0f - 0.55f * hurt, 1.0f, lod);
             matrices.pop();
         }
         super.render(entity, yaw, tickDelta, matrices, vertexConsumers, light);
@@ -6851,16 +7915,18 @@ import net.minecraft.client.texture.NativeImage;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
 
-/** The generated HUD atlas and plate, uploaded with mipmaps (plain GUI textures are not mip-mapped by vanilla). */
+/** The generated HUD atlas, plate and icon, uploaded with mipmaps (plain GUI textures are not mip-mapped by vanilla). */
 public final class HudTextures {
     public static final Identifier GLYPHS = RealityShopMod.id("hud/glyphs");
     public static final Identifier PLATE = RealityShopMod.id("hud/plate");
+    public static final Identifier ICON = RealityShopMod.id("hud/icon");
 
     private HudTextures() {}
 
     public static void reload(ResourceManager manager) {
         load(manager, GLYPHS, RealityShopMod.id("textures/gui/hud_glyphs.png"));
         load(manager, PLATE, RealityShopMod.id("textures/gui/hud_plate.png"));
+        load(manager, ICON, RealityShopMod.id("textures/gui/hud_icon.png"));
     }
 
     private static void load(ResourceManager manager, Identifier id, Identifier file) {
@@ -6882,6 +7948,7 @@ import @@PKG@@.RSConfig;
 import @@PKG@@.client.ClientBalance;
 import java.text.NumberFormat;
 import java.util.Locale;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -6889,25 +7956,39 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
 
 /**
- * "Blocks Consumed: 5,000" at the top of the screen. The text is drawn from a generated high-resolution stroke-font
- * atlas with trilinear (mip-mapped) filtering and a 3-slice neon plate behind it, so it stays crisp at any GUI scale or
- * resolution instead of showing vanilla's pixel font stretched up. The number counts up smoothly and flashes when it grows.
+ * The Blocks Consumed counter in the top-left corner: a neon pill with the "consumed block" icon, the number in a generated
+ * high-resolution stroke font (trilinear, so it is crisp at any GUI scale) and a small "Blocks" caption. The number counts up
+ * smoothly, flashes when it grows, and a "+N" / "-N" bubble drifts away from the pill when your balance changes.
  */
 public final class ConsumedBlocksHud {
     private static final Identifier GLYPHS = HudTextures.GLYPHS;
     private static final Identifier PLATE = HudTextures.PLATE;
+    private static final Identifier ICON = HudTextures.ICON;
     private static final int PLATE_W = 1024;
     private static final int PLATE_H = 128;
     private static final int PLATE_CAP = 64;
+    private static final int ICON_PX = 128;
 
     private static double shown = -1;
     private static long lastTarget = -1;
     private static float flash;
+    private static long delta;
+    private static int deltaAge = 999;
 
     private ConsumedBlocksHud() {}
 
     public static void register() {
         HudRenderCallback.EVENT.register(ConsumedBlocksHud::render);
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (deltaAge < 1000) {
+                deltaAge++;
+            }
+            flash = Math.max(0.0f, flash - 0.04f);
+        });
+    }
+
+    private static String format(long v) {
+        return NumberFormat.getIntegerInstance(Locale.US).format(v);
     }
 
     private static void render(DrawContext context, float tickDelta) {
@@ -6920,64 +8001,98 @@ public final class ConsumedBlocksHud {
         if (shown < 0) {
             shown = target;
         }
-        if (lastTarget >= 0 && target > lastTarget) {
-            flash = 1.0f;
+        if (lastTarget >= 0 && target != lastTarget) {
+            delta = (deltaAge < 40 ? delta : 0) + (target - lastTarget);
+            deltaAge = 0;
+            if (target > lastTarget) {
+                flash = 1.0f;
+            }
         }
         lastTarget = target;
         double diff = target - shown;
-        shown = Math.abs(diff) < 1.0 ? target : shown + diff * 0.12;
-        flash = Math.max(0.0f, flash - 0.025f);
+        shown = Math.abs(diff) < 1.0 ? target : shown + diff * 0.14;
 
-        String label = "Blocks Consumed: ";
-        String number = NumberFormat.getIntegerInstance(Locale.US).format(Math.round(shown));
-        String text = label + number;
-        float height = 11.0f * (float) config.hudScale;               // glyph cell height in GUI units
-        float scale = height / HudGlyphs.CELL;
-        float textWidth = HudGlyphs.width(text) * scale;
-        float plateH = height * 1.55f;
-        float capW = plateH * PLATE_CAP / PLATE_H;
-        float plateW = textWidth + capW * 2.0f + height * 0.6f;
-        int screenW = context.getScaledWindowWidth();
-        float left = screenW / 2.0f - plateW / 2.0f;
-        float top = 3.0f;
+        float s = (float) config.hudScale;
+        float h = 26.0f * s;                                   // plate height in GUI units
+        float cap = h * PLATE_CAP / PLATE_H;
+        float numH = 11.0f * s;
+        float capH = 5.5f * s;
+        String number = format(Math.round(shown));
+        float numW = HudGlyphs.width(number) * (numH / HudGlyphs.CELL);
+        float capW = HudGlyphs.width("Blocks") * (capH / HudGlyphs.CELL);
+        float icon = 19.0f * s * (1.0f + 0.14f * flash);
+        float iconSlot = 20.0f * s;
+        float textX = cap * 0.55f + iconSlot + 3.0f * s;
+        float plateW = textX + Math.max(numW, capW) + cap * 0.95f;
+        float x = config.hudX;
+        float y = config.hudY;
 
         MatrixStack matrices = context.getMatrices();
         matrices.push();
-        matrices.translate(left, top, 0.0);
-        // neon plate (3-slice)
-        context.setShaderColor(1.0f, 1.0f, 1.0f, 0.92f);
-        int capI = Math.round(capW);
+        matrices.translate(x, y, 0.0);
+        context.setShaderColor(1.0f, 1.0f, 1.0f, 0.93f);
+        int capI = Math.round(cap);
         int plateWi = Math.round(plateW);
-        int plateHi = Math.round(plateH);
+        int plateHi = Math.round(h);
         context.drawTexture(PLATE, 0, 0, capI, plateHi, 0, 0, PLATE_CAP, PLATE_H, PLATE_W, PLATE_H);
         context.drawTexture(PLATE, capI, 0, plateWi - 2 * capI, plateHi, PLATE_CAP, 0, PLATE_W - 2 * PLATE_CAP, PLATE_H, PLATE_W, PLATE_H);
         context.drawTexture(PLATE, plateWi - capI, 0, capI, plateHi, PLATE_W - PLATE_CAP, 0, PLATE_CAP, PLATE_H, PLATE_W, PLATE_H);
 
-        // text
-        matrices.translate(capW + height * 0.3f, (plateH - height) / 2.0f, 0.0);
+        // icon (pulses when the balance grows)
+        context.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+        float ix = cap * 0.55f + (iconSlot - icon) / 2.0f;
+        float iy = (h - icon) / 2.0f;
+        matrices.push();
+        matrices.translate(ix, iy, 0.0);
+        matrices.scale(icon / ICON_PX, icon / ICON_PX, 1.0f);
+        context.drawTexture(ICON, 0, 0, ICON_PX, ICON_PX, 0, 0, ICON_PX, ICON_PX, ICON_PX, ICON_PX);
+        matrices.pop();
+
+        // number (white, flashing cyan-green when it grows) and the caption
+        float f = flash;
+        drawText(context, number, textX, h * 0.5f - numH * 0.62f - 1.0f * s, numH, 0.55f + 0.45f * f, 1.0f, 0.95f, 1.0f);
+        drawText(context, "Blocks", textX, h * 0.5f + numH * 0.30f, capH, 1.0f, 0.55f, 0.92f, 0.85f);
+        matrices.pop();
+
+        // +N / -N bubble drifting away from the plate
+        if (deltaAge < 55 && delta != 0) {
+            float k = deltaAge / 55.0f;
+            float alpha = 1.0f - k * k;
+            String text = (delta > 0 ? "+" : "-") + format(Math.abs(delta));
+            float bubbleH = 9.0f * s;
+            float bx = x + plateW + 4.0f * s;
+            float by = y + (h - bubbleH) / 2.0f + k * 5.0f * s;
+            if (delta > 0) {
+                drawText(context, text, bx, by, bubbleH, 0.45f, 1.0f, 0.9f, alpha);
+            } else {
+                drawText(context, text, bx, by, bubbleH, 1.0f, 0.4f, 0.8f, alpha);
+            }
+        }
+        context.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+    }
+
+    /** Draws {@code text} with its top-left at (x, y) in the current matrix space, {@code height} GUI units tall. */
+    private static void drawText(DrawContext context, String text, float x, float y, float height, float r, float g, float b, float a) {
+        float scale = height / HudGlyphs.CELL;
+        MatrixStack matrices = context.getMatrices();
+        matrices.push();
+        matrices.translate(x, y, 0.0);
         matrices.scale(scale, scale, 1.0f);
+        context.setShaderColor(r, g, b, a);
         float pen = 0.0f;
-        int labelChars = label.length();
         for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            int g = HudGlyphs.index(c);
-            if (g < 0) {
+            int gi = HudGlyphs.index(text.charAt(i));
+            if (gi < 0) {
                 pen += HudGlyphs.SPACE;
                 continue;
             }
-            boolean isLabel = i < labelChars;
-            float r = isLabel ? 1.0f : 0.45f + 0.55f * flash;
-            float gr = isLabel ? 0.78f : 1.0f;
-            float b = isLabel ? 0.95f : 0.92f;
-            context.setShaderColor(r, gr, b, 1.0f);
-            int adv = HudGlyphs.ADVANCE[g];
-            int col = g % HudGlyphs.COLUMNS;
-            int row = g / HudGlyphs.COLUMNS;
+            int adv = HudGlyphs.ADVANCE[gi];
+            int col = gi % HudGlyphs.COLUMNS;
+            int row = gi / HudGlyphs.COLUMNS;
             context.drawTexture(GLYPHS, Math.round(pen), 0, adv, HudGlyphs.CELL, col * HudGlyphs.CELL, row * HudGlyphs.CELL,
                     adv, HudGlyphs.CELL, HudGlyphs.ATLAS_WIDTH, HudGlyphs.ATLAS_HEIGHT);
             pen += adv;
         }
-        context.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
         matrices.pop();
     }
 }
@@ -7391,6 +8506,1755 @@ public final class BedrockRealm {
 }
 ''')
 
+J("shop/PortalGateBlock.java", r'''
+package @@PKG@@.shop;
+
+import @@PKG@@.registry.ModBlockEntities;
+import @@PKG@@.registry.ModBlocks;
+import @@PKG@@.registry.ModSounds;
+import @@PKG@@.util.ServerTasks;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockRenderType;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.BlockWithEntity;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.HorizontalFacingBlock;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityTicker;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.state.StateManager;
+import net.minecraft.state.property.DirectionProperty;
+import net.minecraft.state.property.IntProperty;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.util.shape.VoxelShapes;
+import net.minecraft.world.BlockView;
+import net.minecraft.world.World;
+import org.jetbrains.annotations.Nullable;
+
+/**
+ * The Reality Gate: a free-standing 3 x 3 portal with a THIN frame and a big swirl. Nine cells of this one block, tied
+ * together by three properties:
+ * <ul>
+ *   <li>FACING: the side the gate's front looks at (towards whoever placed it),</li>
+ *   <li>LATERAL: 0 = left, 1 = middle, 2 = right, as seen from the front,</li>
+ *   <li>HEIGHT: 0 = bottom, 1 = middle, 2 = top.</li>
+ * </ul>
+ * The frame is a ring of 4 px bars along the outer edge of the 3 x 3 area (corner stones, feet and a crest as decoration);
+ * the 2.5 x 2.5 block opening inside is empty to walk through and holds the shader-drawn vortex. The bottom middle cell is
+ * the master that owns the block entity (animation state, walk-through detection).
+ */
+public class PortalGateBlock extends BlockWithEntity {
+    public static final DirectionProperty FACING = HorizontalFacingBlock.FACING;
+    public static final IntProperty LATERAL = IntProperty.of("lateral", 0, 2);
+    public static final IntProperty HEIGHT = IntProperty.of("height", 0, 2);
+
+    /** Half the width (and height) of the opening in blocks: 40 x 40 px. The opening is centred 1.5 blocks above the master's floor. */
+    public static final double OPENING_HALF = 1.25;
+    /** Ticks the frame needs to snap together when a gate is placed; the vortex tears open after that. */
+    public static final int ASSEMBLY_TICKS = 14;
+
+    // frame geometry in 1/16 blocks, authored for a gate whose front faces SOUTH (depth z)
+    private static final double BAR = 4.0;
+    private static final double Z0 = 3.5;
+    private static final double Z1 = 12.5;
+
+    /** The cells in the order the frame assembles: around the ring from the bottom middle, the centre last. */
+    private static final int[][] ORDER = {{1, 0}, {0, 0}, {0, 1}, {0, 2}, {1, 2}, {2, 2}, {2, 1}, {2, 0}, {1, 1}};
+    private static final int[] DELAYS = {0, 1, 3, 4, 6, 7, 9, 10, 12};
+
+    /** Collision AND outline: the bars, feet and corner stones. The swirl itself has no shape (no selection box over the vortex). */
+    private static final VoxelShape[][][] FRAME = new VoxelShape[3][3][];
+
+    static {
+        for (int l = 0; l < 3; l++) {
+            for (int h = 0; h < 3; h++) {
+                FRAME[l][h] = rotations(frameShape(l, h));
+            }
+        }
+    }
+
+    public PortalGateBlock(Settings settings) {
+        super(settings);
+        setDefaultState(getStateManager().getDefaultState().with(FACING, Direction.SOUTH).with(LATERAL, 1).with(HEIGHT, 0));
+    }
+
+    @Override
+    protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+        builder.add(FACING, LATERAL, HEIGHT);
+    }
+
+    // ------------------------------------------------------------------------------------------ geometry helpers
+    private static VoxelShape frameShape(int l, int h) {
+        VoxelShape s = VoxelShapes.empty();
+        if (l == 0) {
+            s = VoxelShapes.union(s, createCuboidShape(0, 0, Z0, BAR, 16, Z1));
+        }
+        if (l == 2) {
+            s = VoxelShapes.union(s, createCuboidShape(16 - BAR, 0, Z0, 16, 16, Z1));
+        }
+        double x0 = l == 0 ? BAR : 0;
+        double x1 = l == 2 ? 16 - BAR : 16;
+        if (h == 0) {
+            s = VoxelShapes.union(s, createCuboidShape(x0, 0, Z0, x1, BAR, Z1));
+            if (l != 1) {
+                s = VoxelShapes.union(s, createCuboidShape(0, 0, 1.5, 16, 4, 14.5));      // the feet
+            }
+        }
+        if (h == 2) {
+            s = VoxelShapes.union(s, createCuboidShape(x0, 16 - BAR, Z0, x1, 16, Z1));
+        }
+        if (l != 1 && h != 1) {                                                            // corner stones
+            double cx = l == 0 ? 0 : 9;
+            double cy = h == 0 ? 0 : 9;
+            s = VoxelShapes.union(s, createCuboidShape(cx, cy, 2.5, cx + 7, cy + 7, 13.5));
+        }
+        return s.simplify();
+    }
+
+    private static VoxelShape[] rotations(VoxelShape south) {
+        VoxelShape[] out = new VoxelShape[4];
+        out[0] = south;
+        for (int i = 1; i < 4; i++) {
+            VoxelShape[] acc = {VoxelShapes.empty()};
+            out[i - 1].forEachBox((x0, y0, z0, x1, y1, z1) ->
+                    acc[0] = VoxelShapes.union(acc[0], VoxelShapes.cuboid(1 - z1, y0, x0, 1 - z0, y1, x1)));   // 90 degrees clockwise
+            out[i] = acc[0].simplify();
+        }
+        return out;
+    }
+
+    public static boolean isMaster(BlockState state) {
+        return state.get(LATERAL) == 1 && state.get(HEIGHT) == 0;
+    }
+
+    /** The middle cell: nothing but the swirl, so it is the brightest. */
+    public static boolean isCenter(BlockState state) {
+        return state.get(LATERAL) == 1 && state.get(HEIGHT) == 1;
+    }
+
+    /** The cell of the gate with the given part coordinates, from the master (bottom middle) cell. */
+    public static BlockPos partPos(BlockPos master, Direction facing, int lateral, int height) {
+        return master.offset(facing.rotateYClockwise(), 1 - lateral).up(height);
+    }
+
+    /** The master cell of the gate this part belongs to. */
+    public static BlockPos masterPos(BlockPos pos, BlockState state) {
+        return pos.offset(state.get(FACING).rotateYClockwise(), state.get(LATERAL) - 1).down(state.get(HEIGHT));
+    }
+
+    @Override
+    public VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+        return FRAME[state.get(LATERAL)][state.get(HEIGHT)][state.get(FACING).getHorizontal()];
+    }
+
+    @Override
+    public VoxelShape getCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+        return FRAME[state.get(LATERAL)][state.get(HEIGHT)][state.get(FACING).getHorizontal()];
+    }
+
+    @Override
+    public BlockRenderType getRenderType(BlockState state) {
+        return BlockRenderType.MODEL;
+    }
+
+    // ------------------------------------------------------------------------------------------ block entity (master only)
+    @Nullable
+    @Override
+    public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+        return isMaster(state) ? new PortalGateBlockEntity(pos, state) : null;
+    }
+
+    @Nullable
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
+        return isMaster(state) ? checkType(type, ModBlockEntities.PORTAL_GATE, PortalGateBlockEntity::tick) : null;
+    }
+
+    // ------------------------------------------------------------------------------------------ interaction
+    /** Right-click any part of the frame: the gate collapses into a glowing orb that flies into your inventory. */
+    @Override
+    public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
+        if (hand != Hand.MAIN_HAND) {
+            return ActionResult.PASS;
+        }
+        if (world.isClient) {
+            return ActionResult.SUCCESS;
+        }
+        if (player instanceof ServerPlayerEntity sp && world.getBlockEntity(masterPos(pos, state)) instanceof PortalGateBlockEntity gate) {
+            gate.requestClose(sp);
+        }
+        return ActionResult.CONSUME;
+    }
+
+    /** Creative players can break a part: the whole gate goes (no orphaned pieces). */
+    @Override
+    public void onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
+        if (!world.isClient) {
+            removeAll(world, masterPos(pos, state), state.get(FACING));
+        }
+        super.onBreak(world, pos, state, player);
+    }
+
+    // ------------------------------------------------------------------------------------------ placing / removing the nine cells
+    /** True if all nine cells can be replaced (air, grass, snow ...) and the player may build there. */
+    public static boolean canPlace(World world, BlockPos master, Direction facing, @Nullable PlayerEntity player) {
+        for (int l = 0; l < 3; l++) {
+            for (int h = 0; h < 3; h++) {
+                BlockPos p = partPos(master, facing, l, h);
+                if (!world.isInBuildLimit(p) || !(world.getBlockState(p).isAir() || world.getBlockState(p).isReplaceable())
+                        || (player != null && !player.canModifyAt(world, p))) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private static void setCell(World world, BlockPos master, Direction facing, int lateral, int height) {
+        BlockPos p = partPos(master, facing, lateral, height);
+        BlockState existing = world.getBlockState(p);
+        if (!(existing.isAir() || existing.isReplaceable() || existing.getBlock() instanceof PortalGateBlock)) {
+            return;   // somebody built into the gate's space while it was assembling: the block entity dissolves the gate later
+        }
+        world.setBlockState(p, ModBlocks.BLACK_MARKET_PORTAL.getDefaultState()
+                .with(FACING, facing).with(LATERAL, lateral).with(HEIGHT, height), Block.NOTIFY_ALL);
+    }
+
+    /** Builds all nine cells at once, without the assembly show (the Black Market's permanent exit, game tests). */
+    public static void placeNow(World world, BlockPos master, Direction facing, boolean permanent) {
+        for (int[] c : ORDER) {
+            setCell(world, master, facing, c[0], c[1]);
+        }
+        if (world.getBlockEntity(master) instanceof PortalGateBlockEntity gate) {
+            gate.open(world.getTime(), permanent, 0);
+        }
+    }
+
+    /** A player's gate: the frame snaps together around the ring (about 0.7 s, one click per piece), then the vortex tears open. */
+    public static void place(World world, BlockPos master, Direction facing) {
+        setCell(world, master, facing, ORDER[0][0], ORDER[0][1]);
+        if (world.getBlockEntity(master) instanceof PortalGateBlockEntity gate) {
+            gate.open(world.getTime(), false, ASSEMBLY_TICKS);
+        }
+        click(world, partPos(master, facing, ORDER[0][0], ORDER[0][1]), 0);
+        for (int i = 1; i < ORDER.length; i++) {
+            final int index = i;
+            ServerTasks.later(Math.max(1, DELAYS[i]), () -> {
+                if (world.isChunkLoaded(master) && world.getBlockState(master).getBlock() instanceof PortalGateBlock) {
+                    setCell(world, master, facing, ORDER[index][0], ORDER[index][1]);
+                    click(world, partPos(master, facing, ORDER[index][0], ORDER[index][1]), index);
+                }
+            });
+        }
+        ServerTasks.later(ASSEMBLY_TICKS, () -> {
+            if (world.isChunkLoaded(master) && world.getBlockState(master).getBlock() instanceof PortalGateBlock) {
+                world.playSound(null, master, ModSounds.PORTAL_OPEN, SoundCategory.BLOCKS, 1.2f, 1.0f);
+            }
+        });
+    }
+
+    /** The click of one frame piece snapping into place (the pitch rises around the ring) with a few sparks. */
+    private static void click(World world, BlockPos at, int index) {
+        world.playSound(null, at, SoundEvents.BLOCK_DEEPSLATE_BRICKS_PLACE, SoundCategory.BLOCKS, 0.8f, 0.8f + 0.06f * index);
+        if (world instanceof ServerWorld sw) {
+            sw.spawnParticles(ParticleTypes.ELECTRIC_SPARK, at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5, 6, 0.3, 0.3, 0.3, 0.08);
+            sw.spawnParticles(ParticleTypes.REVERSE_PORTAL, at.getX() + 0.5, at.getY() + 0.5, at.getZ() + 0.5, 4, 0.3, 0.3, 0.3, 0.1);
+        }
+    }
+
+    /** Removes all nine cells (whatever of them is still there). */
+    public static void removeAll(World world, BlockPos master, Direction facing) {
+        for (int l = 0; l < 3; l++) {
+            for (int h = 0; h < 3; h++) {
+                BlockPos p = partPos(master, facing, l, h);
+                BlockState s = world.getBlockState(p);
+                if (s.getBlock() instanceof PortalGateBlock) {
+                    world.setBlockState(p, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL | Block.SKIP_DROPS);
+                }
+            }
+        }
+    }
+
+    /** True while all nine cells are still parts of this gate. */
+    public static boolean intact(World world, BlockPos master, Direction facing) {
+        for (int l = 0; l < 3; l++) {
+            for (int h = 0; h < 3; h++) {
+                BlockState s = world.getBlockState(partPos(master, facing, l, h));
+                if (!(s.getBlock() instanceof PortalGateBlock) || s.get(LATERAL) != l || s.get(HEIGHT) != h || s.get(FACING) != facing) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+}
+''')
+
+J("shop/PortalGateBlockEntity.java", r'''
+package @@PKG@@.shop;
+
+import @@PKG@@.RSConfig;
+import @@PKG@@.RealityShopMod;
+import @@PKG@@.net.TransitionPackets;
+import @@PKG@@.registry.ModBlockEntities;
+import @@PKG@@.registry.ModItems;
+import @@PKG@@.registry.ModSounds;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
+import net.minecraft.particle.BlockStateParticleEffect;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.World;
+
+/**
+ * The master cell of a {@link PortalGateBlock}: owns the animation state that the client renderer reads (opened-at /
+ * closing-since, both in game time, synced), watches the opening for players on the server and runs the pick-up (the vortex
+ * collapses for {@link #CLOSE_TICKS}, then the frame crumbles and the item lands in the inventory).
+ */
+public class PortalGateBlockEntity extends BlockEntity {
+    /** The vortex tears open over this many ticks (after the frame has assembled). */
+    public static final int OPEN_TICKS = 40;
+    /** The vortex collapses into an orb over this many ticks. */
+    public static final int CLOSE_TICKS = 22;
+    /**
+     * From the moment a player touches the swirl until the gate takes them. The screen fades into the vortex meanwhile, so
+     * walking in feels like stepping through a door; the player does not have to stand still.
+     */
+    public static final int ENTER_TICKS = 8;
+    private static final BlockState[] FRAGMENTS = {
+            Blocks.STONE.getDefaultState(), Blocks.DIRT.getDefaultState(), Blocks.GRASS_BLOCK.getDefaultState(),
+            Blocks.OAK_PLANKS.getDefaultState(), Blocks.DEEPSLATE.getDefaultState(), Blocks.SAND.getDefaultState(),
+            Blocks.OBSIDIAN.getDefaultState(), Blocks.NETHERRACK.getDefaultState(), Blocks.COBBLESTONE.getDefaultState()};
+
+    private long openedAt;
+    private long closingAt = -1;
+    private UUID closer;
+    private boolean permanent;
+    /** Players that touched the swirl and are on their way through: uuid -> ticks since. */
+    private final Map<UUID, Integer> entering = new HashMap<>();
+    private int validateTimer;
+
+    public PortalGateBlockEntity(BlockPos pos, BlockState state) {
+        super(ModBlockEntities.PORTAL_GATE, pos, state);
+    }
+
+    // ------------------------------------------------------------------------------------------ state (shared with the renderer)
+    /** Starts the summon animation {@code delay} ticks from {@code time}; permanent gates are simply open. */
+    public void open(long time, boolean permanent, int delay) {
+        this.openedAt = permanent ? time - OPEN_TICKS : time + delay;
+        this.closingAt = -1;
+        this.permanent = permanent;
+        sync();
+    }
+
+    public boolean isPermanent() {
+        return permanent;
+    }
+
+    public UUID getCloser() {
+        return closer;
+    }
+
+    public boolean isClosing() {
+        return closingAt >= 0;
+    }
+
+    /** 0 = still assembling / just placed .. 1 = fully open (the summon animation). */
+    public float openProgress(long time, float tickDelta) {
+        return MathHelper.clamp((time + tickDelta - openedAt) / OPEN_TICKS, 0.0f, 1.0f);
+    }
+
+    /** 0 = open .. 1 = collapsed into the orb. */
+    public float closeProgress(long time, float tickDelta) {
+        return closingAt < 0 ? 0.0f : MathHelper.clamp((time + tickDelta - closingAt) / CLOSE_TICKS, 0.0f, 1.0f);
+    }
+
+    /** The opening of a gate (where the swirl is): 2.5 x 2.5 blocks, half a block deep to either side of the plane. */
+    public static Box openingBox(BlockPos master, Direction facing) {
+        double cx = master.getX() + 0.5;
+        double cz = master.getZ() + 0.5;
+        boolean alongX = facing.getAxis() == Direction.Axis.Z;
+        double half = PortalGateBlock.OPENING_HALF;
+        double depth = 0.5;
+        return new Box(cx - (alongX ? half : depth), master.getY() + 0.25, cz - (alongX ? depth : half),
+                cx + (alongX ? half : depth), master.getY() + 2.75, cz + (alongX ? depth : half));
+    }
+
+    private void sync() {
+        markDirty();
+        if (world != null) {
+            world.updateListeners(pos, getCachedState(), getCachedState(), Block.NOTIFY_ALL);
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------ pick-up
+    public boolean requestClose(ServerPlayerEntity player) {
+        if (world == null) {
+            return false;
+        }
+        if (permanent) {
+            player.sendMessage(Text.literal("This gate is anchored to the Black Market.").formatted(Formatting.GRAY), true);
+            return false;
+        }
+        if (closingAt >= 0) {
+            return false;
+        }
+        closingAt = world.getTime();
+        closer = player.getUuid();
+        sync();
+        world.playSound(null, pos, ModSounds.PORTAL_CLOSE, SoundCategory.BLOCKS, 1.2f, 1.0f);
+        return true;
+    }
+
+    private void finishClose(ServerWorld sw, Direction facing) {
+        Vec3d at = Vec3d.ofCenter(pos).add(0, 1.0, 0);
+        crumble(sw, facing);
+        PortalGateBlock.removeAll(sw, pos, facing);
+        giveItem(sw, at, closer);
+        sw.spawnParticles(ParticleTypes.REVERSE_PORTAL, at.x, at.y, at.z, 50, 0.7, 0.9, 0.7, 0.3);
+    }
+
+    /** The frame breaks into fragments (particles + sound of the blocks it is made of) just before it disappears. */
+    private void crumble(ServerWorld sw, Direction facing) {
+        BlockState stone = Blocks.POLISHED_BLACKSTONE_BRICKS.getDefaultState();
+        BlockState corner = Blocks.CRYING_OBSIDIAN.getDefaultState();
+        for (int l = 0; l < 3; l++) {
+            for (int h = 0; h < 3; h++) {
+                if (l == 1 && h == 1) {
+                    continue;
+                }
+                BlockPos p = PortalGateBlock.partPos(pos, facing, l, h);
+                if (sw.getBlockState(p).getBlock() instanceof PortalGateBlock) {
+                    sw.syncWorldEvent(2001, p, Block.getRawIdFromState(l != 1 && h != 1 ? corner : stone));
+                }
+            }
+        }
+    }
+
+    /** A gate that lost a piece falls apart: what is left goes away and the item is dropped. */
+    private void dissolve(ServerWorld sw, Direction facing) {
+        Vec3d at = Vec3d.ofCenter(pos).add(0, 1.0, 0);
+        crumble(sw, facing);
+        PortalGateBlock.removeAll(sw, pos, facing);
+        giveItem(sw, at, null);
+    }
+
+    private static void giveItem(ServerWorld sw, Vec3d at, UUID to) {
+        ItemStack stack = new ItemStack(ModItems.BLACK_MARKET_PORTAL);
+        ServerPlayerEntity player = to == null ? null : sw.getServer().getPlayerManager().getPlayer(to);
+        if (player != null) {
+            player.getInventory().offerOrDrop(stack);
+            sw.playSound(null, player.getBlockPos(), net.minecraft.sound.SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.PLAYERS, 0.6f, 1.2f);
+        } else {
+            net.minecraft.util.ItemScatterer.spawn(sw, at.x, at.y, at.z, stack);
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------ ticking
+    public static void tick(World world, BlockPos pos, BlockState state, PortalGateBlockEntity be) {
+        if (world.isClient) {
+            be.clientTick(world, pos, state);
+            return;
+        }
+        ServerWorld sw = (ServerWorld) world;
+        Direction facing = state.get(PortalGateBlock.FACING);
+        long now = world.getTime();
+        if (be.closingAt >= 0) {
+            if (now - be.closingAt >= CLOSE_TICKS) {
+                be.finishClose(sw, facing);
+            }
+            return;
+        }
+        if (!be.permanent && ++be.validateTimer >= 40) {
+            be.validateTimer = 0;
+            if (!PortalGateBlock.intact(world, pos, facing)) {
+                be.dissolve(sw, facing);
+                return;
+            }
+        }
+        if (be.openProgress(now, 0.0f) < 0.6f) {
+            return;
+        }
+        // whoever touches the swirl starts the trip: the client fades into the vortex, ENTER_TICKS later the gate takes them
+        List<ServerPlayerEntity> inside = sw.getEntitiesByClass(ServerPlayerEntity.class, openingBox(pos, facing), p -> p.isAlive() && !p.isSpectator());
+        for (ServerPlayerEntity player : inside) {
+            if (!be.entering.containsKey(player.getUuid())) {
+                be.entering.put(player.getUuid(), 0);
+                TransitionPackets.send(player, true);
+                if (RealityShopMod.DEBUG) {
+                    RealityShopMod.LOGGER.info("[gate] {} touched the swirl at {} in {} (permanent={}) at ({}, {}, {})", player.getName().getString(),
+                            pos, sw.getRegistryKey().getValue(), be.permanent, player.getX(), player.getY(), player.getZ());
+                }
+            }
+        }
+        if (be.entering.isEmpty()) {
+            return;
+        }
+        Vec3d centre = Vec3d.ofCenter(pos).add(0, 1.0, 0);
+        Iterator<Map.Entry<UUID, Integer>> it = be.entering.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<UUID, Integer> entry = it.next();
+            PlayerEntity found = sw.getPlayerByUuid(entry.getKey());
+            if (!(found instanceof ServerPlayerEntity player) || !player.isAlive()) {
+                it.remove();
+                continue;
+            }
+            int n = entry.getValue() + 1;
+            if (n < ENTER_TICKS) {
+                entry.setValue(n);
+                continue;
+            }
+            it.remove();
+            if (player.squaredDistanceTo(centre) <= 9.0) {
+                ShopDimensions.useGate(player, pos, facing);
+            } else {
+                TransitionPackets.send(player, false);   // they backed away from the gate: fade the vortex out again
+            }
+        }
+    }
+
+    /** Client: a comet of sparks runs round the rim while the vortex opens; block fragments are sucked into the swirl ("block consumer"). */
+    private void clientTick(World world, BlockPos pos, BlockState state) {
+        long now = world.getTime();
+        float open = openProgress(now, 0.0f);
+        if (open <= 0.0f || closingAt >= 0) {
+            return;
+        }
+        double density = RSConfig.get().particleDensity;
+        Random r = world.random;
+        Direction front = state.get(PortalGateBlock.FACING);
+        Direction left = front.rotateYClockwise();
+        double cx = pos.getX() + 0.5;
+        double cy = pos.getY() + 1.5;
+        double cz = pos.getZ() + 0.5;
+        double half = PortalGateBlock.OPENING_HALF;
+        if (open < 1.0f) {
+            for (int k = 0; k < 2; k++) {
+                double s = ((open * 3.0 + k * 0.5) % 1.0) * 4.0;     // 0..4 along the square rim
+                double f = s - Math.floor(s);
+                double lat;
+                double up;
+                switch ((int) s) {
+                    case 0 -> {
+                        lat = -half + 2 * half * f;
+                        up = -half;
+                    }
+                    case 1 -> {
+                        lat = half;
+                        up = -half + 2 * half * f;
+                    }
+                    case 2 -> {
+                        lat = half - 2 * half * f;
+                        up = half;
+                    }
+                    default -> {
+                        lat = -half;
+                        up = half - 2 * half * f;
+                    }
+                }
+                world.addParticle(k == 0 ? ParticleTypes.ELECTRIC_SPARK : ParticleTypes.END_ROD, cx + left.getOffsetX() * lat, cy + up,
+                        cz + left.getOffsetZ() * lat, 0.0, 0.0, 0.0);
+            }
+        }
+        if (open < 0.2f) {
+            return;
+        }
+        int n = (int) Math.round((r.nextFloat() < 0.5f ? 1 : 2) * density * open);
+        for (int i = 0; i < n; i++) {
+            // a point on a ring around the opening, in the gate's plane (lateral axis = the facing's left, and up)
+            double ang = r.nextDouble() * Math.PI * 2.0;
+            double rad = 1.3 + r.nextDouble() * 1.0;
+            double lateral = Math.cos(ang) * rad;
+            double depth = (r.nextDouble() - 0.5) * 0.6;
+            double px = cx + left.getOffsetX() * lateral + front.getOffsetX() * depth;
+            double py = cy + Math.sin(ang) * rad;
+            double pz = cz + left.getOffsetZ() * lateral + front.getOffsetZ() * depth;
+            world.addParticle(new BlockStateParticleEffect(ParticleTypes.BLOCK, FRAGMENTS[r.nextInt(FRAGMENTS.length)]),
+                    px, py, pz, (cx - px) * 0.18, (cy - py) * 0.18, (cz - pz) * 0.18);
+        }
+        if (r.nextInt(3) == 0) {
+            world.addParticle(ParticleTypes.REVERSE_PORTAL, cx + (r.nextDouble() - 0.5) * 2.0, cy + (r.nextDouble() - 0.5) * 2.0,
+                    cz + (r.nextDouble() - 0.5), 0.0, 0.02, 0.0);
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------ persistence + sync
+    @Override
+    protected void writeNbt(NbtCompound nbt) {
+        super.writeNbt(nbt);
+        nbt.putLong("openedAt", openedAt);
+        nbt.putLong("closingAt", closingAt);
+        nbt.putBoolean("permanent", permanent);
+        if (closer != null) {
+            nbt.putUuid("closer", closer);
+        }
+    }
+
+    @Override
+    public void readNbt(NbtCompound nbt) {
+        super.readNbt(nbt);
+        openedAt = nbt.getLong("openedAt");
+        closingAt = nbt.contains("closingAt") ? nbt.getLong("closingAt") : -1;
+        permanent = nbt.getBoolean("permanent");
+        closer = nbt.containsUuid("closer") ? nbt.getUuid("closer") : null;
+    }
+
+    @Override
+    public NbtCompound toInitialChunkDataNbt() {
+        return createNbt();
+    }
+
+    @Override
+    public BlockEntityUpdateS2CPacket toUpdatePacket() {
+        return BlockEntityUpdateS2CPacket.create(this);
+    }
+}
+''')
+
+J("net/TransitionPackets.java", r'''
+package @@PKG@@.net;
+
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.network.ServerPlayerEntity;
+
+/** Tells a client that a gate transition starts (fade into the vortex, no loading screen) or was cancelled. */
+public final class TransitionPackets {
+    private TransitionPackets() {}
+
+    public static void send(ServerPlayerEntity player, boolean begin) {
+        if (player.networkHandler == null) {
+            return;   // mock players in game tests
+        }
+        PacketByteBuf buf = PacketByteBufs.create();
+        buf.writeBoolean(begin);
+        ServerPlayNetworking.send(player, ModNetwork.GATE_TRANSITION, buf);
+    }
+}
+''')
+
+J("item/PortalGateItem.java", r'''
+package @@PKG@@.item;
+
+import @@PKG@@.registry.ModSounds;
+import @@PKG@@.shop.PortalGateBlock;
+import @@PKG@@.shop.ShopDimensions;
+import java.util.List;
+import net.minecraft.client.item.TooltipContext;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
+import org.jetbrains.annotations.Nullable;
+
+/** Places a Reality Gate (3 wide, 3 tall) in front of you: the frame snaps together, then the vortex tears open. */
+public class PortalGateItem extends Item {
+    public PortalGateItem(Settings settings) {
+        super(settings);
+    }
+
+    @Override
+    public ActionResult useOnBlock(ItemUsageContext context) {
+        World world = context.getWorld();
+        PlayerEntity player = context.getPlayer();
+        if (world.isClient) {
+            return ActionResult.SUCCESS;
+        }
+        if (ShopDimensions.isShopDimension(world)) {
+            tell(player, "Reality is anchored here - gates cannot be placed in the shop dimensions.");
+            return ActionResult.FAIL;
+        }
+        BlockPos clicked = context.getBlockPos();
+        BlockPos base = world.getBlockState(clicked).isReplaceable() ? clicked : clicked.offset(context.getSide());
+        Direction facing = player != null ? player.getHorizontalFacing().getOpposite() : Direction.SOUTH;
+        if (!PortalGateBlock.canPlace(world, base, facing, player)) {
+            tell(player, "Not enough free space for the gate (3 wide, 3 tall).");
+            return ActionResult.FAIL;
+        }
+        PortalGateBlock.place(world, base, facing);
+        if (player != null && !player.getAbilities().creativeMode) {
+            context.getStack().decrement(1);
+        }
+        return ActionResult.CONSUME;
+    }
+
+    private static void tell(@Nullable PlayerEntity player, String message) {
+        if (player instanceof ServerPlayerEntity sp) {
+            sp.sendMessage(Text.literal(message).formatted(Formatting.RED), true);
+        }
+    }
+
+    @Override
+    public void appendTooltip(ItemStack stack, @Nullable World world, List<Text> tooltip, TooltipContext context) {
+        PowerTooltips.append("black_market_portal", tooltip);
+    }
+}
+''')
+
+J("client/gate/PortalShader.java", r'''
+package @@PKG@@.client.gate;
+
+import com.mojang.blaze3d.systems.RenderSystem;
+import @@PKG@@.RealityShopMod;
+import net.fabricmc.fabric.api.client.rendering.v1.CoreShaderRegistrationCallback;
+import net.minecraft.client.gl.GlUniform;
+import net.minecraft.client.gl.ShaderProgram;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.BufferRenderer;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexFormat;
+import net.minecraft.client.render.VertexFormats;
+import org.joml.Matrix4f;
+
+/**
+ * The block-consumer vortex: a core shader (assets/@@MODID@@/shaders/core/portal_vortex.*) that computes the swirl per pixel,
+ * so the portal moves fluidly at any frame rate instead of stepping through texture frames.
+ * Modes: 0 = the doorway of a gate, 1 = the full-screen transition overlay, 2 = the orb of a collapsing gate.
+ */
+public final class PortalShader {
+    public static final float MODE_GATE = 0.0f;
+    public static final float MODE_SCREEN = 1.0f;
+    public static final float MODE_ORB = 2.0f;
+    /** The /cinematic studio: a full-screen backdrop and a glowing floor disc. */
+    public static final float MODE_BACKDROP = 3.0f;
+    public static final float MODE_FLOOR = 4.0f;
+
+    private static ShaderProgram program;
+
+    private PortalShader() {}
+
+    public static void register() {
+        CoreShaderRegistrationCallback.EVENT.register(context ->
+                context.register(RealityShopMod.id("portal_vortex"), VertexFormats.POSITION_TEXTURE, shader -> program = shader));
+    }
+
+    public static boolean ready() {
+        return program != null;
+    }
+
+    private static void set(String name, float v) {
+        GlUniform u = program.getUniform(name);
+        if (u != null) {
+            u.set(v);
+        }
+    }
+
+    /**
+     * Draws one quad (x0,y0)-(x1,y1) at depth z with the vortex shader.
+     *
+     * @param overlay true for 2D (HUD) drawing: no depth test
+     */
+    public static void draw(Matrix4f matrix, float x0, float y0, float x1, float y1, float z, float aspectX, float aspectY,
+                            float mode, float open, float close, float alpha, float time, boolean overlay) {
+        if (program == null) {
+            return;
+        }
+        set("Time", time);
+        set("Open", open);
+        set("Close", close);
+        set("Mode", mode);
+        set("Alpha", alpha);
+        GlUniform aspect = program.getUniform("Aspect");
+        if (aspect != null) {
+            aspect.set(aspectX, aspectY);
+        }
+        RenderSystem.setShader(() -> program);
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.disableCull();
+        RenderSystem.depthMask(false);
+        if (overlay) {
+            RenderSystem.disableDepthTest();
+        }
+        BufferBuilder buffer = Tessellator.getInstance().getBuffer();
+        buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE);
+        buffer.vertex(matrix, x0, y0, z).texture(0.0f, 1.0f).next();
+        buffer.vertex(matrix, x1, y0, z).texture(1.0f, 1.0f).next();
+        buffer.vertex(matrix, x1, y1, z).texture(1.0f, 0.0f).next();
+        buffer.vertex(matrix, x0, y1, z).texture(0.0f, 0.0f).next();
+        BufferRenderer.drawWithGlobalProgram(buffer.end());
+        if (overlay) {
+            RenderSystem.enableDepthTest();
+        }
+        RenderSystem.depthMask(true);
+        RenderSystem.enableCull();
+        RenderSystem.disableBlend();
+    }
+}
+''', client=True)
+
+J("client/gate/PortalTransition.java", r'''
+package @@PKG@@.client.gate;
+
+import @@PKG@@.RealityShopMod;
+import @@PKG@@.net.ModNetwork;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.util.math.MathHelper;
+
+/**
+ * The seamless trip through a gate. The server says "a transition starts" the moment you step into the doorway: the screen
+ * fades into the swirling vortex while the server counts down, the dimension change itself shows NO loading screen
+ * (see the two client mixins, which ask {@link #active()}), and once you arrive the vortex fades away again.
+ */
+public final class PortalTransition {
+    private static float fade;
+    private static float prevFade;
+    private static boolean wantFade;
+    private static int hold;
+    private static int stuck;
+    private static int trace;
+
+    private PortalTransition() {}
+
+    public static void register() {
+        ClientPlayNetworking.registerGlobalReceiver(ModNetwork.GATE_TRANSITION, (client, handler, buf, responseSender) -> {
+            boolean begin = buf.readBoolean();
+            client.execute(() -> {
+                if (RealityShopMod.DEBUG) {
+                    RealityShopMod.LOGGER.info("[gate-client] transition packet begin={} (fade {})", begin, fade);
+                }
+                wantFade = begin;
+                stuck = 0;
+            });
+        });
+        ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
+        HudRenderCallback.EVENT.register(PortalTransition::render);
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> reset());
+    }
+
+    /** True while a transition is running: the loading screens of a dimension change are skipped then. */
+    public static boolean active() {
+        return wantFade || fade > 0.05f;
+    }
+
+    /** The dimension just changed under us: be fully covered right now, then fade out. */
+    public static void onArrived() {
+        if (RealityShopMod.DEBUG) {
+            RealityShopMod.LOGGER.info("[gate-client] arrived (no loading screen)");
+            trace = 100;
+        }
+        fade = 1.0f;
+        prevFade = 1.0f;
+        wantFade = false;
+        hold = 6;
+    }
+
+    private static void reset() {
+        fade = prevFade = 0.0f;
+        wantFade = false;
+        hold = 0;
+        stuck = 0;
+    }
+
+    public static void traceDimensionChange(boolean skipped) {
+        if (RealityShopMod.DEBUG) {
+            RealityShopMod.LOGGER.info("[gate-client] dimension change: loading screen skipped = {} (wantFade {}, fade {})", skipped, wantFade, fade);
+            if (!skipped) {
+                trace = 100;
+            }
+        }
+    }
+
+    private static void tick() {
+        if (RealityShopMod.DEBUG && trace > 0) {
+            trace--;
+            MinecraftClient mc = MinecraftClient.getInstance();
+            if (mc.player != null && trace % 5 == 0) {
+                RealityShopMod.LOGGER.info("[gate-trace-client] left={} pos=({}, {}, {}) onGround={} fall={} chunkLoaded={} screen={}", trace,
+                        String.format("%.2f", mc.player.getX()), String.format("%.2f", mc.player.getY()), String.format("%.2f", mc.player.getZ()),
+                        mc.player.isOnGround(), String.format("%.1f", mc.player.fallDistance),
+                        mc.world != null && mc.world.isChunkLoaded(mc.player.getBlockPos()), mc.currentScreen == null ? "none" : mc.currentScreen.getClass().getSimpleName());
+            }
+        }
+        prevFade = fade;
+        if (wantFade) {
+            fade = Math.min(1.0f, fade + 0.14f);
+            if (fade >= 1.0f && ++stuck > 120) {
+                wantFade = false;   // the server never moved us: do not stay covered forever
+            }
+        } else if (hold > 0) {
+            hold--;
+        } else {
+            fade = Math.max(0.0f, fade - 0.05f);
+        }
+    }
+
+    private static void render(DrawContext context, float tickDelta) {
+        float f = MathHelper.lerp(tickDelta, prevFade, fade);
+        if (f <= 0.002f || !PortalShader.ready()) {
+            return;
+        }
+        MinecraftClient client = MinecraftClient.getInstance();
+        int w = context.getScaledWindowWidth();
+        int h = context.getScaledWindowHeight();
+        float eased = f * f * (3.0f - 2.0f * f);
+        float time = client.world == null ? 0.0f : (float) (((client.world.getTime() + tickDelta) / 20.0) % 3600.0);
+        PortalShader.draw(context.getMatrices().peek().getPositionMatrix(), 0.0f, 0.0f, w, h, 0.0f, (float) w / h, 1.0f,
+                PortalShader.MODE_SCREEN, 1.0f, 0.0f, eased, time, true);
+    }
+}
+''', client=True)
+
+J("client/gate/PortalGateRenderer.java", r'''
+package @@PKG@@.client.gate;
+
+import @@PKG@@.shop.PortalGateBlock;
+import @@PKG@@.shop.PortalGateBlockEntity;
+import java.util.UUID;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.block.entity.BlockEntityRenderer;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.RotationAxis;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
+import org.joml.Matrix4f;
+
+/**
+ * Draws the vortex inside the gate's opening (2.5 x 2.5 blocks) with the {@link PortalShader}: the summon animation while it
+ * opens, the swirl while it is open, and on pick-up the collapse into an orb that flies to the player.
+ */
+public class PortalGateRenderer implements BlockEntityRenderer<PortalGateBlockEntity> {
+    public PortalGateRenderer(BlockEntityRendererFactory.Context ctx) {
+    }
+
+    @Override
+    public void render(PortalGateBlockEntity be, float tickDelta, MatrixStack matrices, VertexConsumerProvider vcp, int light, int overlay) {
+        World world = be.getWorld();
+        if (world == null || !PortalShader.ready()) {
+            return;
+        }
+        long time = world.getTime();
+        float open = be.openProgress(time, tickDelta);
+        float close = be.closeProgress(time, tickDelta);
+        if (open <= 0.001f) {
+            return;
+        }
+        Direction facing = be.getCachedState().get(PortalGateBlock.FACING);
+        float t = (float) (((time + tickDelta) / 20.0) % 3600.0);
+
+        matrices.push();
+        matrices.translate(0.5, 0.0, 0.5);
+        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-facing.asRotation()));   // the doorway plane faces the gate's front
+        if (close < 0.98f) {
+            Matrix4f m = matrices.peek().getPositionMatrix();
+            float half = (float) PortalGateBlock.OPENING_HALF;
+            PortalShader.draw(m, -half, 0.25f, half, 2.75f, 0.0f, 1.0f, 1.0f, PortalShader.MODE_GATE, open, close, 1.0f, t, false);
+        }
+        matrices.pop();
+
+        if (close > 0.3f) {
+            drawOrb(be, tickDelta, matrices, close, t);
+        }
+    }
+
+    /** The collapsed gate as a glowing orb that flies to whoever is picking it up. */
+    private void drawOrb(PortalGateBlockEntity be, float tickDelta, MatrixStack matrices, float close, float t) {
+        World world = be.getWorld();
+        BlockPos pos = be.getPos();
+        Vec3d from = new Vec3d(0.5, 1.5, 0.5);
+        Vec3d to = from;
+        UUID closer = be.getCloser();
+        PlayerEntity player = closer == null ? null : world.getPlayerByUuid(closer);
+        if (player != null) {
+            to = player.getCameraPosVec(tickDelta).subtract(pos.getX(), pos.getY(), pos.getZ()).add(0.0, -0.35, 0.0);
+        }
+        float k = MathHelper.clamp((close - 0.3f) / 0.7f, 0.0f, 1.0f);
+        float e = k * k * (3.0f - 2.0f * k);
+        Vec3d at = from.lerp(to, e).add(0.0, Math.sin(e * Math.PI) * 0.6, 0.0);
+        float size = 0.45f * (1.0f - 0.55f * e);
+        matrices.push();
+        matrices.translate(at.x, at.y, at.z);
+        matrices.multiply(MinecraftClient.getInstance().gameRenderer.getCamera().getRotation());
+        Matrix4f m = matrices.peek().getPositionMatrix();
+        PortalShader.draw(m, -size, -size, size, size, 0.0f, 1.0f, 1.0f, PortalShader.MODE_ORB, 1.0f, 0.0f,
+                1.0f - 0.8f * Math.max(0.0f, e - 0.85f) / 0.15f, t, false);
+        matrices.pop();
+    }
+
+    @Override
+    public boolean rendersOutsideBoundingBox(PortalGateBlockEntity be) {
+        return true;
+    }
+}
+''', client=True)
+
+J("client/mixin/ClientPlayNetworkHandlerMixin.java", r'''
+package @@PKG@@.client.mixin;
+
+import @@PKG@@.client.gate.PortalTransition;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.network.ClientPlayNetworkHandler;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Redirect;
+
+/** A dimension change shows "Loading terrain" - except while one of our gates is carrying you: then the vortex covers the screen. */
+@Mixin(ClientPlayNetworkHandler.class)
+public abstract class ClientPlayNetworkHandlerMixin {
+    @Redirect(method = "onPlayerRespawn", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/MinecraftClient;setScreen(Lnet/minecraft/client/gui/screen/Screen;)V", ordinal = 0))
+    private void realityshop$noLoadingScreen(MinecraftClient client, Screen screen) {
+        boolean skip = PortalTransition.active();
+        PortalTransition.traceDimensionChange(skip);
+        if (skip) {
+            PortalTransition.onArrived();
+        } else {
+            client.setScreen(screen);
+        }
+    }
+}
+''', client=True)
+
+J("client/mixin/MinecraftClientMixin.java", r'''
+package @@PKG@@.client.mixin;
+
+import @@PKG@@.client.gate.PortalTransition;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.Screen;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+/** joinWorld() forces one frame of a "Joining world" screen; skip it while a gate transition is running (the rest of reset() still happens). */
+@Mixin(MinecraftClient.class)
+public abstract class MinecraftClientMixin {
+    @Inject(method = "reset(Lnet/minecraft/client/gui/screen/Screen;)V", at = @At("HEAD"), cancellable = true)
+    private void realityshop$resetWithoutJoiningScreen(Screen screen, CallbackInfo ci) {
+        if (PortalTransition.active()) {
+            MinecraftClient self = (MinecraftClient) (Object) this;
+            self.getSoundManager().stopAll();
+            self.cameraEntity = null;
+            ci.cancel();
+        }
+    }
+}
+''', client=True)
+
+J("client/cinematic/CinematicDirector.java", r'''
+package @@PKG@@.client.cinematic;
+
+import com.mojang.brigadier.arguments.StringArgumentType;
+import @@PKG@@.RealityShopMod;
+import @@PKG@@.command.RealityShopCommand;
+import @@PKG@@.registry.ModItems;
+import @@PKG@@.shop.ShopOffer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.option.Perspective;
+import net.minecraft.command.CommandSource;
+import net.minecraft.item.ItemStack;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+
+/**
+ * /cinematic - a client-side showcase: a 360 degree orbit camera flies around every item of the mod (and the Derp Chicken) on a
+ * neon stage, one title card each. The player model, the hand, the HUD and the world are hidden for the duration (the camera is
+ * detached from the player, the stage is drawn over the world), nothing changes in the world, and it works anywhere.
+ * ESC leaves, SPACE skips to the next item. {@code /cinematic <item>} shows one, {@code /cinematic stop} ends it.
+ */
+public final class CinematicDirector {
+    public enum Kind { ITEM, GATE, CHICKEN }
+
+    /** One showcase: what is shown, its title card texts and how the camera flies around it. */
+    public record Shot(String id, Kind kind, ItemStack stack, Text title, Text powerLabel, List<Text> lines, Text price,
+                       float radius, float height, float scale, float lift, int accent) {}
+
+    public record Pose(Vec3d pos, float yaw, float pitch) {}
+
+    public static final double INTRO_SECONDS = 2.6;
+    /** Seconds per item (the property is for the automated client test). */
+    public static final double SHOT_SECONDS = shotSeconds();
+    private static final double FADE_SECONDS = Math.min(0.7, SHOT_SECONDS * 0.2);
+    /** The item floats this far above the player's feet; the floor ring lies 1.65 blocks under it. */
+    public static final double CENTER_HEIGHT = 2.4;
+
+    private static boolean active;
+    private static boolean pending;
+    private static String pendingOnly;
+    private static long startNanos;
+    private static List<Shot> shots = List.of();
+    private static Vec3d origin = Vec3d.ZERO;
+    private static float startYaw;
+    private static Perspective savedPerspective = Perspective.FIRST_PERSON;
+    private static boolean savedHudHidden;
+    private static int autoTicks;
+    private static boolean autoStarted;
+
+    private CinematicDirector() {}
+
+    private static double shotSeconds() {
+        try {
+            return Math.max(1.5, Double.parseDouble(System.getProperty("realityshop.cinematicSeconds", "7.5")));
+        } catch (NumberFormatException e) {
+            return 7.5;
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------ wiring
+    public static void register() {
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
+                ClientCommandManager.literal("cinematic")
+                        .executes(ctx -> {
+                            requestStart(null);
+                            return 1;
+                        })
+                        .then(ClientCommandManager.argument("item", StringArgumentType.word())
+                                .suggests((ctx, builder) -> CommandSource.suggestMatching(ids(), builder))
+                                .executes(ctx -> {
+                                    String what = StringArgumentType.getString(ctx, "item");
+                                    if (what.equalsIgnoreCase("stop")) {
+                                        stop();
+                                        return 1;
+                                    }
+                                    if (!requestStart(what)) {
+                                        ctx.getSource().sendError(Text.translatable("cinematic.realityshop.unknown", what));
+                                        return 0;
+                                    }
+                                    return 1;
+                                }))));
+        ClientTickEvents.END_CLIENT_TICK.register(CinematicDirector::tick);
+        WorldRenderEvents.LAST.register(context -> {
+            if (active) {
+                CinematicStage.render(context);
+            }
+        });
+    }
+
+    public static List<String> ids() {
+        List<String> ids = new ArrayList<>();
+        for (ShopOffer offer : ShopOffer.values()) {
+            ids.add(offer.id);
+        }
+        ids.add("black_market_portal");
+        ids.add("derp_chicken");
+        ids.add("stop");
+        return ids;
+    }
+
+    private static boolean matches(String id, String query) {
+        String q = query.toLowerCase(Locale.ROOT);
+        return id.equals(q) || id.contains(q);
+    }
+
+    /** Starts on the next tick (a command typed into the chat closes the chat screen right after it ran). */
+    public static boolean requestStart(String only) {
+        if (only != null && ids().stream().filter(id -> !id.equals("stop")).noneMatch(id -> matches(id, only))) {
+            return false;
+        }
+        pending = true;
+        pendingOnly = only;
+        return true;
+    }
+
+    public static boolean active() {
+        return active;
+    }
+
+    private static void tick(MinecraftClient client) {
+        if (!autoStarted && Boolean.getBoolean("realityshop.cinematic.auto") && client.player != null && client.world != null && ++autoTicks > 100) {
+            autoStarted = true;
+            requestStart(null);
+        }
+        if (pending && !active) {
+            pending = false;
+            if (client.player != null && client.world != null) {
+                begin(client, pendingOnly);
+            }
+        }
+        if (!active) {
+            return;
+        }
+        if (client.player == null || client.world == null || !client.player.isAlive() || client.player.hurtTime > 0 || elapsed() >= total()) {
+            stop();   // leaving the world, getting hurt, or simply done
+        }
+    }
+
+    private static void begin(MinecraftClient client, String only) {
+        List<Shot> list = buildShots();
+        if (only != null) {
+            list.removeIf(shot -> !matches(shot.id(), only));
+        }
+        if (list.isEmpty()) {
+            return;
+        }
+        shots = list;
+        origin = client.player.getPos();
+        startYaw = client.player.getYaw();
+        savedPerspective = client.options.getPerspective();
+        savedHudHidden = client.options.hudHidden;
+        client.options.setPerspective(Perspective.FIRST_PERSON);   // first person: the player model is never drawn
+        client.options.hudHidden = true;
+        client.gameRenderer.setRenderHand(false);
+        startNanos = System.nanoTime();
+        active = true;
+        RealityShopMod.LOGGER.info("[cinematic] started: {} shots, {} s each", shots.size(), SHOT_SECONDS);
+        client.setScreen(new CinematicScreen());
+    }
+
+    public static void stop() {
+        pending = false;
+        if (!active) {
+            return;
+        }
+        active = false;
+        RealityShopMod.LOGGER.info("[cinematic] stopped after {} s", String.format("%.1f", elapsed()));
+        MinecraftClient client = MinecraftClient.getInstance();
+        client.options.setPerspective(savedPerspective);
+        client.options.hudHidden = savedHudHidden;
+        client.gameRenderer.setRenderHand(true);
+        if (client.currentScreen instanceof CinematicScreen) {
+            client.setScreen(null);
+        }
+    }
+
+    /** SPACE: jump to the start of the next item. */
+    public static void skip() {
+        double t = elapsed();
+        int idx = shotIndex(t);
+        double next = idx < 0 ? INTRO_SECONDS : INTRO_SECONDS + (idx + 1) * SHOT_SECONDS;
+        startNanos -= (long) ((next - t + 0.05) * 1.0e9);
+    }
+
+    // ------------------------------------------------------------------------------------------ the shots
+    private static List<Shot> buildShots() {
+        List<Shot> list = new ArrayList<>();
+        // per item: camera radius, camera height above the item, item scale, item lift, accent colour
+        float[][] setup = {
+                {3.8f, 0.9f, 2.8f, 0.0f}, {3.8f, 0.9f, 2.6f, 0.0f}, {4.2f, 0.9f, 2.8f, 0.0f},
+                {4.4f, 1.0f, 3.0f, 0.0f}, {4.2f, 1.1f, 4.2f, 0.0f}, {4.6f, 1.0f, 3.0f, 0.0f}};
+        int[] accents = {0xFF5CE0, 0x6FD0FF, 0xFF8AC8, 0x5CFF7A, 0xFF5050, 0x45F0FF};
+        ShopOffer[] offers = ShopOffer.values();
+        for (int i = 0; i < offers.length; i++) {
+            ShopOffer offer = offers[i];
+            ItemStack stack = offer.stack();
+            Text price = offer.cost == 0 ? Text.translatable("cinematic.realityshop.free")
+                    : Text.translatable("cinematic.realityshop.cost", RealityShopCommand.fmt(offer.cost));
+            list.add(new Shot(offer.id, Kind.ITEM, stack, stack.getName(), label(Text.translatable("tooltip.realityshop." + offer.id + ".1")),
+                    lines("tooltip.realityshop." + offer.id + ".", 2, 4), price, setup[i][0], setup[i][1], setup[i][2], setup[i][3], accents[i]));
+        }
+        ItemStack portal = new ItemStack(ModItems.BLACK_MARKET_PORTAL);
+        list.add(new Shot("black_market_portal", Kind.GATE, portal, portal.getName(),
+                label(Text.translatable("tooltip.realityshop.black_market_portal.1")), lines("tooltip.realityshop.black_market_portal.", 2, 3),
+                Text.translatable("cinematic.realityshop.gate_price"), 6.3f, 1.2f, 1.0f, 0.0f, 0xB070FF));
+        list.add(new Shot("derp_chicken", Kind.CHICKEN, ItemStack.EMPTY, Text.translatable("entity.realityshop.derp_chicken"),
+                label(Text.translatable("cinematic.realityshop.chicken.1")), lines("cinematic.realityshop.chicken.", 2, 4),
+                Text.translatable("cinematic.realityshop.chicken_price"), 3.4f, 0.8f, 1.9f, 0.0f, 0xFFA040));
+        return list;
+    }
+
+    private static List<Text> lines(String prefix, int from, int to) {
+        List<Text> out = new ArrayList<>();
+        for (int i = from; i <= to; i++) {
+            out.add(Text.translatable(prefix + i));
+        }
+        return out;
+    }
+
+    /** "Power: Glitch Mining" -> "P O W E R : G L I T C H   M I N I N G" for the small label above a title. */
+    private static Text label(Text text) {
+        StringBuilder sb = new StringBuilder();
+        for (char c : text.getString().toUpperCase(Locale.ROOT).toCharArray()) {
+            sb.append(c).append(c == ' ' ? "  " : " ");
+        }
+        return Text.literal(sb.toString().trim());
+    }
+
+    // ------------------------------------------------------------------------------------------ the timeline
+    public static List<Shot> shots() {
+        return shots;
+    }
+
+    public static double elapsed() {
+        return (System.nanoTime() - startNanos) / 1.0e9;
+    }
+
+    public static double total() {
+        return INTRO_SECONDS + shots.size() * SHOT_SECONDS;
+    }
+
+    /** -1 during the intro card, then the index of the item being shown. */
+    public static int shotIndex(double t) {
+        if (shots.isEmpty() || t < INTRO_SECONDS) {
+            return -1;
+        }
+        return Math.min(shots.size() - 1, (int) ((t - INTRO_SECONDS) / SHOT_SECONDS));
+    }
+
+    public static double shotTime(double t, int index) {
+        return index < 0 ? t : t - INTRO_SECONDS - index * SHOT_SECONDS;
+    }
+
+    private static double smooth(double x) {
+        x = MathHelper.clamp(x, 0.0, 1.0);
+        return x * x * (3.0 - 2.0 * x);
+    }
+
+    /** 0 = fully visible .. 1 = black: every shot fades in from and out to black. */
+    public static float blackout(double t) {
+        int idx = shotIndex(t);
+        double local = shotTime(t, idx);
+        double length = idx < 0 ? INTRO_SECONDS : SHOT_SECONDS;
+        double in = idx < 0 ? 0.7 : FADE_SECONDS;
+        double out = idx < 0 ? 0.5 : FADE_SECONDS;
+        return (float) (1.0 - Math.min(smooth(local / in), smooth((length - local) / out)));
+    }
+
+    // ------------------------------------------------------------------------------------------ the camera
+    public static Vec3d center() {
+        return origin.add(0.0, CENTER_HEIGHT, 0.0);
+    }
+
+    public static Vec3d origin() {
+        return origin;
+    }
+
+    /** Where the camera is right now: one slow, eased 360 degree orbit per item, rising and falling a little. */
+    public static Pose pose() {
+        double t = elapsed();
+        int idx = shotIndex(t);
+        Vec3d center = center();
+        double theta = Math.toRadians(startYaw);
+        double radius;
+        double height;
+        if (idx < 0) {                                       // the intro drifts past the empty stage
+            radius = 7.5;
+            height = 1.2;
+            theta += 0.6 * (t / INTRO_SECONDS);
+        } else {
+            Shot shot = shots.get(idx);
+            double u = MathHelper.clamp(shotTime(t, idx) / SHOT_SECONDS, 0.0, 1.0);
+            double eased = 0.7 * u + 0.3 * (u * u * (3.0 - 2.0 * u));
+            theta += idx * 1.1 + Math.PI * 2.0 * eased;
+            radius = shot.radius() * (1.0 + 0.07 * Math.sin(Math.PI * 2.0 * u + 1.0));
+            height = shot.height() + 0.35 * Math.sin(Math.PI * 2.0 * u);
+        }
+        Vec3d pos = center.add(radius * Math.sin(theta), height, -radius * Math.cos(theta));
+        float pitch = (float) Math.toDegrees(Math.atan2(pos.y - (center.y + 0.1), radius));
+        return new Pose(pos, (float) Math.toDegrees(theta), pitch);
+    }
+}
+''', client=True)
+
+J("client/cinematic/CinematicStage.java", r'''
+package @@PKG@@.client.cinematic;
+
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.systems.VertexSorter;
+import @@PKG@@.client.gate.PortalShader;
+import @@PKG@@.entity.DerpChickenEntity;
+import @@PKG@@.registry.ModBlocks;
+import @@PKG@@.registry.ModEntities;
+import @@PKG@@.shop.PortalGateBlock;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.model.json.ModelTransformationMode;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.RotationAxis;
+import net.minecraft.util.math.Vec3d;
+import org.joml.Matrix4f;
+import org.lwjgl.opengl.GL11;
+
+/**
+ * The /cinematic studio, drawn at the very end of the world pass: a full-screen backdrop (it hides the world), then - on a
+ * fresh depth buffer - a glowing floor, the showcased thing floating and turning above it, and drifting light motes.
+ */
+public final class CinematicStage {
+    private static DerpChickenEntity chicken;
+    private static ClientWorld chickenWorld;
+
+    private CinematicStage() {}
+
+    public static void render(WorldRenderContext ctx) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.world == null || !PortalShader.ready()) {
+            return;
+        }
+        double t = CinematicDirector.elapsed();
+        float time = (float) (t % 3600.0);
+        int idx = CinematicDirector.shotIndex(t);
+        CinematicDirector.Shot shot = idx < 0 || CinematicDirector.shots().isEmpty() ? null : CinematicDirector.shots().get(idx);
+
+        backdrop(client, time);
+
+        MatrixStack matrices = ctx.matrixStack();
+        Camera camera = ctx.camera();
+        Vec3d cam = camera.getPos();
+        Vec3d center = CinematicDirector.center();
+        float floorY = (float) (center.y - 1.65);
+        int accent = shot == null ? 0xB070FF : shot.accent();
+
+        // the floor: a dark glossy disc with neon rings
+        matrices.push();
+        matrices.translate(center.x - cam.x, floorY - cam.y, center.z - cam.z);
+        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90.0f));
+        PortalShader.draw(matrices.peek().getPositionMatrix(), -8.0f, -8.0f, 8.0f, 8.0f, 0.0f, 1.0f, 1.0f, PortalShader.MODE_FLOOR, 1.0f, 0.0f, 1.0f, time, false);
+        matrices.pop();
+
+        // a soft halo behind the showcased thing
+        tint(accent, 1.0f);
+        billboard(matrices, camera, center.subtract(cam), 2.3f, 0.42f, time);
+        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+
+        if (shot != null) {
+            switch (shot.kind()) {
+                case ITEM -> item(client, matrices, cam, center, shot, time);
+                case GATE -> gate(client, matrices, cam, center, time);
+                case CHICKEN -> chicken(client, matrices, cam, center, time);
+            }
+        }
+        motes(matrices, camera, cam, center, time, accent);
+    }
+
+    // ------------------------------------------------------------------------------------------ the backdrop
+    private static void backdrop(MinecraftClient client, float time) {
+        Matrix4f projection = RenderSystem.getProjectionMatrix();
+        VertexSorter sorter = RenderSystem.getVertexSorting();
+        RenderSystem.setProjectionMatrix(new Matrix4f(), VertexSorter.BY_Z);
+        MatrixStack stack = RenderSystem.getModelViewStack();
+        stack.push();
+        stack.loadIdentity();
+        RenderSystem.applyModelViewMatrix();
+        float aspect = (float) client.getWindow().getFramebufferWidth() / Math.max(1, client.getWindow().getFramebufferHeight());
+        PortalShader.draw(new Matrix4f(), -1.0f, -1.0f, 1.0f, 1.0f, 0.0f, aspect, 1.0f, PortalShader.MODE_BACKDROP, 1.0f, 0.0f, 1.0f, time, true);
+        stack.pop();
+        RenderSystem.applyModelViewMatrix();
+        RenderSystem.setProjectionMatrix(projection, sorter);
+        RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT, MinecraftClient.IS_SYSTEM_MAC);   // the world's depth must not hide the stage
+    }
+
+    // ------------------------------------------------------------------------------------------ the showcased things
+    private static void item(MinecraftClient client, MatrixStack matrices, Vec3d cam, Vec3d center, CinematicDirector.Shot shot, float time) {
+        VertexConsumerProvider.Immediate consumers = client.getBufferBuilders().getEntityVertexConsumers();
+        matrices.push();
+        matrices.translate(center.x - cam.x, center.y + shot.lift() + 0.07 * Math.sin(time * 1.3) - cam.y, center.z - cam.z);
+        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((time * 14.0f) % 360.0f));
+        matrices.scale(shot.scale(), shot.scale(), shot.scale());
+        client.getItemRenderer().renderItem(shot.stack(), ModelTransformationMode.FIXED, LightmapTextureManager.MAX_LIGHT_COORDINATE,
+                OverlayTexture.DEFAULT_UV, matrices, consumers, client.world, 0);
+        consumers.draw();
+        matrices.pop();
+    }
+
+    /** The real gate: its nine block-model cells plus the shader vortex, standing on the floor. */
+    private static void gate(MinecraftClient client, MatrixStack matrices, Vec3d cam, Vec3d center, float time) {
+        VertexConsumerProvider.Immediate consumers = client.getBufferBuilders().getEntityVertexConsumers();
+        double gx = center.x;
+        double gy = center.y - 1.6;
+        double gz = center.z;
+        for (int l = 0; l < 3; l++) {
+            for (int h = 0; h < 3; h++) {
+                BlockState state = ModBlocks.BLACK_MARKET_PORTAL.getDefaultState().with(PortalGateBlock.FACING, Direction.SOUTH)
+                        .with(PortalGateBlock.LATERAL, l).with(PortalGateBlock.HEIGHT, h);
+                matrices.push();
+                matrices.translate(gx - cam.x + (l - 1) - 0.5, gy - cam.y + h, gz - cam.z - 0.5);
+                client.getBlockRenderManager().renderBlockAsEntity(state, matrices, consumers, LightmapTextureManager.MAX_LIGHT_COORDINATE, OverlayTexture.DEFAULT_UV);
+                matrices.pop();
+            }
+        }
+        consumers.draw();
+        matrices.push();
+        matrices.translate(gx - cam.x, gy - cam.y, gz - cam.z);
+        float half = (float) PortalGateBlock.OPENING_HALF;
+        PortalShader.draw(matrices.peek().getPositionMatrix(), -half, 0.25f, half, 2.75f, 0.0f, 1.0f, 1.0f, PortalShader.MODE_GATE, 1.0f, 0.0f, 1.0f, time, false);
+        matrices.pop();
+    }
+
+    private static void chicken(MinecraftClient client, MatrixStack matrices, Vec3d cam, Vec3d center, float time) {
+        if (chicken == null || chickenWorld != client.world) {
+            chickenWorld = client.world;
+            chicken = ModEntities.DERP_CHICKEN.create(client.world);
+        }
+        if (chicken == null) {
+            return;
+        }
+        VertexConsumerProvider.Immediate consumers = client.getBufferBuilders().getEntityVertexConsumers();
+        chicken.age = (int) (time * 20.0f);
+        chicken.bodyYaw = chicken.prevBodyYaw = 0.0f;
+        chicken.setPosition(center.x, center.y - 1.35, center.z);      // the renderer picks its mesh detail by this distance
+        matrices.push();
+        matrices.translate(center.x - cam.x, center.y - 1.35 + 0.05 * Math.sin(time * 1.6) - cam.y, center.z - cam.z);
+        matrices.scale(1.9f, 1.9f, 1.9f);
+        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees((time * 12.0f) % 360.0f));
+        client.getEntityRenderDispatcher().render(chicken, 0.0, 0.0, 0.0, 0.0f, 1.0f, matrices, consumers, LightmapTextureManager.MAX_LIGHT_COORDINATE);
+        consumers.draw();
+        matrices.pop();
+    }
+
+    // ------------------------------------------------------------------------------------------ glow
+    private static void tint(int rgb, float alpha) {
+        RenderSystem.setShaderColor(((rgb >> 16) & 255) / 255.0f, ((rgb >> 8) & 255) / 255.0f, (rgb & 255) / 255.0f, alpha);
+    }
+
+    /** A camera-facing glow disc (the shader's orb) at {@code at} (relative to the camera). */
+    private static void billboard(MatrixStack matrices, Camera camera, Vec3d at, float size, float alpha, float time) {
+        matrices.push();
+        matrices.translate(at.x, at.y, at.z);
+        matrices.multiply(camera.getRotation());
+        PortalShader.draw(matrices.peek().getPositionMatrix(), -size, -size, size, size, 0.0f, 1.0f, 1.0f, PortalShader.MODE_ORB, 1.0f, 0.0f, alpha, time, false);
+        matrices.pop();
+    }
+
+    private static float hash(int i, int salt) {
+        int h = i * 73856093 ^ salt * 19349663;
+        h ^= h >>> 13;
+        h *= 0x5bd1e995;
+        h ^= h >>> 15;
+        return (h & 0xFFFF) / 65535.0f;
+    }
+
+    /** Drifting light motes (fireflies) around the stage, tinted with the accent colour. */
+    private static void motes(MatrixStack matrices, Camera camera, Vec3d cam, Vec3d center, float time, int accent) {
+        tint(accent, 1.0f);
+        for (int i = 0; i < 34; i++) {
+            float angle = hash(i, 1) * 6.2831855f + time * (0.12f + 0.3f * hash(i, 2)) * (i % 2 == 0 ? 1.0f : -1.0f);
+            float radius = 1.4f + 4.2f * hash(i, 3);
+            float y = -1.5f + 3.8f * hash(i, 4) + 0.3f * (float) Math.sin(time * 0.9f + i);
+            Vec3d at = new Vec3d(center.x + Math.cos(angle) * radius - cam.x, center.y + y - cam.y, center.z + Math.sin(angle) * radius - cam.z);
+            float twinkle = 0.55f + 0.45f * (float) Math.sin(time * (1.5f + hash(i, 5) * 2.0f) + i);
+            billboard(matrices, camera, at, 0.05f + 0.11f * hash(i, 6), 0.75f * twinkle, time);
+        }
+        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+    }
+}
+''', client=True)
+
+J("client/cinematic/CinematicScreen.java", r'''
+package @@PKG@@.client.cinematic;
+
+import java.util.List;
+import java.util.Locale;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.text.Text;
+import org.lwjgl.glfw.GLFW;
+
+/**
+ * The cinematic's overlay: letterbox bars, the title card of the item being shown, a progress row and the fades. Being a screen
+ * it also stops every player control while the camera flies; ESC leaves, SPACE skips to the next item. Single-player pauses meanwhile.
+ */
+public class CinematicScreen extends Screen {
+    public CinematicScreen() {
+        super(Text.empty());
+    }
+
+    @Override
+    protected void init() {
+        GLFW.glfwSetInputMode(MinecraftClient.getInstance().getWindow().getHandle(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_HIDDEN);
+    }
+
+    /** Single-player pauses (vanilla only does so when nobody else is in the world): nothing can hurt you while the camera flies. */
+    @Override
+    public boolean shouldPause() {
+        return true;
+    }
+
+    @Override
+    public boolean shouldCloseOnEsc() {
+        return false;
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+            CinematicDirector.stop();
+        } else if (keyCode == GLFW.GLFW_KEY_SPACE || keyCode == GLFW.GLFW_KEY_RIGHT) {
+            CinematicDirector.skip();
+        }
+        return true;
+    }
+
+    @Override
+    public void removed() {
+        GLFW.glfwSetInputMode(MinecraftClient.getInstance().getWindow().getHandle(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
+        if (CinematicDirector.active()) {
+            CinematicDirector.stop();   // closed by anything else (a death screen, a disconnect ...): the cinematic ends with it
+        }
+    }
+
+    private static int argb(int rgb, float alpha) {
+        return ((int) (Math.max(0.0f, Math.min(1.0f, alpha)) * 255.0f) << 24) | (rgb & 0xFFFFFF);
+    }
+
+    private void text(DrawContext ctx, Text text, float x, float y, float scale, int rgb, float alpha) {
+        if (alpha < 0.03f) {
+            return;
+        }
+        MatrixStack m = ctx.getMatrices();
+        m.push();
+        m.translate(x, y, 0.0f);
+        m.scale(scale, scale, 1.0f);
+        ctx.drawText(textRenderer, text, 0, 0, argb(rgb, alpha), true);
+        m.pop();
+    }
+
+    private float width(Text text, float scale) {
+        return textRenderer.getWidth(text) * scale;
+    }
+
+    @Override
+    public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        double t = CinematicDirector.elapsed();
+        int idx = CinematicDirector.shotIndex(t);
+        float black = CinematicDirector.blackout(t);
+        float vis = 1.0f - black;
+        int w = width;
+        int h = height;
+        int bar = Math.max(h / 12, (int) ((h - w / 2.39) / 2.0));
+        ctx.fill(0, 0, w, bar, 0xFF000000);
+        ctx.fill(0, h - bar, w, h, 0xFF000000);
+
+        if (idx < 0) {
+            Text title = Text.translatable("cinematic.realityshop.intro");
+            Text tagline = Text.translatable("cinematic.realityshop.tagline");
+            float k = 5.0f;
+            float x = (w - width(title, k)) / 2.0f;
+            float y = h / 2.0f - 22.0f;
+            text(ctx, title, x + 2.0f, y + 2.0f, k, 0x45F0FF, vis * 0.55f);
+            text(ctx, title, x, y, k, 0xFF5CE0, vis);
+            text(ctx, tagline, (w - width(tagline, 1.2f)) / 2.0f, y + 8.0f * k + 10.0f, 1.2f, 0xD8D8EE, vis);
+        } else {
+            CinematicDirector.Shot shot = CinematicDirector.shots().get(idx);
+            double local = CinematicDirector.shotTime(t, idx);
+            float x = Math.max(24.0f, w * 0.05f);
+            float y = h - bar - 80.0f;
+            text(ctx, shot.powerLabel(), x, y, 1.0f, shot.accent(), vis);
+            Text title = Text.literal(shot.title().getString().toUpperCase(Locale.ROOT));
+            text(ctx, title, x, y + 13.0f, 2.8f, 0xFFFFFF, vis);
+            List<Text> lines = shot.lines();
+            if (!lines.isEmpty()) {
+                Text line = lines.get((int) (local / 1.9) % lines.size());
+                text(ctx, line, x, y + 13.0f + 8.0f * 2.8f + 8.0f, 1.0f, 0xC8C8DC, vis);
+            }
+            text(ctx, shot.price(), w - x - width(shot.price(), 1.2f), y - 2.0f, 1.2f, shot.accent(), vis);
+        }
+
+        // progress row (one dot per item) and the key hints inside the bottom bar
+        List<CinematicDirector.Shot> shots = CinematicDirector.shots();
+        int dots = shots.size();
+        for (int i = 0; i < dots; i++) {
+            int dx = w / 2 - dots * 7 + i * 14;
+            int dy = h - bar / 2;
+            boolean now = i == idx;
+            ctx.fill(dx, dy - (now ? 2 : 1), dx + (now ? 8 : 4), dy + (now ? 2 : 1), argb(now ? shots.get(i).accent() : 0x707080, vis * (now ? 1.0f : 0.8f)));
+        }
+        if (t < 6.0) {
+            Text hint = Text.translatable("cinematic.realityshop.hint");
+            text(ctx, hint, w - width(hint, 1.0f) - 14.0f, h - bar / 2.0f - 4.0f, 1.0f, 0x9090A8, (float) Math.min(1.0, (6.0 - t) / 1.5) * vis);
+        }
+
+        if (black > 0.002f) {
+            ctx.fill(0, 0, w, h, argb(0x000000, black));
+        }
+    }
+}
+''', client=True)
+
+J("client/mixin/CameraMixin.java", r'''
+package @@PKG@@.client.mixin;
+
+import @@PKG@@.client.cinematic.CinematicDirector;
+import net.minecraft.client.render.Camera;
+import net.minecraft.entity.Entity;
+import net.minecraft.world.BlockView;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+/** /cinematic: while it runs, the camera is flown by the director instead of following the player (who stays unseen: first person). */
+@Mixin(Camera.class)
+public abstract class CameraMixin {
+    @Shadow
+    protected abstract void setRotation(float yaw, float pitch);
+
+    @Shadow
+    protected abstract void setPos(double x, double y, double z);
+
+    @Inject(method = "update", at = @At("TAIL"))
+    private void realityshop$cinematicCamera(BlockView area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickDelta, CallbackInfo ci) {
+        if (CinematicDirector.active()) {
+            CinematicDirector.Pose pose = CinematicDirector.pose();
+            setRotation(pose.yaw(), pose.pitch());
+            setPos(pose.pos().x, pose.pos().y, pose.pos().z);
+        }
+    }
+}
+''', client=True)
+
 # @@INSERT:JAVA@@  (Java templates are inserted above this line)
 
 
@@ -7444,12 +10308,25 @@ LANG = {
     "block.realityshop.hacked_rgb_furnace": "Hacked RGB Furnace",
     "block.realityshop.beacon_5g": "Beacon 5G",
     "block.realityshop.black_market_portal": "Black Market Portal",
+    "item.realityshop.black_market_portal": "Black Market Portal",
     "block.realityshop.shop_pedestal": "Shop Pedestal",
     "entity.realityshop.derp_chicken": "Derp Chicken",
     "entity.realityshop.floppy_projectile": "Glitchy Floppy",
     "entity.realityshop.sucked_block": "Sucked Up Block",
     "hud.realityshop.consumed": "Blocks Consumed: %s",
     "hud.realityshop.blocks": "Blocks",
+    "cinematic.realityshop.intro": "REALITYSHOP",
+    "cinematic.realityshop.tagline": "Consume the world. Spend it in the Black Market.",
+    "cinematic.realityshop.hint": "ESC  exit     SPACE  next",
+    "cinematic.realityshop.cost": "COST  %s  BLOCKS",
+    "cinematic.realityshop.free": "FREE",
+    "cinematic.realityshop.gate_price": "STARTER GIFT - OR CRAFT IT",
+    "cinematic.realityshop.chicken_price": "SPAWN EGG - CREATIVE TAB",
+    "cinematic.realityshop.chicken.1": "Power: Derp Rain",
+    "cinematic.realityshop.chicken.2": "Summon one with its spawn egg.",
+    "cinematic.realityshop.chicken.3": "Every Glitchy Floppy impact rains five of them.",
+    "cinematic.realityshop.chicken.4": "273,114 triangles of pure chaos.",
+    "cinematic.realityshop.unknown": "No such showcase: %s",
     "tooltip.realityshop.glitch_pickaxe.1": "Power: Glitch Mining",
     "tooltip.realityshop.glitch_pickaxe.2": "Breaks anything instantly - even obsidian.",
     "tooltip.realityshop.glitch_pickaxe.3": "Takes the whole 3x3x3 around the block with it.",
@@ -7471,7 +10348,7 @@ LANG = {
     "tooltip.realityshop.beacon_5g.3": "Slow and relentless - about a minute for everything.",
     "tooltip.realityshop.beacon_5g.4": "Right-click it to run it again.",
     "tooltip.realityshop.quantum_usb.1": "Power: Quantum Purge",
-    "tooltip.realityshop.quantum_usb.2": "Right-click: 500x500 blocks in front of you are purged in 10 s.",
+    "tooltip.realityshop.quantum_usb.2": "Right-click: a 1475x1475 area in front of you is purged in 10 s.",
     "tooltip.realityshop.quantum_usb.3": "Then it pulls you into the Bedrock Realm.",
     "tooltip.realityshop.quantum_usb.4": "There is no way back - except respawning.",
     "tooltip.realityshop.black_market_portal.1": "Power: Reality Gate",
@@ -7481,6 +10358,8 @@ LANG = {
     "subtitles.realityshop.shop_denied": "Black Market refuses",
     "subtitles.realityshop.kitty_phone_curse": "Cursed Kitty Phone screams",
     "subtitles.realityshop.quantum_purge": "Quantum purge",
+    "subtitles.realityshop.portal_open": "Reality Gate opens",
+    "subtitles.realityshop.portal_close": "Reality Gate folds away",
 }
 
 
@@ -7501,6 +10380,8 @@ def gen_sounds(out, opts):
         "kitty_phone_curse": [("minecraft:entity.cat.hurt", 0.55), ("minecraft:entity.cat.ambient", 0.5),
                               ("minecraft:entity.generic.explode", 0.7)],
         "quantum_purge": [("minecraft:block.portal.travel", 0.6), ("minecraft:entity.enderman.teleport", 0.5)],
+        "portal_open": [("minecraft:block.end_portal.spawn", 1.6), ("minecraft:block.beacon.activate", 1.4)],
+        "portal_close": [("minecraft:block.beacon.deactivate", 1.5), ("minecraft:block.portal.travel", 1.8)],
     }
     sounds = {}
     for event, options in fallback.items():
@@ -7529,6 +10410,145 @@ def _cuboid(x0, y0, z0, x1, y1, z1, tex, tint=None, faces=None):
     return {"from": [x0, y0, z0], "to": [x1, y1, z1], "faces": fm}
 
 
+def _ubox(f, t, tex, faces=None, rotation=None):
+    """Cuboid with world-aligned UVs (like vanilla's automatic UVs). `tex` is the texture variable of every face; `faces`
+    overrides single faces: a name, None (hidden) or (name, [u0, v0, u1, v1], rotation?) for an explicit UV window."""
+    (x0, y0, z0), (x1, y1, z1) = f, t
+    uv = {"south": [x0, 16 - y1, x1, 16 - y0], "north": [16 - x1, 16 - y1, 16 - x0, 16 - y0],
+          "east": [16 - z1, 16 - y1, 16 - z0, 16 - y0], "west": [z0, 16 - y1, z1, 16 - y0],
+          "up": [x0, z0, x1, z1], "down": [x0, 16 - z1, x1, 16 - z0]}
+    fm = {}
+    for n in ("north", "east", "south", "west", "up", "down"):
+        name = (faces or {}).get(n, tex)
+        if name is None:
+            continue
+        if isinstance(name, tuple):
+            ent = {"uv": list(name[1]), "texture": "#" + name[0]}
+            if len(name) > 2:
+                ent["rotation"] = name[2]
+            fm[n] = ent
+        else:
+            fm[n] = {"uv": [round(max(0.0, min(16.0, c)), 3) for c in uv[n]], "texture": "#" + name}
+    el = {"from": [x0, y0, z0], "to": [x1, y1, z1], "faces": fm}
+    if rotation:
+        el["rotation"] = rotation
+    return el
+
+
+USB_SCALE = 2.95        # the Quantum USB is this much bigger than its original design
+
+
+_GATE_CELLS = [(l, h) for l in range(3) for h in range(3)]
+
+
+def _gate_clip(box, tex, faces=None):
+    """A box in the gate's 48 x 48 px frame (3 x 3 cells) cut into the cells it touches (the top row also takes what sticks
+    out above the gate); faces on the cuts are dropped."""
+    (gx0, gy0, z0), (gx1, gy1, z1) = box
+    out = {}
+    for l, h in _GATE_CELLS:
+        cx0, cy0 = l * 16, h * 16
+        x0, x1 = max(gx0, cx0), min(gx1, cx0 + 16)
+        y0, y1 = max(gy0, cy0), min(gy1, cy0 + (32 if h == 2 else 16))
+        if x1 <= x0 or y1 <= y0:
+            continue
+        f = dict(faces or {})
+        if x0 > gx0:
+            f["west"] = None
+        if x1 < gx1:
+            f["east"] = None
+        if y0 > gy0:
+            f["down"] = None
+        if y1 < gy1 and h != 2:
+            f["up"] = None
+        out[(l, h)] = _ubox((x0 - cx0, y0 - cy0, z0), (x1 - cx0, y1 - cy0, z1), tex, f)
+    return out
+
+
+def _gate_crystal(cell, x, y, z, width, height, angle):
+    """An amethyst spike standing on (x, y) of a cell, leaning `angle` degrees around the depth axis."""
+    return {cell: _ubox((x - width / 2, y, z), (x + width / 2, y + height, z + width), "ame", {"down": None},
+                        rotation={"origin": [x, y, z + width / 2], "axis": "z", "angle": angle})}
+
+
+def _gate_cell_elements():
+    """The Reality Gate's frame: a THIN ring (4 px bars) around a 40 x 40 px opening, crying-obsidian corner stones with glowing
+    eyes, a glowing inlay along the inside, glow nodes, feet, a crest and amethyst crystals. Authored for a gate whose front
+    faces SOUTH; x runs left -> right as seen from the front."""
+    cells = {c: [] for c in _GATE_CELLS}
+
+    def add(d):
+        for c, el in d.items():
+            cells[c].append(el)
+
+    z0, z1, b = 3.5, 12.5, 4.0
+    e = 48.0 - b
+    line_v = ("line", (7, 0, 8, 16))
+    line_h = ("line", (7, 0, 8, 16), 90)
+    dot = ("glow", (0, 0, 16, 16))
+    none = {"up": None, "down": None, "east": None, "west": None, "north": None, "south": None}
+
+    def only(**kw):
+        d = dict(none)
+        d.update(kw)
+        return d
+
+    add(_gate_clip(((0, 0, z0), (b, 48, z1)), "bricks", {"east": "plain", "up": "plain", "down": "plain"}))
+    add(_gate_clip(((e, 0, z0), (48, 48, z1)), "bricks", {"west": "plain", "up": "plain", "down": "plain"}))
+    add(_gate_clip(((b, 0, z0), (e, b, z1)), "plain", {"up": "plain", "south": "bricks", "north": "bricks"}))
+    add(_gate_clip(((b, e, z0), (e, 48, z1)), "plain", {"up": "top", "south": "bricks", "north": "bricks"}))
+    add(_gate_clip(((b, b, 5.0), (b + 1, e, 11.0)), "line", only(south=line_v, north=line_v, east=line_v)))
+    add(_gate_clip(((e - 1, b, 5.0), (e, e, 11.0)), "line", only(south=line_v, north=line_v, west=line_v)))
+    add(_gate_clip(((b + 1, b, 5.0), (e - 1, b + 1, 11.0)), "line", only(south=line_h, north=line_h, up=line_h)))
+    add(_gate_clip(((b + 1, e - 1, 5.0), (e - 1, e, 11.0)), "line", only(south=line_h, north=line_h, down=line_h)))
+    for cx, cy in ((0, 0), (41, 0), (0, 41), (41, 41)):                              # corner stones with a glowing eye
+        add(_gate_clip(((cx, cy, 2.5), (cx + 7, cy + 7, 13.5)), "cry"))
+        add(_gate_clip(((cx + 2, cy + 2, 13.5), (cx + 5, cy + 5, 13.9)), "glow", only(south=dot)))
+        add(_gate_clip(((cx + 2, cy + 2, 2.1), (cx + 5, cy + 5, 2.5)), "glow", only(north=dot)))
+    for cx, cy in ((22, 0), (22, 44), (0, 22), (44, 22)):                            # glow nodes in the middle of each side
+        add(_gate_clip(((cx, cy, 12.5), (cx + 4, cy + 4, 12.9)), "glow", only(south=dot)))
+        add(_gate_clip(((cx, cy, 3.1), (cx + 4, cy + 4, 3.5)), "glow", only(north=dot)))
+    add(_gate_clip(((0, 0, 1.5), (16, 4, 14.5)), "plain", {"up": "top"}))            # feet
+    add(_gate_clip(((32, 0, 1.5), (48, 4, 14.5)), "plain", {"up": "top"}))
+    add(_gate_clip(((17, 48, 4.5), (31, 51, 11.5)), "gild", {"up": "plain", "down": None}))                 # crest
+    add(_gate_clip(((20, 51, 5.0), (28, 55, 11.0)), "bricks", {"up": "plain", "down": None}))
+    add(_gate_clip(((22, 52, 11.0), (26, 56, 11.4)), "glow", only(south=dot)))
+    add(_gate_clip(((22, 52, 4.6), (26, 56, 5.0)), "glow", only(north=dot)))
+    for cell, base_x, lean in (((0, 2), 3.5, -1), ((2, 2), 12.5, 1)):                # crystals on the top corners ...
+        for dx, hh, ang in ((0.0, 8.0, 22.5 * lean), (3.4 * -lean, 11.0, 0.0), (6.8 * -lean, 6.0, -22.5 * lean)):
+            add(_gate_crystal(cell, base_x + dx, 16.0, 6.5, 3.0, hh, ang))
+    for cell, base_x, lean in (((0, 0), 4.0, -1), ((2, 0), 12.0, 1)):                # ... and on the feet
+        for dx, hh, ang in ((0.0, 7.0, 22.5 * lean), (3.2 * -lean, 5.0, 0.0)):
+            add(_gate_crystal(cell, base_x + dx, 4.0, 6.5, 3.0, hh, ang))
+    return cells
+
+
+def _gen_gate_models(block, item, blockstate):
+    """The 3 x 3 Reality Gate: nine cell models (the middle one is empty: the swirl itself is drawn by a shader). The blockstate
+    rotates the south-facing models for the other facings."""
+    m = MOD_ID + ":"
+    textures = {"particle": "minecraft:block/polished_blackstone_bricks", "bricks": "minecraft:block/polished_blackstone_bricks",
+                "plain": "minecraft:block/polished_blackstone", "top": "minecraft:block/blackstone_top",
+                "gild": "minecraft:block/gilded_blackstone", "cry": "minecraft:block/crying_obsidian",
+                "ame": "minecraft:block/amethyst_block", "line": m + "block/gate_line", "glow": m + "block/gate_glow"}
+    cells = _gate_cell_elements()
+    for (lateral, height), elements in cells.items():
+        used = {"particle"}
+        for el in elements:
+            for face in el["faces"].values():
+                used.add(face["texture"][1:])
+        block("gate_cell_%d_%d" % (lateral, height), {"textures": {k: v for k, v in textures.items() if k in used}, "elements": elements})
+    variants = {}
+    for facing, y in (("south", 0), ("west", 90), ("north", 180), ("east", 270)):
+        for (lateral, height) in _GATE_CELLS:
+            entry = {"model": m + "block/gate_cell_%d_%d" % (lateral, height)}
+            if y:
+                entry["y"] = y
+            variants["facing=%s,height=%d,lateral=%d" % (facing, height, lateral)] = entry
+    blockstate("black_market_portal", {"variants": variants})
+    item("black_market_portal", {"parent": "minecraft:item/generated", "textures": {"layer0": m + "item/black_market_portal"}})
+
+
 def gen_models_json(out, opts):
     def block(name, doc):
         out.asset_json("models/block/%s.json" % name, doc)
@@ -7540,10 +10560,8 @@ def gen_models_json(out, opts):
         out.asset_json("blockstates/%s.json" % name, doc)
 
     m = MOD_ID + ":"
-    # ---- black market portal
-    blockstate("black_market_portal", {"variants": {"": {"model": m + "block/black_market_portal"}}})
-    block("black_market_portal", {"parent": "minecraft:block/cube_all", "textures": {"all": m + "block/black_market_portal"}})
-    item("black_market_portal", {"parent": m + "block/black_market_portal"})
+    # ---- the Reality Gate (3 x 3 multiblock)
+    _gen_gate_models(block, item, blockstate)
 
     # ---- shop pedestal
     blockstate("shop_pedestal", {"variants": {"": {"model": m + "block/shop_pedestal"}}})
@@ -7564,13 +10582,19 @@ def gen_models_json(out, opts):
         "facing=east": {"model": m + "block/hacked_rgb_furnace", "y": 90},
         "facing=south": {"model": m + "block/hacked_rgb_furnace", "y": 180},
         "facing=west": {"model": m + "block/hacked_rgb_furnace", "y": 270}}})
+    fins = [_ubox((1.5, 16, z - 0.45), (14.5, 19.5, z + 0.45), "iron") for z in (2.5, 5.25, 8.0, 10.75, 13.5)]
     block("hacked_rgb_furnace", {
         "parent": "minecraft:block/block",
         "textures": {"particle": "minecraft:block/furnace_top", "front": "minecraft:block/furnace_front",
-                     "side": "minecraft:block/furnace_side", "top": "minecraft:block/furnace_top",
+                     "side": "minecraft:block/furnace_side", "top": "minecraft:block/furnace_top", "iron": "minecraft:block/iron_block",
                      "glow": m + "block/hacked_rgb_furnace_glow"},
         "elements": [
             _cuboid(0, 0, 0, 16, 16, 16, "side", faces={"north": "front", "up": "top", "down": "top"}),
+            _ubox((0.6, 12.5, 15.4), (15.4, 15.4, 16.2), "iron"),                    # a heat-sink collar on the back and the fins on top
+            *fins,
+            _cuboid(1.5, 0.8, -0.35, 14.5, 2.2, 0.0, "glow"),                        # an RGB LED bar under the opening
+            _cuboid(-0.35, 4.0, 1.5, 0.0, 5.4, 14.5, "glow"),                        # and one on each side
+            _cuboid(16.0, 4.0, 1.5, 16.35, 5.4, 14.5, "glow"),
             _cuboid(-0.05, -0.05, -0.05, 16.05, 16.05, 16.05, "glow", tint=0),
         ]})
     item("hacked_rgb_furnace", {"parent": m + "block/hacked_rgb_furnace"})
@@ -7580,16 +10604,32 @@ def gen_models_json(out, opts):
     block("beacon_5g", {
         "parent": "minecraft:block/block",
         "textures": {"particle": "minecraft:block/beacon", "glass": "minecraft:block/glass",
-                     "obsidian": "minecraft:block/obsidian", "beacon": "minecraft:block/beacon",
-                     "glow": m + "block/beacon_5g_glow"},
+                     "obsidian": "minecraft:block/obsidian", "beacon": "minecraft:block/beacon", "iron": "minecraft:block/iron_block",
+                     "lamp": "minecraft:block/redstone_lamp_on", "glow": m + "block/beacon_5g_glow"},
         "elements": [
             _cuboid(0, 0, 0, 16, 16, 16, "glass"),
-            _cuboid(2, 0.1, 2, 14, 3, 14, "obsidian"),
-            _cuboid(3, 3, 3, 13, 14, 13, "beacon"),
+            _ubox((1, 0, 1), (15, 2.5, 15), "obsidian"),                              # the plinth
+            _cuboid(3, 3, 3, 13, 14, 13, "beacon"),                                   # the core
+            _ubox((2, 14, 2), (14, 16, 14), "iron"),                                  # a collar on top of the glass
+            _ubox((7.0, 16, 7.0), (9.0, 31, 9.0), "iron"),                            # the 5G mast ...
+            _ubox((3.5, 21, 7.4), (12.5, 22.4, 8.6), "iron"),                         # ... with two crossbars
+            _ubox((7.4, 25, 3.5), (8.6, 26.4, 12.5), "iron"),
+            _ubox((2.4, 20.3, 7.0), (4.2, 23.1, 9.0), "lamp"),                        # red lamps on the bar ends and the tip
+            _ubox((11.8, 20.3, 7.0), (13.6, 23.1, 9.0), "lamp"),
+            _ubox((7.0, 24.3, 2.4), (9.0, 27.1, 4.2), "lamp"),
+            _ubox((7.0, 24.3, 11.8), (9.0, 27.1, 13.6), "lamp"),
+            _ubox((6.2, 30.5, 6.2), (9.8, 32.0, 9.8), "lamp"),
             _cuboid(-0.05, -0.05, -0.05, 16.05, 16.05, 16.05, "glow", tint=0),
             _cuboid(2.6, 2.6, 2.6, 13.4, 14.4, 13.4, "glow", tint=0),
         ]})
-    item("beacon_5g", {"parent": m + "block/beacon_5g"})
+    item("beacon_5g", {"parent": m + "block/beacon_5g", "display": {   # the mast makes the model 2 blocks tall: smaller in every view
+        "gui": {"rotation": [28, 38, 0], "translation": [0, -3.5, 0], "scale": [0.33, 0.33, 0.33]},
+        "ground": {"rotation": [0, 0, 0], "translation": [0, 3, 0], "scale": [0.2, 0.2, 0.2]},
+        "fixed": {"rotation": [0, 180, 0], "translation": [0, -3.5, 0], "scale": [0.26, 0.26, 0.26]},
+        "thirdperson_righthand": {"rotation": [75, 45, 0], "translation": [0, 2.5, 0], "scale": [0.2, 0.2, 0.2]},
+        "thirdperson_lefthand": {"rotation": [75, 45, 0], "translation": [0, 2.5, 0], "scale": [0.2, 0.2, 0.2]},
+        "firstperson_righthand": {"rotation": [0, 45, 0], "translation": [0, -1, 0], "scale": [0.24, 0.24, 0.24]},
+        "firstperson_lefthand": {"rotation": [0, 225, 0], "translation": [0, -1, 0], "scale": [0.24, 0.24, 0.24]}}})
 
     # ---- items
     item("glitch_pickaxe", {"parent": "minecraft:item/handheld", "textures": {"layer0": m + "item/glitch_pickaxe"}})
@@ -7605,28 +10645,36 @@ def gen_models_json(out, opts):
         "firstperson_righthand": {"rotation": [0, -20, 0], "translation": [-2.5, 2.5, 0], "scale": [0.5, 0.5, 0.5]},
         "firstperson_lefthand": {"rotation": [0, 20, 0], "translation": [2.5, 2.5, 0], "scale": [0.5, 0.5, 0.5]},
         "head": {"rotation": [0, 180, 0], "translation": [0, 13, 7], "scale": [1, 1, 1]}}})
-    # quantum USB: a real 3D cuboid model (body, metal plug, glowing animated LEDs)
+    # quantum USB: a real 3D cuboid model (body, metal plug, glowing animated LEDs), 2.95x bigger than the original design:
+    # the geometry is scaled about the stick's centre (fits the model range of -16..32), the GUI / frame transforms shrink it back
+    # so the inventory icon keeps its size while the stick in your hand, on the ground and on other players is 2.95x bigger.
+    k, pv = USB_SCALE, (8.0, 7.0, 8.0)
+
+    def big(x0, y0, z0, x1, y1, z1, tex, faces=None):
+        f = lambda v, p: round(p + (v - p) * k, 3)
+        return _cuboid(f(x0, pv[0]), f(y0, pv[1]), f(z0, pv[2]), f(x1, pv[0]), f(y1, pv[1]), f(z1, pv[2]), tex, faces=faces)
+
     item("quantum_usb", {
         "gui_light": "side",   # NO item/generated parent: that one ignores "elements" and would draw nothing
         "textures": {"particle": m + "item/quantum_usb_body", "body": m + "item/quantum_usb_body",
                      "plug": m + "item/quantum_usb_plug", "led": m + "item/quantum_usb_led",
                      "label": m + "item/quantum_usb_label"},
         "elements": [
-            _cuboid(5.5, 1, 6.5, 10.5, 9, 9.5, "body", faces={"south": "label", "north": "label"}),
-            _cuboid(5, 0, 6, 11, 1, 10, "body"),
-            _cuboid(6.5, 9, 7, 9.5, 14, 9, "plug"),
-            _cuboid(7.25, 4, 9.5, 8.75, 6, 9.65, "led"),
-            _cuboid(7.25, 4, 6.35, 8.75, 6, 6.5, "led"),
-            _cuboid(5.4, 8, 6.4, 10.6, 8.5, 9.6, "led"),
+            big(5.5, 1, 6.5, 10.5, 9, 9.5, "body", faces={"south": "label", "north": "label"}),
+            big(5, 0, 6, 11, 1, 10, "body"),
+            big(6.5, 9, 7, 9.5, 14, 9, "plug"),
+            big(7.25, 4, 9.5, 8.75, 6, 9.65, "led"),
+            big(7.25, 4, 6.35, 8.75, 6, 6.5, "led"),
+            big(5.4, 8, 6.4, 10.6, 8.5, 9.6, "led"),
         ],
         "display": {
-            "gui": {"rotation": [30, 45, 0], "translation": [0, -1, 0], "scale": [0.95, 0.95, 0.95]},
-            "ground": {"rotation": [0, 0, 0], "translation": [0, 3, 0], "scale": [0.5, 0.5, 0.5]},
-            "fixed": {"rotation": [0, 180, 0], "translation": [0, 0, 0], "scale": [0.9, 0.9, 0.9]},
-            "thirdperson_righthand": {"rotation": [0, 0, 20], "translation": [0, 3, 1], "scale": [0.6, 0.6, 0.6]},
-            "thirdperson_lefthand": {"rotation": [0, 0, -20], "translation": [0, 3, 1], "scale": [0.6, 0.6, 0.6]},
-            "firstperson_righthand": {"rotation": [0, -30, 25], "translation": [-1.5, 2.5, 0], "scale": [0.55, 0.55, 0.55]},
-            "firstperson_lefthand": {"rotation": [0, 30, -25], "translation": [1.5, 2.5, 0], "scale": [0.55, 0.55, 0.55]}}})
+            "gui": {"rotation": [30, 45, 0], "translation": [0, -0.35, 0], "scale": [round(0.95 / k, 4)] * 3},
+            "ground": {"rotation": [0, 0, 0], "translation": [0, 9, 0], "scale": [0.5, 0.5, 0.5]},
+            "fixed": {"rotation": [0, 180, 0], "translation": [0, 0, 0], "scale": [round(0.9 / k, 4)] * 3},
+            "thirdperson_righthand": {"rotation": [0, 0, 20], "translation": [0, 9, 3], "scale": [0.6, 0.6, 0.6]},
+            "thirdperson_lefthand": {"rotation": [0, 0, -20], "translation": [0, 9, 3], "scale": [0.6, 0.6, 0.6]},
+            "firstperson_righthand": {"rotation": [0, -35, 30], "translation": [-2.5, 1.5, -5], "scale": [0.55, 0.55, 0.55]},
+            "firstperson_lefthand": {"rotation": [0, 35, -30], "translation": [2.5, 1.5, -5], "scale": [0.55, 0.55, 0.55]}}})
 
 
 # ============================================================================ README inside the generated workspace
@@ -7639,14 +10687,17 @@ Generated by build_mod.py. Build with JDK 17:
     ./gradlew runClient       # play (opening a world: click "I know what I'm doing!" - vanilla flags worlds with
                               #   data-pack dimensions as experimental)
     ./gradlew runServer
-    ./gradlew runGametest     # 13 game tests (if asked, put eula=true into build/gametest/eula.txt)
+    ./gradlew runGametest     # 19 game tests, each run in a fresh world (put eula=true into build/gametest/eula.txt)
 
 ## Play
-* Craft a Black Market Portal (COC / OEO / COC: Crying Obsidian, Obsidian, Ender Pearl) or use the one you get on first join,
-  stand on it, and spend your Blocks Consumed on the six pedestals: glitch_pickaxe (0), glitchy_floppy (5,000),
-  cursed_kitty_phone (50,000), hacked_rgb_furnace (500,000), beacon_5g (3,000,000), quantum_usb (10,000,000).
-* /realityshop balance | add <n> | set <n> | market | void | back | rebuild   (all but balance need op level 2)
-* config/@@MODID@@.json is written on first start (tick budget, bedrock, chunk loading, chicken cap, HUD, particles ...).
+* Place the Black Market Portal item (you get one on first join; craft it with COC / OEO / COC: Crying Obsidian, Obsidian,
+  Ender Pearl): the frame snaps together and the vortex tears open. Walk into it - you stand in the Black Market. Spend your
+  Blocks Consumed on the six pedestals: glitch_pickaxe (0), glitchy_floppy (500), cursed_kitty_phone (5,000),
+  hacked_rgb_furnace (50,000), beacon_5g (300,000), quantum_usb (1,000,000). Right-click a gate's frame to fold it back.
+* /realityshop balance | add <n> | set <n> | market | bedrock | back | gate | rebuild   (all but balance need op level 2)
+* /cinematic [item | stop]   a 360 degree showcase of every item (client command; ESC leaves, SPACE skips)
+* config/@@MODID@@.json is written on first start (tick budget, bedrock, chunk loading, chicken cap, purge times, USB size,
+  HUD position, particles ...).
 
 ## Your assets
 * 3D models: src/main/resources/assets/@@MODID@@/models/gltf/<name>/scene.gltf|glb (derp_chicken, cursed_kitty_phone),
@@ -7792,7 +10843,8 @@ def check_resources(out):
             if own_name and not exists(assets + "sounds/%s.ogg" % own_name):
                 problems.append("%s: sound %s.ogg is missing" % (assets + "sounds.json", own_name))
     for needed in ("textures/gui/hud_glyphs.png", "textures/gui/hud_plate.png", "shaders/core/gltf_pbr.json",
-                   "shaders/core/gltf_pbr.vsh", "shaders/core/gltf_pbr.fsh", "icon.png"):
+                   "shaders/core/gltf_pbr.vsh", "shaders/core/gltf_pbr.fsh", "shaders/core/portal_vortex.json",
+                   "shaders/core/portal_vortex.vsh", "shaders/core/portal_vortex.fsh", "icon.png"):
         if not exists(assets + needed):
             problems.append("%s%s is missing" % (assets, needed))
     for name in KNOWN_MODELS:
