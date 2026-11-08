@@ -2049,6 +2049,8 @@ import org.slf4j.LoggerFactory;
 import @@PKG@@.destroy.DestructionManager;
 import @@PKG@@.entity.DerpChickenEntity;
 import @@PKG@@.entity.SuckedBlockEntity;
+import @@PKG@@.util.GlowLights;
+import @@PKG@@.util.ServerTasks;
 import @@PKG@@.item.GlitchPickaxeItem;
 import @@PKG@@.registry.ModBlockEntities;
 import @@PKG@@.registry.ModBlocks;
@@ -2085,6 +2087,8 @@ public class RealityShopMod implements ModInitializer {
         GlitchPickaxeItem.registerEvents();
         DerpChickenEntity.registerEvents();
         SuckedBlockEntity.registerEvents();
+        ServerTasks.register();
+        GlowLights.register();
         // <<INIT_EVENTS>>
         LOGGER.info("RealityShop ready: consume the world, spend it in the Black Market.");
     }
@@ -2187,13 +2191,13 @@ import net.fabricmc.loader.api.FabricLoader;
 public final class RSConfig {
     // ---- mass-destruction engine
     /** Max milliseconds per server tick spent on mass block removal (all jobs combined). */
-    public int tickBudgetMs = 20;
+    public int tickBudgetMs = 12;
     /** Allow the destruction items to remove bedrock. */
     public boolean destroyBedrock = false;
     /** Load/generate chunks that are not loaded when a huge clear reaches them (can create thousands of chunks!). */
     public boolean loadMissingChunks = false;
     /** Dimensions where the destruction items refuse to work (the shop lives here). */
-    public List<String> protectedDimensions = new ArrayList<>(List.of("@@MODID@@:black_market", "@@MODID@@:void_realm"));
+    public List<String> protectedDimensions = new ArrayList<>(List.of("@@MODID@@:black_market", "@@MODID@@:bedrock_realm"));
 
     // ---- items and shop
     /** Whether the Glitch Pickaxe's 3x3x3 mining drops items (all other tools consume blocks without drops). */
@@ -2205,7 +2209,13 @@ public final class RSConfig {
     /** DerpChickens despawn after this many seconds (0 = never). */
     public int derpChickenLifetimeSeconds = 45;
     /** Max flying "sucked up" block entities per Beacon 5G (visual only). */
-    public int maxSuckedBlocks = 120;
+    public int maxSuckedBlocks = 80;
+    /** Seconds the Beacon 5G needs to vacuum up its whole area (slow and relentless). */
+    public int beaconPurgeSeconds = 60;
+    /** Seconds the Hacked RGB Furnace needs to eat its area. */
+    public int furnacePurgeSeconds = 10;
+    /** Seconds an invisible glow light stays at a Glitchy Floppy impact so the hole is not pitch black (0 = off). */
+    public int floppyGlowSeconds = 45;
 
     // ---- client visuals
     public boolean hudEnabled = true;
@@ -2247,6 +2257,9 @@ public final class RSConfig {
         maxDerpChickens = Math.max(0, Math.min(500, maxDerpChickens));
         derpChickenLifetimeSeconds = Math.max(0, Math.min(3600, derpChickenLifetimeSeconds));
         maxSuckedBlocks = Math.max(0, Math.min(1000, maxSuckedBlocks));
+        beaconPurgeSeconds = Math.max(5, Math.min(3600, beaconPurgeSeconds));
+        furnacePurgeSeconds = Math.max(2, Math.min(3600, furnacePurgeSeconds));
+        floppyGlowSeconds = Math.max(0, Math.min(600, floppyGlowSeconds));
         hudScale = Math.max(0.5, Math.min(3.0, hudScale));
         particleDensity = Math.max(0.05, Math.min(4.0, particleDensity));
         if (protectedDimensions == null) {
@@ -2465,7 +2478,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 
-/** /realityshop balance | add &lt;n&gt; | set &lt;n&gt;   (add/set need op level 2: handy for testing the 10M items). */
+/** /realityshop balance | add &lt;n&gt; | set &lt;n&gt; | market | bedrock | back | rebuild   (all but balance need op level 2). */
 public final class RealityShopCommand {
     private RealityShopCommand() {}
 
@@ -2500,8 +2513,8 @@ public final class RealityShopCommand {
                 ShopDimensions.enterMarket(ctx.getSource().getPlayerOrThrow());
                 return 1;
             }));
-            root.then(CommandManager.literal("void").requires(s -> s.hasPermissionLevel(2)).executes(ctx -> {
-                ShopDimensions.enterVoid(ctx.getSource().getPlayerOrThrow());
+            root.then(CommandManager.literal("bedrock").requires(s -> s.hasPermissionLevel(2)).executes(ctx -> {
+                ShopDimensions.enterBedrock(ctx.getSource().getPlayerOrThrow());
                 return 1;
             }));
             root.then(CommandManager.literal("back").requires(s -> s.hasPermissionLevel(2)).executes(ctx -> {
@@ -2682,6 +2695,7 @@ import @@PKG@@.RealityShopMod;
 import @@PKG@@.item.CursedKittyPhoneItem;
 import @@PKG@@.item.GlitchPickaxeItem;
 import @@PKG@@.item.GlitchyFloppyItem;
+import @@PKG@@.item.PowerBlockItem;
 import @@PKG@@.item.QuantumUsbItem;
 import java.util.ArrayList;
 import java.util.List;
@@ -2708,9 +2722,9 @@ public final class ModItems {
     public static final Item CURSED_KITTY_PHONE = register("cursed_kitty_phone",
             new CursedKittyPhoneItem(new Item.Settings().maxCount(1).rarity(Rarity.EPIC).fireproof()));
     public static final Item HACKED_RGB_FURNACE = register("hacked_rgb_furnace",
-            new BlockItem(ModBlocks.HACKED_RGB_FURNACE, new Item.Settings().rarity(Rarity.EPIC)));
+            new PowerBlockItem(ModBlocks.HACKED_RGB_FURNACE, new Item.Settings().rarity(Rarity.EPIC), "hacked_rgb_furnace"));
     public static final Item BEACON_5G = register("beacon_5g",
-            new BlockItem(ModBlocks.BEACON_5G, new Item.Settings().rarity(Rarity.EPIC)));
+            new PowerBlockItem(ModBlocks.BEACON_5G, new Item.Settings().rarity(Rarity.EPIC), "beacon_5g"));
     public static final Item QUANTUM_USB = register("quantum_usb",
             new QuantumUsbItem(new Item.Settings().maxCount(1).rarity(Rarity.EPIC).fireproof()));
     public static final Item DERP_CHICKEN_SPAWN_EGG = register("derp_chicken_spawn_egg",
@@ -2794,11 +2808,11 @@ import net.minecraft.registry.Registries;
 /** The six things the Black Market sells, in price order. Costs are in "Blocks Consumed". */
 public enum ShopOffer {
     GLITCH_PICKAXE("glitch_pickaxe", 0L, 1.00f),
-    GLITCHY_FLOPPY("glitchy_floppy", 5_000L, 1.10f),
-    CURSED_KITTY_PHONE("cursed_kitty_phone", 50_000L, 1.25f),
-    HACKED_RGB_FURNACE("hacked_rgb_furnace", 500_000L, 0.95f),
-    BEACON_5G("beacon_5g", 3_000_000L, 0.95f),
-    QUANTUM_USB("quantum_usb", 10_000_000L, 1.25f);
+    GLITCHY_FLOPPY("glitchy_floppy", 500L, 1.10f),
+    CURSED_KITTY_PHONE("cursed_kitty_phone", 5_000L, 1.25f),
+    HACKED_RGB_FURNACE("hacked_rgb_furnace", 50_000L, 0.95f),
+    BEACON_5G("beacon_5g", 300_000L, 0.95f),
+    QUANTUM_USB("quantum_usb", 1_000_000L, 1.25f);
 
     public final String id;
     public final long cost;
@@ -3047,10 +3061,10 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.World;
 
-/** The BlackMarket and Void Realm dimensions: keys, entering/leaving, and the remembered way back. */
+/** The BlackMarket and Bedrock Realm dimensions: keys, entering/leaving, and the remembered way back. */
 public final class ShopDimensions {
     public static final RegistryKey<World> BLACK_MARKET = RegistryKey.of(RegistryKeys.WORLD, RealityShopMod.id("black_market"));
-    public static final RegistryKey<World> VOID_REALM = RegistryKey.of(RegistryKeys.WORLD, RealityShopMod.id("void_realm"));
+    public static final RegistryKey<World> BEDROCK_REALM = RegistryKey.of(RegistryKeys.WORLD, RealityShopMod.id("bedrock_realm"));
 
     /** Where a player stood before entering the shop / void (saved with the player, survives death). */
     public record ReturnPoint(String dimension, double x, double y, double z, float yaw) {
@@ -3071,7 +3085,7 @@ public final class ShopDimensions {
     private ShopDimensions() {}
 
     public static boolean isShopDimension(World world) {
-        return world.getRegistryKey() == BLACK_MARKET || world.getRegistryKey() == VOID_REALM;
+        return world.getRegistryKey() == BLACK_MARKET || world.getRegistryKey() == BEDROCK_REALM;
     }
 
     /** Called from the portal block. The actual teleport is deferred to after the entity-collision loop. */
@@ -3105,18 +3119,18 @@ public final class ShopDimensions {
         ConsumedBlocks.sync(player);
     }
 
-    /** Teleports to the Void Realm (used by the Quantum USB once its purge has finished). */
-    public static void enterVoid(ServerPlayerEntity player) {
-        ServerWorld realm = player.server.getWorld(VOID_REALM);
+    /** Teleports to the Bedrock Realm (used by the Quantum USB once its purge has finished). There is no gate back. */
+    public static void enterBedrock(ServerPlayerEntity player) {
+        ServerWorld realm = player.server.getWorld(BEDROCK_REALM);
         if (realm == null) {
-            player.sendMessage(Text.literal("The Void Realm dimension is not loaded").formatted(Formatting.RED), false);
+            player.sendMessage(Text.literal("The Bedrock Realm dimension is not loaded").formatted(Formatting.RED), false);
             return;
         }
         if (!isShopDimension(player.getServerWorld())) {
             rememberReturn(player);
         }
-        BlackMarketRoom.ensureVoidPlatform(realm);
-        BlockPos spawn = BlackMarketRoom.VOID_SPAWN;
+        BedrockRealm.ensureBuilt(realm);
+        BlockPos spawn = BedrockRealm.SPAWN;
         player.teleport(realm, spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, 0.0f, 0.0f);
         player.fallDistance = 0;
         ConsumedBlocks.sync(player);
@@ -3177,7 +3191,6 @@ public final class BlackMarketRoom {
     public static final int FLOOR_Y = 64;              // floor layer; air from FLOOR_Y + 1 .. FLOOR_Y + 6; ceiling at FLOOR_Y + 7
     public static final int CEILING_Y = FLOOR_Y + 7;
     public static final BlockPos SPAWN = new BlockPos(0, FLOOR_Y + 1, 0);
-    public static final BlockPos VOID_SPAWN = new BlockPos(0, FLOOR_Y + 1, 0);
     private static final int PEDESTAL_RADIUS = 6;
 
     private BlackMarketRoom() {}
@@ -3249,29 +3262,6 @@ public final class BlackMarketRoom {
         world.setBlockState(pos, ModBlocks.SHOP_PEDESTAL.getDefaultState(), Block.NOTIFY_ALL);
         if (world.getBlockEntity(pos) instanceof ShopPedestalBlockEntity pedestal) {
             pedestal.setOffer(offer);
-        }
-    }
-
-    public static void ensureVoidPlatform(ServerWorld world) {
-        if (world.getBlockState(new BlockPos(0, FLOOR_Y, 0)).isOf(Blocks.CRYING_OBSIDIAN)) {
-            return;
-        }
-        for (int cx = -1; cx <= 0; cx++) {
-            for (int cz = -1; cz <= 0; cz++) {
-                world.getChunk(cx, cz);
-            }
-        }
-        for (int x = -5; x <= 5; x++) {
-            for (int z = -5; z <= 5; z++) {
-                set(world, new BlockPos(x, FLOOR_Y, z), Blocks.OBSIDIAN.getDefaultState());
-                for (int y = FLOOR_Y + 1; y <= FLOOR_Y + 4; y++) {
-                    set(world, new BlockPos(x, y, z), Blocks.AIR.getDefaultState());
-                }
-            }
-        }
-        set(world, new BlockPos(0, FLOOR_Y, 0), Blocks.CRYING_OBSIDIAN.getDefaultState());
-        for (int y = FLOOR_Y + 1; y <= FLOOR_Y + 2; y++) {
-            set(world, new BlockPos(0, y, 5), ModBlocks.BLACK_MARKET_PORTAL.getDefaultState());
         }
     }
 
@@ -4310,11 +4300,13 @@ public class DerpChickenEntity extends PathAwareEntity {
 J("entity/FloppyProjectileEntity.java", r'''
 package @@PKG@@.entity;
 
+import @@PKG@@.RSConfig;
 import @@PKG@@.destroy.BoxRegion;
 import @@PKG@@.destroy.DestructionManager;
 import @@PKG@@.destroy.RegionClearJob;
 import @@PKG@@.registry.ModEntities;
 import @@PKG@@.registry.ModItems;
+import @@PKG@@.util.GlowLights;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
@@ -4329,8 +4321,12 @@ import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import org.jetbrains.annotations.Nullable;
 
-/** The thrown floppy: on impact it destroys a 5x5x5 cube (credited to the thrower) and rains five DerpChickens. */
+/**
+ * The thrown floppy: on impact it destroys a 5x5x5 cube (credited to the thrower, who keeps their footing), leaves a short
+ * invisible glow in the hole so it is not black, and rains five DerpChickens.
+ */
 public class FloppyProjectileEntity extends ThrownItemEntity {
     public FloppyProjectileEntity(EntityType<? extends FloppyProjectileEntity> type, World world) {
         super(type, world);
@@ -4351,7 +4347,6 @@ public class FloppyProjectileEntity extends ThrownItemEntity {
         if (getWorld().isClient) {
             return;
         }
-        ServerWorld world = (ServerWorld) getWorld();
         BlockPos center;
         if (hit instanceof BlockHitResult blockHit) {
             center = blockHit.getBlockPos();
@@ -4360,19 +4355,33 @@ public class FloppyProjectileEntity extends ThrownItemEntity {
         } else {
             center = getBlockPos();
         }
-        Entity owner = getOwner();
+        impact((ServerWorld) getWorld(), center, getOwner());
+        discard();
+    }
+
+    /** Everything that happens where the floppy lands (public so the game tests can trigger it without throwing anything). */
+    public static void impact(ServerWorld world, BlockPos center, @Nullable Entity owner) {
         if (!DestructionManager.isProtected(world)) {
             RegionClearJob job = new RegionClearJob(world, BoxRegion.cube(center, 5)).origin(center);
             if (owner != null) {
                 job.owner(owner.getUuid());
+                // never take the ground out from under the thrower: the 3x3 columns below their feet stay
+                BlockPos feet = owner.getBlockPos();
+                for (int dx = -1; dx <= 1; dx++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        for (int dy = 1; dy <= 3; dy++) {
+                            job.protect(feet.add(dx, -dy, dz));
+                        }
+                    }
+                }
             }
             DestructionManager.runNow(job);
+            GlowLights.place(world, center, 14, RSConfig.get().floppyGlowSeconds * 20);
         }
         DerpChickenEntity.spawnAround(world, center.getX() + 0.5, center.getY() + 1.0, center.getZ() + 0.5, 5);
         world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, center.getX() + 0.5, center.getY() + 0.5, center.getZ() + 0.5, 1, 0, 0, 0, 0);
         world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, center.getX() + 0.5, center.getY() + 0.5, center.getZ() + 0.5, 60, 1.2, 1.2, 1.2, 0.3);
         world.playSound(null, center, SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.PLAYERS, 1.2F, 1.5F);
-        discard();
     }
 }
 ''')
@@ -4398,7 +4407,7 @@ import net.minecraft.world.World;
 /** Purely visual: a block flying up the Beacon 5G tornado in a spiral. Not saved, discarded after a few seconds. */
 public class SuckedBlockEntity extends Entity {
     private static final TrackedData<BlockState> STATE = DataTracker.registerData(SuckedBlockEntity.class, TrackedDataHandlerRegistry.BLOCK_STATE);
-    private static final int LIFETIME = 70;
+    private static final int LIFETIME = 110;
     private static int alive;
 
     private double centerX;
@@ -4461,9 +4470,9 @@ public class SuckedBlockEntity extends Entity {
             return;
         }
         double f = age / (double) LIFETIME;
-        double angle = startAngle + age * 0.32;
+        double angle = startAngle + age * 0.2;
         double radius = startRadius * (1.0 - f) + 2.5 * f;
-        setPosition(centerX + Math.cos(angle) * radius, startY + age * 1.6, centerZ + Math.sin(angle) * radius);
+        setPosition(centerX + Math.cos(angle) * radius, startY + age * 1.0, centerZ + Math.sin(angle) * radius);
     }
 
     @Override
@@ -4492,15 +4501,19 @@ package @@PKG@@.item;
 import @@PKG@@.RSConfig;
 import @@PKG@@.destroy.DestructionManager;
 import @@PKG@@.economy.ConsumedBlocks;
+import java.util.List;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
+import net.minecraft.client.item.TooltipContext;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import org.jetbrains.annotations.Nullable;
 
 /** Mines everything instantly and takes the surrounding 3x3x3 with it. Every block mined is credited to the player. */
 public class GlitchPickaxeItem extends Item {
@@ -4520,8 +4533,18 @@ public class GlitchPickaxeItem extends Item {
         return true;        // drops work for every block
     }
 
+    @Override
+    public void appendTooltip(ItemStack stack, @Nullable World world, List<Text> tooltip, TooltipContext context) {
+        PowerTooltips.append("glitch_pickaxe", tooltip);
+    }
+
     public static void registerEvents() {
         PlayerBlockBreakEvents.BEFORE.register(GlitchPickaxeItem::onBeforeBreak);
+    }
+
+    /** The block(s) directly below the miner are what they stand on: the 3x3x3 spares them (the targeted block itself is the miner's choice). */
+    private static boolean isUnderFeet(ServerPlayerEntity player, BlockPos p) {
+        return p.getY() == player.getBlockY() - 1 && Math.abs(p.getX() + 0.5 - player.getX()) < 0.95 && Math.abs(p.getZ() + 0.5 - player.getZ()) < 0.95;
     }
 
     private static boolean onBeforeBreak(World world, PlayerEntity player, BlockPos pos, BlockState state, BlockEntity blockEntity) {
@@ -4541,7 +4564,7 @@ public class GlitchPickaxeItem extends Item {
                         }
                         BlockPos p = pos.add(dx, dy, dz);
                         BlockState s = world.getBlockState(p);
-                        if (s.isAir() || s.getHardness(world, p) < 0) {
+                        if (s.isAir() || s.getHardness(world, p) < 0 || isUnderFeet(sp, p)) {
                             continue;
                         }
                         boolean broken = drops ? sp.interactionManager.tryBreakBlock(p) : world.breakBlock(p, false, sp);
@@ -4564,14 +4587,18 @@ J("item/GlitchyFloppyItem.java", r'''
 package @@PKG@@.item;
 
 import @@PKG@@.entity.FloppyProjectileEntity;
+import java.util.List;
+import net.minecraft.client.item.TooltipContext;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.Text;
 import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.world.World;
+import org.jetbrains.annotations.Nullable;
 
 /** Right-click: throws a floppy that destroys 5x5x5 on impact and spawns five DerpChickens. */
 public class GlitchyFloppyItem extends Item {
@@ -4592,19 +4619,28 @@ public class GlitchyFloppyItem extends Item {
         user.getItemCooldownManager().set(this, 12);
         return TypedActionResult.success(stack, world.isClient());
     }
+
+    @Override
+    public void appendTooltip(ItemStack stack, @Nullable World world, List<Text> tooltip, TooltipContext context) {
+        PowerTooltips.append("glitchy_floppy", tooltip);
+    }
 }
 ''')
 
 J("item/CursedKittyPhoneItem.java", r'''
 package @@PKG@@.item;
 
+import @@PKG@@.command.RealityShopCommand;
 import @@PKG@@.destroy.BoxRegion;
 import @@PKG@@.destroy.DestructionManager;
+import @@PKG@@.destroy.Front;
 import @@PKG@@.destroy.RegionClearJob;
-import @@PKG@@.command.RealityShopCommand;
 import @@PKG@@.registry.ModSounds;
+import java.util.List;
+import net.minecraft.client.item.TooltipContext;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemUsageContext;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -4614,11 +4650,25 @@ import net.minecraft.util.ActionResult;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import org.jetbrains.annotations.Nullable;
 
-/** Right-click the ground: instantly removes a 50 x 20 x 50 block pit (16 below .. 3 above the clicked block). */
+/**
+ * Right-click the ground: a 50 x 20 x 50 pit (16 below .. 3 above the clicked block) disappears at once - in FRONT of you.
+ * It starts at the block after the one you stand on, so you keep your footing and never fall into your own hole.
+ */
 public class CursedKittyPhoneItem extends Item {
+    public static final int WIDTH = 50;
+    public static final int DEPTH = 50;
+    public static final int BELOW = 16;
+    public static final int ABOVE = 3;
+
     public CursedKittyPhoneItem(Settings settings) {
         super(settings);
+    }
+
+    /** The pit for a player who clicked {@code ground} (public so the game tests can check the exact shape). */
+    public static BoxRegion pit(Front front, BlockPos ground) {
+        return front.box(1, DEPTH, WIDTH, ground.getY() - BELOW, ground.getY() + ABOVE);
     }
 
     @Override
@@ -4632,14 +4682,19 @@ public class CursedKittyPhoneItem extends Item {
             sp.sendMessage(Text.literal("Reality here is protected.").formatted(Formatting.RED), true);
             return ActionResult.FAIL;
         }
-        BlockPos pos = context.getBlockPos();
-        RegionClearJob job = new RegionClearJob((ServerWorld) world, BoxRegion.around(pos, 50, 16, 3, 50))
-                .owner(sp.getUuid()).origin(pos);
+        BlockPos ground = context.getBlockPos();
+        RegionClearJob job = new RegionClearJob((ServerWorld) world, pit(Front.of(sp), ground))
+                .owner(sp.getUuid()).origin(sp.getBlockPos());
         DestructionManager.runNow(job);
-        world.playSound(null, pos, ModSounds.KITTY_PHONE_CURSE, SoundCategory.PLAYERS, 3.0F, 1.0F);
+        world.playSound(null, sp.getBlockPos(), ModSounds.KITTY_PHONE_CURSE, SoundCategory.PLAYERS, 3.0F, 1.0F);
         sp.getItemCooldownManager().set(this, 40);
         sp.sendMessage(Text.literal("+" + RealityShopCommand.fmt(job.cleared()) + " blocks consumed").formatted(Formatting.LIGHT_PURPLE), true);
         return ActionResult.SUCCESS;
+    }
+
+    @Override
+    public void appendTooltip(ItemStack stack, @Nullable World world, List<Text> tooltip, TooltipContext context) {
+        PowerTooltips.append("cursed_kitty_phone", tooltip);
     }
 }
 ''')
@@ -4648,11 +4703,13 @@ J("item/QuantumUsbItem.java", r'''
 package @@PKG@@.item;
 
 import @@PKG@@.command.RealityShopCommand;
-import @@PKG@@.destroy.BoxRegion;
 import @@PKG@@.destroy.DestructionManager;
+import @@PKG@@.destroy.Front;
 import @@PKG@@.destroy.RegionClearJob;
 import @@PKG@@.registry.ModSounds;
 import @@PKG@@.shop.ShopDimensions;
+import java.util.List;
+import net.minecraft.client.item.TooltipContext;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -4666,15 +4723,16 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import org.jetbrains.annotations.Nullable;
 
 /**
- * Right-click: purges a 500 x 500 area over the full world height (clipped to the dimension's build height, 384 in the
- * overworld) over ten seconds - then teleports the player to the Void Realm. While it runs the player hovers,
- * invulnerable, so nothing they stand on can drop them into the void early.
+ * Right-click: a 500 x 500 area over the full world height (clipped to the dimension's build height) is purged over ten
+ * seconds - starting right in FRONT of you, so the ground under your feet stays. When it is done you are pulled into the
+ * Bedrock Realm. There is no portal back.
  */
 public class QuantumUsbItem extends Item {
-    private static final int RADIUS = 250;
-    private static final int PURGE_TICKS = 200;
+    public static final int SIZE = 500;
+    public static final int PURGE_TICKS = 200;
 
     public QuantumUsbItem(Settings settings) {
         super(settings);
@@ -4692,17 +4750,8 @@ public class QuantumUsbItem extends Item {
         }
         ServerWorld sw = (ServerWorld) world;
         BlockPos pos = sp.getBlockPos();
-        BoxRegion region = new BoxRegion(pos.getX() - RADIUS, sw.getBottomY(), pos.getZ() - RADIUS,
-                pos.getX() + RADIUS - 1, sw.getTopY() - 1, pos.getZ() + RADIUS - 1);
-
-        boolean wasInvulnerable = sp.isInvulnerable();
-        boolean hadGravity = !sp.hasNoGravity();
-        sp.setInvulnerable(true);
-        sp.setNoGravity(true);
-        sp.setVelocity(0, 0, 0);
-        sp.velocityModified = true;
-
-        RegionClearJob job = new RegionClearJob(sw, region).owner(sp.getUuid()).origin(pos).targetTicks(PURGE_TICKS)
+        RegionClearJob job = new RegionClearJob(sw, Front.of(sp).box(1, SIZE, SIZE, sw.getBottomY(), sw.getTopY() - 1))
+                .owner(sp.getUuid()).origin(pos).targetTicks(PURGE_TICKS)
                 .onProgress(j -> {
                     if (sw.getTime() % 10 == 0) {
                         sw.spawnParticles(ParticleTypes.REVERSE_PORTAL, sp.getX(), sp.getY() + 1, sp.getZ(), 30, 1.5, 1.5, 1.5, 0.2);
@@ -4711,19 +4760,18 @@ public class QuantumUsbItem extends Item {
                     }
                 })
                 .onFinish(j -> {
-                    sp.setInvulnerable(wasInvulnerable);
-                    sp.setNoGravity(!hadGravity);
                     sp.sendMessage(Text.literal("Purged " + RealityShopCommand.fmt(j.cleared()) + " blocks").formatted(Formatting.GOLD), true);
-                    ShopDimensions.enterVoid(sp);
-                })
-                .onCancel(j -> {
-                    sp.setInvulnerable(wasInvulnerable);
-                    sp.setNoGravity(!hadGravity);
+                    ShopDimensions.enterBedrock(sp);
                 });
         DestructionManager.submit(job);
         world.playSound(null, pos, ModSounds.QUANTUM_PURGE, SoundCategory.PLAYERS, 4.0F, 1.0F);
         sp.getItemCooldownManager().set(this, PURGE_TICKS * 2);
         return TypedActionResult.success(stack, false);
+    }
+
+    @Override
+    public void appendTooltip(ItemStack stack, @Nullable World world, List<Text> tooltip, TooltipContext context) {
+        PowerTooltips.append("quantum_usb", tooltip);
     }
 }
 ''')
@@ -4732,6 +4780,7 @@ J("block/HackedRgbFurnaceBlock.java", r'''
 package @@PKG@@.block;
 
 import @@PKG@@.destroy.DestructionManager;
+import @@PKG@@.destroy.Front;
 import @@PKG@@.registry.ModBlockEntities;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockRenderType;
@@ -4803,7 +4852,7 @@ public class HackedRgbFurnaceBlock extends BlockWithEntity {
             return;
         }
         if (world.getBlockEntity(pos) instanceof HackedRgbFurnaceBlockEntity furnace) {
-            furnace.start(player.getUuid());
+            furnace.start(player.getUuid(), Front.of(player));
         }
     }
 
@@ -4812,7 +4861,7 @@ public class HackedRgbFurnaceBlock extends BlockWithEntity {
     public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
         if (!world.isClient && hand == Hand.MAIN_HAND && !DestructionManager.isProtected(world)
                 && world.getBlockEntity(pos) instanceof HackedRgbFurnaceBlockEntity furnace && furnace.isIdle()) {
-            furnace.start(player.getUuid());
+            furnace.start(player.getUuid(), Front.of(player));
             return ActionResult.CONSUME;
         }
         return world.isClient ? ActionResult.SUCCESS : ActionResult.PASS;
@@ -4823,7 +4872,10 @@ public class HackedRgbFurnaceBlock extends BlockWithEntity {
 J("block/HackedRgbFurnaceBlockEntity.java", r'''
 package @@PKG@@.block;
 
+import @@PKG@@.RSConfig;
+import @@PKG@@.destroy.DestroyRegion;
 import @@PKG@@.destroy.DestructionManager;
+import @@PKG@@.destroy.Front;
 import @@PKG@@.destroy.RegionClearJob;
 import @@PKG@@.destroy.SphereRegion;
 import @@PKG@@.net.LaserBurst;
@@ -4837,6 +4889,7 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
@@ -4846,6 +4899,8 @@ public class HackedRgbFurnaceBlockEntity extends BlockEntity {
     private static final int TICKS = 200;
 
     private UUID owner;
+    private int frontDir = -1;   // Direction id of the way the owner faced when starting it (-1 = whole sphere)
+    private int frontStart;
     private boolean running;
     private RegionClearJob job;
 
@@ -4853,10 +4908,22 @@ public class HackedRgbFurnaceBlockEntity extends BlockEntity {
         super(ModBlockEntities.HACKED_RGB_FURNACE, pos, state);
     }
 
-    public void start(UUID owner) {
+    public void start(UUID owner, Front front) {
         this.owner = owner;
+        if (front != null) {
+            frontDir = front.dir().getId();
+            frontStart = front.start(1);
+        } else {
+            frontDir = -1;
+        }
         setRunning(true);
         job = null;
+    }
+
+    /** The half-sphere in front of the owner (so they keep their footing), or the whole sphere if nobody started it. */
+    private DestroyRegion region(BlockPos pos) {
+        SphereRegion sphere = new SphereRegion(pos, RADIUS);
+        return frontDir < 0 ? sphere : Front.clipHalf(sphere, Direction.byId(frontDir), frontStart);
     }
 
     public boolean isIdle() {
@@ -4890,8 +4957,8 @@ public class HackedRgbFurnaceBlockEntity extends BlockEntity {
         }
         ServerWorld sw = (ServerWorld) world;
         Vec3d origin = Vec3d.ofCenter(pos).add(0, 0.2, 0);
-        be.job = new RegionClearJob(sw, new SphereRegion(pos, RADIUS)).owner(be.owner).origin(pos).protect(pos)
-                .targetTicks(TICKS)
+        be.job = new RegionClearJob(sw, be.region(pos)).owner(be.owner).origin(pos).protect(pos)
+                .targetTicks(RSConfig.get().furnacePurgeSeconds * 20)
                 .samples(64, samples -> LaserBurst.send(sw, origin, samples.stream().map(RegionClearJob.Sample::pos).toList()))
                 .onFinish(j -> {
                     be.job = null;
@@ -4905,6 +4972,8 @@ public class HackedRgbFurnaceBlockEntity extends BlockEntity {
     protected void writeNbt(NbtCompound nbt) {
         super.writeNbt(nbt);
         nbt.putBoolean("running", running);
+        nbt.putInt("frontDir", frontDir);
+        nbt.putInt("frontStart", frontStart);
         if (owner != null) {
             nbt.putUuid("owner", owner);
         }
@@ -4914,6 +4983,8 @@ public class HackedRgbFurnaceBlockEntity extends BlockEntity {
     public void readNbt(NbtCompound nbt) {
         super.readNbt(nbt);
         running = nbt.getBoolean("running");
+        frontDir = nbt.contains("frontDir") ? nbt.getInt("frontDir") : -1;
+        frontStart = nbt.getInt("frontStart");
         owner = nbt.containsUuid("owner") ? nbt.getUuid("owner") : null;
     }
 
@@ -4933,6 +5004,7 @@ J("block/Beacon5GBlock.java", r'''
 package @@PKG@@.block;
 
 import @@PKG@@.destroy.DestructionManager;
+import @@PKG@@.destroy.Front;
 import @@PKG@@.registry.ModBlockEntities;
 import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.BlockState;
@@ -4985,7 +5057,7 @@ public class Beacon5GBlock extends BlockWithEntity {
             return;
         }
         if (world.getBlockEntity(pos) instanceof Beacon5GBlockEntity beacon) {
-            beacon.start(player.getUuid());
+            beacon.start(player.getUuid(), Front.of(player));
         }
     }
 
@@ -4994,7 +5066,7 @@ public class Beacon5GBlock extends BlockWithEntity {
     public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
         if (!world.isClient && hand == Hand.MAIN_HAND && !DestructionManager.isProtected(world)
                 && world.getBlockEntity(pos) instanceof Beacon5GBlockEntity beacon && beacon.isIdle()) {
-            beacon.start(player.getUuid());
+            beacon.start(player.getUuid(), Front.of(player));
             return ActionResult.CONSUME;
         }
         return world.isClient ? ActionResult.SUCCESS : ActionResult.PASS;
@@ -5006,7 +5078,9 @@ J("block/Beacon5GBlockEntity.java", r'''
 package @@PKG@@.block;
 
 import @@PKG@@.RSConfig;
+import @@PKG@@.destroy.DestroyRegion;
 import @@PKG@@.destroy.DestructionManager;
+import @@PKG@@.destroy.Front;
 import @@PKG@@.destroy.RegionClearJob;
 import @@PKG@@.destroy.SphereRegion;
 import @@PKG@@.entity.SuckedBlockEntity;
@@ -5021,20 +5095,23 @@ import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
 import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 import org.joml.Vector3f;
 
 /**
- * Server: vacuums a 200-block-radius sphere over 300 ticks (nearest first) and sends a few of the eaten blocks spiralling up.
+ * Server: vacuums the half of a 200-block-radius sphere that lies in front of whoever started it, slowly (a minute by default,
+ * nearest first), and sends a few of the eaten blocks spiralling up.
  * Client: spawns the red particle tornado locally (thousands of dust particles, zero network traffic).
  */
 public class Beacon5GBlockEntity extends BlockEntity {
     public static final int RADIUS = 200;
-    private static final int TICKS = 300;
     private static final DustParticleEffect RED_DUST = new DustParticleEffect(new Vector3f(1.0F, 0.04F, 0.04F), 1.6F);
 
     private UUID owner;
+    private int frontDir = -1;   // Direction id of the way the owner faced when starting it (-1 = whole sphere)
+    private int frontStart;
     private boolean running;
     private RegionClearJob job;
 
@@ -5042,10 +5119,21 @@ public class Beacon5GBlockEntity extends BlockEntity {
         super(ModBlockEntities.BEACON_5G, pos, state);
     }
 
-    public void start(UUID owner) {
+    public void start(UUID owner, Front front) {
         this.owner = owner;
+        if (front != null) {
+            frontDir = front.dir().getId();
+            frontStart = front.start(1);
+        } else {
+            frontDir = -1;
+        }
         setRunning(true);
         job = null;
+    }
+
+    private DestroyRegion region(BlockPos pos) {
+        SphereRegion sphere = new SphereRegion(pos, RADIUS);
+        return frontDir < 0 ? sphere : Front.clipHalf(sphere, Direction.byId(frontDir), frontStart);
     }
 
     public boolean isIdle() {
@@ -5069,8 +5157,8 @@ public class Beacon5GBlockEntity extends BlockEntity {
             return;
         }
         ServerWorld sw = (ServerWorld) world;
-        be.job = new RegionClearJob(sw, new SphereRegion(pos, RADIUS)).owner(be.owner).origin(pos).protect(pos)
-                .targetTicks(TICKS)
+        be.job = new RegionClearJob(sw, be.region(pos)).owner(be.owner).origin(pos).protect(pos)
+                .targetTicks(RSConfig.get().beaconPurgeSeconds * 20)
                 .samples(18, samples -> {
                     int spawned = 0;
                     for (RegionClearJob.Sample sample : samples) {
@@ -5099,7 +5187,7 @@ public class Beacon5GBlockEntity extends BlockEntity {
         }
         Random r = world.random;
         long t = world.getTime();
-        int count = (int) Math.round(600 * RSConfig.get().particleDensity);
+        int count = (int) Math.round(240 * RSConfig.get().particleDensity);
         double bx = pos.getX() + 0.5;
         double by = pos.getY() + 1.0;
         double bz = pos.getZ() + 0.5;
@@ -5107,7 +5195,7 @@ public class Beacon5GBlockEntity extends BlockEntity {
             double h = r.nextDouble();
             double height = h * 140.0;
             double radius = 1.5 + h * h * 26.0 + r.nextDouble() * 1.5;
-            double angle = t * 0.22 + height * 0.16 + r.nextDouble() * 0.6;
+            double angle = t * 0.11 + height * 0.16 + r.nextDouble() * 0.6;   // half the old spin: slow and heavy
             double sin = Math.sin(angle);
             double cos = Math.cos(angle);
             world.addParticle(RED_DUST, bx + cos * radius, by + height, bz + sin * radius, -sin * 0.4, 0.55, cos * 0.4);
@@ -5118,6 +5206,8 @@ public class Beacon5GBlockEntity extends BlockEntity {
     protected void writeNbt(NbtCompound nbt) {
         super.writeNbt(nbt);
         nbt.putBoolean("running", running);
+        nbt.putInt("frontDir", frontDir);
+        nbt.putInt("frontStart", frontStart);
         if (owner != null) {
             nbt.putUuid("owner", owner);
         }
@@ -5127,6 +5217,8 @@ public class Beacon5GBlockEntity extends BlockEntity {
     public void readNbt(NbtCompound nbt) {
         super.readNbt(nbt);
         running = nbt.getBoolean("running");
+        frontDir = nbt.contains("frontDir") ? nbt.getInt("frontDir") : -1;
+        frontStart = nbt.getInt("frontStart");
         owner = nbt.containsUuid("owner") ? nbt.getUuid("owner") : null;
     }
 
@@ -5148,10 +5240,14 @@ package @@PKG@@.gametest;
 import @@PKG@@.RSConfig;
 import @@PKG@@.destroy.BoxRegion;
 import @@PKG@@.destroy.DestructionManager;
+import @@PKG@@.destroy.Front;
 import @@PKG@@.destroy.RegionClearJob;
 import @@PKG@@.destroy.SphereRegion;
 import @@PKG@@.economy.ConsumedBlocks;
 import @@PKG@@.entity.DerpChickenEntity;
+import @@PKG@@.entity.FloppyProjectileEntity;
+import @@PKG@@.item.CursedKittyPhoneItem;
+import @@PKG@@.util.GlowLights;
 import @@PKG@@.registry.ModBlocks;
 import @@PKG@@.registry.ModItems;
 import @@PKG@@.shop.BlackMarketRoom;
@@ -5237,24 +5333,24 @@ public class RealityShopGameTests implements FabricGameTest {
     public void pedestalPurchase(TestContext ctx) {
         ServerWorld world = ctx.getWorld();
         BlockPos rel = new BlockPos(1, 1, 1);
-        BlackMarketRoom.placePedestal(world, ctx.getAbsolutePos(rel), ShopOffer.GLITCHY_FLOPPY);
+        BlackMarketRoom.placePedestal(world, ctx.getAbsolutePos(rel), ShopOffer.CURSED_KITTY_PHONE);
         check(ctx, world.getBlockEntity(ctx.getAbsolutePos(rel)) instanceof ShopPedestalBlockEntity be
-                && be.getOffer() == ShopOffer.GLITCHY_FLOPPY, "pedestal remembers its offer");
+                && be.getOffer() == ShopOffer.CURSED_KITTY_PHONE, "pedestal remembers its offer");
         ServerPlayerEntity p = ctx.createMockCreativeServerPlayerInWorld();
         ConsumedBlocks.set(p, 4_000);
         ctx.useBlock(rel, p);
-        check(ctx, ConsumedBlocks.get(p) == 4_000 && p.getInventory().count(ModItems.GLITCHY_FLOPPY) == 0,
+        check(ctx, ConsumedBlocks.get(p) == 4_000 && p.getInventory().count(ModItems.CURSED_KITTY_PHONE) == 0,
                 "too poor (4000 < 5000): nothing is bought");
         ConsumedBlocks.set(p, 6_000);
         ctx.useBlock(rel, p);
         check(ctx, ConsumedBlocks.get(p) == 1_000, "5000 blocks were deducted (balance " + ConsumedBlocks.get(p) + ")");
-        check(ctx, p.getInventory().count(ModItems.GLITCHY_FLOPPY) == 1, "the floppy was handed over");
+        check(ctx, p.getInventory().count(ModItems.CURSED_KITTY_PHONE) == 1, "the phone was handed over");
         ctx.complete();
     }
 
     @GameTest(templateName = EMPTY_STRUCTURE)
     public void shopOfferCostsMatchTheSpec(TestContext ctx) {
-        long[] expected = {0L, 5_000L, 50_000L, 500_000L, 3_000_000L, 10_000_000L};
+        long[] expected = {0L, 500L, 5_000L, 50_000L, 300_000L, 1_000_000L};
         ShopOffer[] offers = ShopOffer.values();
         check(ctx, offers.length == 6, "six offers");
         for (int i = 0; i < 6; i++) {
@@ -5274,7 +5370,7 @@ public class RealityShopGameTests implements FabricGameTest {
         net.minecraft.server.MinecraftServer server = ctx.getWorld().getServer();
         com.mojang.serialization.DynamicOps<com.google.gson.JsonElement> ops =
                 net.minecraft.registry.RegistryOps.of(com.mojang.serialization.JsonOps.INSTANCE, server.getRegistryManager());
-        for (String name : new String[]{"black_market", "void_realm"}) {
+        for (String name : new String[]{"black_market", "bedrock_realm"}) {
             for (String kind : new String[]{"dimension_type", "dimension"}) {
                 net.minecraft.util.Identifier file = new net.minecraft.util.Identifier("@@MODID@@", kind + "/" + name + ".json");
                 com.google.gson.JsonElement json;
@@ -5503,21 +5599,122 @@ public class RealityShopGameTests implements FabricGameTest {
     }
 
     @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 100)
-    public void kittyPhonePitIs50x20x50(TestContext ctx) {
+    public void kittyPhonePitIsInFrontOfYou(TestContext ctx) {
         ServerWorld world = ctx.getWorld();
         BlockPos o = scratch(ctx, 5, 5);
-        BlockPos click = o.add(40, 20, 40);
-        BoxRegion region = BoxRegion.around(click, 50, 16, 3, 50);
-        check(ctx, (region.maxX() - region.minX() + 1) == 50 && (region.maxZ() - region.minZ() + 1) == 50
-                && (region.maxY() - region.minY() + 1) == 20, "the pit is 50 x 20 x 50");
+        BlockPos feet = o.add(40, 20, 12);
+        BlockPos ground = feet.down();
+        // geometry for all four facings: 50 x 20 x 50, starts right after the player's block, never contains their column
+        for (net.minecraft.util.math.Direction d : net.minecraft.util.math.Direction.Type.HORIZONTAL) {
+            Front front = new Front(d, feet);
+            BoxRegion pit = CursedKittyPhoneItem.pit(front, ground);
+            boolean alongX = d.getAxis() == net.minecraft.util.math.Direction.Axis.X;
+            int lenX = pit.maxX() - pit.minX() + 1;
+            int lenZ = pit.maxZ() - pit.minZ() + 1;
+            check(ctx, lenX == 50 && lenZ == 50 && (pit.maxY() - pit.minY() + 1) == 20, d + ": the pit is 50 x 20 x 50");
+            check(ctx, pit.minY() == ground.getY() - 16 && pit.maxY() == ground.getY() + 3, d + ": 16 below .. 3 above the clicked block");
+            for (int y = pit.minY(); y <= pit.maxY(); y++) {
+                check(ctx, !pit.contains(feet.getX(), y, feet.getZ()), d + ": the player's own column is never part of the pit");
+            }
+            int first = switch (d) {
+                case SOUTH -> pit.minZ();
+                case NORTH -> pit.maxZ();
+                case EAST -> pit.minX();
+                default -> pit.maxX();
+            };
+            int own = alongX ? feet.getX() : feet.getZ();
+            check(ctx, Math.abs(first - own) == 1, d + ": the pit begins right behind the player's block (first " + first + ", player " + own + ")");
+            int lateral = alongX ? feet.getZ() : feet.getX();
+            int lo = alongX ? pit.minZ() : pit.minX();
+            int hi = alongX ? pit.maxZ() : pit.maxX();
+            check(ctx, lo <= lateral - 24 && hi >= lateral + 24, d + ": the pit is centred on the player's line");
+        }
+        // and the real thing: a stone footing under the player must survive the removal of 50,000 blocks
+        Front south = new Front(net.minecraft.util.math.Direction.SOUTH, feet);
+        BoxRegion region = CursedKittyPhoneItem.pit(south, ground);
         fill(world, region.minX(), region.minY(), region.minZ(), region.maxX(), region.maxY(), region.maxZ(), Blocks.DIRT.getDefaultState());
-        RegionClearJob job = new RegionClearJob(world, region).origin(click);
+        fill(world, feet.getX() - 2, ground.getY() - 16, feet.getZ() - 1, feet.getX() + 2, ground.getY(), feet.getZ(), Blocks.STONE.getDefaultState());
+        RegionClearJob job = new RegionClearJob(world, region).origin(feet);
         long t0 = System.nanoTime();
         DestructionManager.runNow(job);
         long ms = (System.nanoTime() - t0) / 1_000_000;
         check(ctx, job.cleared() == 50_000L, "50,000 blocks removed in one go (got " + job.cleared() + ")");
         check(ctx, ms < 3000, "removed 'instantly' (took " + ms + " ms)");
+        check(ctx, world.getBlockState(ground).isOf(Blocks.STONE) && world.getBlockState(ground.down(5)).isOf(Blocks.STONE),
+                "the ground and the pillar under the player are still there - nobody falls");
+        check(ctx, world.getBlockState(ground.south()).isAir(), "the block in front of the player is gone");
         ctx.complete();
+    }
+
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200)
+    public void halfSphereInFrontIsExact(TestContext ctx) {
+        ServerWorld world = ctx.getWorld();
+        BlockPos o = scratch(ctx, 4, 14);
+        BlockPos c = o.add(32, 24, 32);
+        int r = 20;
+        fill(world, c.getX() - r - 1, c.getY() - r - 1, c.getZ() - r - 1, c.getX() + r + 1, c.getY() + r + 1, c.getZ() + r + 1, Blocks.STONE.getDefaultState());
+        // the player stands 5 blocks west of the sphere's centre and faces east: only x >= (player + 1) may go
+        Front front = new Front(net.minecraft.util.math.Direction.EAST, c.west(5));
+        int start = front.start(1);
+        SphereRegion sphere = new SphereRegion(c, r);
+        long expected = 0;
+        for (int x = c.getX() - r; x <= c.getX() + r; x++) {
+            for (int y = c.getY() - r; y <= c.getY() + r; y++) {
+                for (int z = c.getZ() - r; z <= c.getZ() + r; z++) {
+                    if (x >= start && sphere.contains(x, y, z)) {
+                        expected++;
+                    }
+                }
+            }
+        }
+        RegionClearJob job = new RegionClearJob(world, front.clip(sphere, 1)).origin(c);
+        DestructionManager.runNow(job);
+        check(ctx, job.cleared() == expected, "front half-sphere: cleared " + job.cleared() + ", expected " + expected);
+        check(ctx, world.getBlockState(new BlockPos(start - 1, c.getY(), c.getZ())).isOf(Blocks.STONE), "the plane behind the player is untouched");
+        check(ctx, world.getBlockState(new BlockPos(start, c.getY(), c.getZ())).isAir(), "the first block in front is gone");
+        check(ctx, world.getBlockState(new BlockPos(c.getX() - r, c.getY(), c.getZ())).isOf(Blocks.STONE), "the far side of the sphere (behind) is untouched");
+        ctx.complete();
+    }
+
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 120)
+    public void floppyImpactKeepsTheFootingAndLeavesAGlow(TestContext ctx) {
+        ServerWorld world = ctx.getWorld();
+        BlockPos o = scratch(ctx, 2, 15);
+        BlockPos c = o.add(8, 8, 8);
+        fill(world, c.getX() - 6, c.getY() - 6, c.getZ() - 6, c.getX() + 6, c.getY() + 6, c.getZ() + 6, Blocks.STONE.getDefaultState());
+        ServerPlayerEntity p = ctx.createMockCreativeServerPlayerInWorld();
+        p.setPosition(c.getX() + 2.5, c.getY() + 3.0, c.getZ() + 0.5);   // stands on top of the cube's east edge
+        ConsumedBlocks.set(p, 0);
+        FloppyProjectileEntity.impact(world, c, p);
+        int air = 0;
+        for (int x = -2; x <= 2; x++) {
+            for (int y = -2; y <= 2; y++) {
+                for (int z = -2; z <= 2; z++) {
+                    BlockState s = world.getBlockState(c.add(x, y, z));
+                    if (s.isAir() || s.isOf(Blocks.LIGHT)) {
+                        air++;
+                    }
+                }
+            }
+        }
+        check(ctx, air == 125 - 18, "the cube minus the thrower's 3x3x3 footing was erased (" + air + " of 125 are open)");
+        check(ctx, world.getBlockState(c.add(2, 1, 0)).isOf(Blocks.STONE), "the block under the thrower's feet is still there");
+        check(ctx, world.getBlockState(c).isOf(Blocks.LIGHT), "a glow light sits in the hole");
+        check(ctx, ConsumedBlocks.get(p) == 125 - 18, "credited " + ConsumedBlocks.get(p));
+        ctx.complete();
+    }
+
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 160)
+    public void glowLightExpires(TestContext ctx) {
+        ServerWorld world = ctx.getWorld();
+        BlockPos pos = scratch(ctx, 1, 15).add(3, 3, 3);
+        world.setBlockState(pos, Blocks.AIR.getDefaultState(), 2);
+        GlowLights.place(world, pos, 12, 40);
+        check(ctx, world.getBlockState(pos).isOf(Blocks.LIGHT), "the glow light is placed");
+        ctx.runAtTick(100, () -> {
+            check(ctx, world.getBlockState(pos).isAir(), "the glow light removed itself again");
+            ctx.complete();
+        });
     }
 
     @GameTest(templateName = EMPTY_STRUCTURE)
@@ -6786,6 +6983,414 @@ public final class ConsumedBlocksHud {
 }
 ''', client=True)
 
+J("destroy/ClippedRegion.java", r'''
+package @@PKG@@.destroy;
+
+/** A region limited to an axis-aligned box: everything of {@code base} that also lies inside the box. */
+public final class ClippedRegion implements DestroyRegion {
+    private final DestroyRegion base;
+    private final int cx0;
+    private final int cy0;
+    private final int cz0;
+    private final int cx1;
+    private final int cy1;
+    private final int cz1;
+    private final int minX;
+    private final int minY;
+    private final int minZ;
+    private final int maxX;
+    private final int maxY;
+    private final int maxZ;
+
+    public ClippedRegion(DestroyRegion base, int cx0, int cy0, int cz0, int cx1, int cy1, int cz1) {
+        this.base = base;
+        this.cx0 = cx0;
+        this.cy0 = cy0;
+        this.cz0 = cz0;
+        this.cx1 = cx1;
+        this.cy1 = cy1;
+        this.cz1 = cz1;
+        this.minX = Math.max(base.minX(), cx0);
+        this.minY = Math.max(base.minY(), cy0);
+        this.minZ = Math.max(base.minZ(), cz0);
+        this.maxX = Math.min(base.maxX(), cx1);
+        this.maxY = Math.min(base.maxY(), cy1);
+        this.maxZ = Math.min(base.maxZ(), cz1);
+    }
+
+    @Override public int minX() { return minX; }
+    @Override public int minY() { return minY; }
+    @Override public int minZ() { return minZ; }
+    @Override public int maxX() { return maxX; }
+    @Override public int maxY() { return maxY; }
+    @Override public int maxZ() { return maxZ; }
+
+    @Override
+    public boolean contains(int x, int y, int z) {
+        return x >= cx0 && x <= cx1 && y >= cy0 && y <= cy1 && z >= cz0 && z <= cz1 && base.contains(x, y, z);
+    }
+
+    @Override
+    public boolean containsBox(int x0, int y0, int z0, int x1, int y1, int z1) {
+        return x0 >= cx0 && x1 <= cx1 && y0 >= cy0 && y1 <= cy1 && z0 >= cz0 && z1 <= cz1 && base.containsBox(x0, y0, z0, x1, y1, z1);
+    }
+
+    @Override
+    public boolean intersectsBox(int x0, int y0, int z0, int x1, int y1, int z1) {
+        int ax0 = Math.max(x0, cx0);
+        int ay0 = Math.max(y0, cy0);
+        int az0 = Math.max(z0, cz0);
+        int ax1 = Math.min(x1, cx1);
+        int ay1 = Math.min(y1, cy1);
+        int az1 = Math.min(z1, cz1);
+        return ax0 <= ax1 && ay0 <= ay1 && az0 <= az1 && base.intersectsBox(ax0, ay0, az0, ax1, ay1, az1);
+    }
+}
+''')
+
+J("destroy/Front.java", r'''
+package @@PKG@@.destroy;
+
+import net.minecraft.entity.Entity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+
+/**
+ * "In front of the player": the horizontal facing and the block the player stands in. Every gadget consumes only what
+ * begins AFTER that block, so the player's own footing (and everything beside and behind them) is never part of the
+ * area and nobody falls into the hole they just made.
+ */
+public record Front(Direction dir, BlockPos origin) {
+    private static final int FAR = 30_000_000;
+
+    public static Front of(Entity entity) {
+        return new Front(entity.getHorizontalFacing(), entity.getBlockPos());
+    }
+
+    /** First block coordinate (along {@code dir}) of the front area, {@code gap} blocks beyond the player's own block. */
+    public int start(int gap) {
+        return switch (dir) {
+            case SOUTH -> origin.getZ() + gap;
+            case NORTH -> origin.getZ() - gap;
+            case EAST -> origin.getX() + gap;
+            default -> origin.getX() - gap;   // WEST
+        };
+    }
+
+    /** A box that begins {@code gap} blocks ahead, is {@code depth} long in the facing direction and {@code width} wide, centred on the player's line. */
+    public BoxRegion box(int gap, int depth, int width, int minY, int maxY) {
+        int half = width / 2;
+        int s = start(gap);
+        return switch (dir) {
+            case SOUTH -> new BoxRegion(origin.getX() - half, minY, s, origin.getX() - half + width - 1, maxY, s + depth - 1);
+            case NORTH -> new BoxRegion(origin.getX() - half, minY, s - depth + 1, origin.getX() - half + width - 1, maxY, s);
+            case EAST -> new BoxRegion(s, minY, origin.getZ() - half, s + depth - 1, maxY, origin.getZ() - half + width - 1);
+            default -> new BoxRegion(s - depth + 1, minY, origin.getZ() - half, s, maxY, origin.getZ() - half + width - 1);
+        };
+    }
+
+    /** Only the half of {@code region} that lies in front of the player. */
+    public DestroyRegion clip(DestroyRegion region, int gap) {
+        return clipHalf(region, dir, start(gap));
+    }
+
+    /** The part of {@code region} whose coordinate along {@code dir} is at or beyond {@code start}. */
+    public static DestroyRegion clipHalf(DestroyRegion region, Direction dir, int start) {
+        return switch (dir) {
+            case SOUTH -> new ClippedRegion(region, -FAR, -FAR, start, FAR, FAR, FAR);
+            case NORTH -> new ClippedRegion(region, -FAR, -FAR, -FAR, FAR, FAR, start);
+            case EAST -> new ClippedRegion(region, start, -FAR, -FAR, FAR, FAR, FAR);
+            default -> new ClippedRegion(region, -FAR, -FAR, -FAR, start, FAR, FAR);
+        };
+    }
+}
+''')
+
+J("util/ServerTasks.java", r'''
+package @@PKG@@.util;
+
+import @@PKG@@.RealityShopMod;
+import java.util.ArrayList;
+import java.util.List;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+
+/** Tiny server-thread scheduler: run something N ticks from now (portal lead-ins, delayed pick-ups, glow expiry ...). */
+public final class ServerTasks {
+    private record Task(long due, Runnable run) {}
+
+    private static final List<Task> TASKS = new ArrayList<>();
+    private static long tick;
+
+    private ServerTasks() {}
+
+    public static void register() {
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            tick++;
+            for (int i = 0; i < TASKS.size(); ) {
+                Task task = TASKS.get(i);
+                if (task.due() <= tick) {
+                    TASKS.remove(i);
+                    try {
+                        task.run().run();
+                    } catch (RuntimeException e) {
+                        RealityShopMod.LOGGER.error("Scheduled task failed", e);
+                    }
+                } else {
+                    i++;
+                }
+            }
+        });
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> TASKS.clear());
+    }
+
+    /** Runs {@code task} on the server thread after {@code ticks} ticks (at least one). */
+    public static void later(int ticks, Runnable task) {
+        TASKS.add(new Task(tick + Math.max(1, ticks), task));
+    }
+
+    public static long now() {
+        return tick;
+    }
+}
+''')
+
+J("util/GlowLights.java", r'''
+package @@PKG@@.util;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.LightBlock;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
+
+/**
+ * A short-lived invisible light source (a vanilla {@code light} block) so a freshly hollowed-out pocket underground is not pitch
+ * black. Every light is removed again after its lifetime, when its chunk unloads and when the server stops.
+ */
+public final class GlowLights {
+    private record Glow(ServerWorld world, BlockPos pos, long expires) {}
+
+    private static final List<Glow> LIGHTS = new ArrayList<>();
+
+    private GlowLights() {}
+
+    public static void register() {
+        ServerTickEvents.END_SERVER_TICK.register(GlowLights::tick);
+        ServerChunkEvents.CHUNK_UNLOAD.register((world, chunk) -> {
+            ChunkPos cp = chunk.getPos();
+            Iterator<Glow> it = LIGHTS.iterator();
+            while (it.hasNext()) {
+                Glow glow = it.next();
+                if (glow.world() == world && glow.pos().getX() >> 4 == cp.x && glow.pos().getZ() >> 4 == cp.z) {
+                    if (chunk.getBlockState(glow.pos()).isOf(Blocks.LIGHT)) {
+                        chunk.setBlockState(glow.pos(), Blocks.AIR.getDefaultState(), false);
+                    }
+                    it.remove();
+                }
+            }
+        });
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            for (Glow glow : LIGHTS) {
+                remove(glow);
+            }
+            LIGHTS.clear();
+        });
+    }
+
+    /** Lights {@code pos} (only if it is air) with the given level for {@code ticks} ticks. */
+    public static void place(ServerWorld world, BlockPos pos, int level, int ticks) {
+        if (ticks <= 0 || !world.getBlockState(pos).isAir()) {
+            return;
+        }
+        BlockState light = Blocks.LIGHT.getDefaultState().with(LightBlock.LEVEL_15, Math.max(1, Math.min(15, level)));
+        world.setBlockState(pos, light, Block.NOTIFY_LISTENERS);
+        LIGHTS.add(new Glow(world, pos.toImmutable(), world.getTime() + ticks));
+    }
+
+    private static void tick(MinecraftServer server) {
+        if (LIGHTS.isEmpty()) {
+            return;
+        }
+        Iterator<Glow> it = LIGHTS.iterator();
+        while (it.hasNext()) {
+            Glow glow = it.next();
+            if (glow.world().getTime() >= glow.expires()) {
+                remove(glow);
+                it.remove();
+            }
+        }
+    }
+
+    public static int active() {
+        return LIGHTS.size();
+    }
+
+    private static void remove(Glow glow) {
+        if (glow.world().isChunkLoaded(glow.pos()) && glow.world().getBlockState(glow.pos()).isOf(Blocks.LIGHT)) {
+            glow.world().setBlockState(glow.pos(), Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS);
+        }
+    }
+}
+''')
+
+J("item/PowerTooltips.java", r'''
+package @@PKG@@.item;
+
+import java.util.List;
+import java.util.Map;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+
+/** The "powers" of every item, shown as tooltip lines (and, for the first line, on the shop pedestals). Texts live in the lang file. */
+public final class PowerTooltips {
+    /** item id -> number of lang lines tooltip.@@MODID@@.<id>.1 .. n (line 1 is the name of the power). */
+    public static final Map<String, Integer> LINES = Map.of(
+            "glitch_pickaxe", 4,
+            "glitchy_floppy", 4,
+            "cursed_kitty_phone", 4,
+            "hacked_rgb_furnace", 4,
+            "beacon_5g", 4,
+            "quantum_usb", 4,
+            "black_market_portal", 3);
+
+    private PowerTooltips() {}
+
+    public static void append(String id, List<Text> tooltip) {
+        int n = LINES.getOrDefault(id, 0);
+        for (int i = 1; i <= n; i++) {
+            Text line = Text.translatable("tooltip.@@MODID@@." + id + "." + i);
+            tooltip.add(i == 1 ? line.copy().formatted(Formatting.GOLD, Formatting.BOLD) : line.copy().formatted(Formatting.GRAY));
+        }
+    }
+}
+''')
+
+J("item/PowerBlockItem.java", r'''
+package @@PKG@@.item;
+
+import java.util.List;
+import net.minecraft.block.Block;
+import net.minecraft.client.item.TooltipContext;
+import net.minecraft.item.BlockItem;
+import net.minecraft.item.ItemStack;
+import net.minecraft.text.Text;
+import net.minecraft.world.World;
+import org.jetbrains.annotations.Nullable;
+
+/** A block item that lists its powers in the tooltip. */
+public class PowerBlockItem extends BlockItem {
+    private final String id;
+
+    public PowerBlockItem(Block block, Settings settings, String id) {
+        super(block, settings);
+        this.id = id;
+    }
+
+    @Override
+    public void appendTooltip(ItemStack stack, @Nullable World world, List<Text> tooltip, TooltipContext context) {
+        super.appendTooltip(stack, world, tooltip, context);
+        PowerTooltips.append(id, tooltip);
+    }
+}
+''')
+
+J("shop/BedrockRealm.java", r'''
+package @@PKG@@.shop;
+
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
+
+/**
+ * The Bedrock Realm: an endless flat bedrock plain under the End sky (the flat generator lays five bedrock layers, y 0..4),
+ * with a ring of bedrock monoliths around the arrival point. The Quantum USB sends you here and there is NO portal back:
+ * you leave by dying (you respawn at your spawn point) - or, as an operator, with /realityshop back.
+ */
+public final class BedrockRealm {
+    public static final int SURFACE_Y = 4;
+    public static final BlockPos SPAWN = new BlockPos(0, SURFACE_Y + 1, 0);
+    private static final int RING_RADIUS = 13;
+    private static final int PILLARS = 10;
+
+    private BedrockRealm() {}
+
+    public static boolean isBuilt(ServerWorld world) {
+        return world.getBlockState(new BlockPos(RING_RADIUS, SURFACE_Y + 1, 0)).isOf(Blocks.BEDROCK);
+    }
+
+    public static void ensureBuilt(ServerWorld world) {
+        if (isBuilt(world)) {
+            return;
+        }
+        for (int cx = -2; cx <= 1; cx++) {
+            for (int cz = -2; cz <= 1; cz++) {
+                world.getChunk(cx, cz);   // the chunks must exist before blocks are placed
+            }
+        }
+        BlockState rock = Blocks.BEDROCK.getDefaultState();
+        // ring of monoliths: 2x2 shafts of varying height with a stepped, broken top
+        for (int i = 0; i < PILLARS; i++) {
+            double a = Math.PI * 2.0 * i / PILLARS + 0.31;
+            int px = (int) Math.round(Math.cos(a) * RING_RADIUS);
+            int pz = (int) Math.round(Math.sin(a) * RING_RADIUS);
+            int height = 9 + (i * 7) % 13;
+            for (int dx = 0; dx < 2; dx++) {
+                for (int dz = 0; dz < 2; dz++) {
+                    int h = height - ((dx + dz) % 2 == 1 ? 2 + i % 3 : 0);
+                    for (int y = 1; y <= h; y++) {
+                        set(world, px + dx, SURFACE_Y + y, pz + dz, rock);
+                    }
+                }
+            }
+        }
+        // the arrival altar: three low steps around the spawn point
+        for (int x = -4; x <= 4; x++) {
+            for (int z = -4; z <= 4; z++) {
+                int d = Math.max(Math.abs(x), Math.abs(z));
+                if (d >= 3) {
+                    set(world, x, SURFACE_Y + 1, z, rock);
+                }
+                if (d == 4 && ((x + z) & 1) == 0) {
+                    set(world, x, SURFACE_Y + 2, z, rock);
+                }
+            }
+        }
+        // a few floating chunks in the sky
+        for (int i = 0; i < 6; i++) {
+            double a = Math.PI * 2.0 * i / 6 + 0.9;
+            int fx = (int) Math.round(Math.cos(a) * (22 + i * 3));
+            int fz = (int) Math.round(Math.sin(a) * (22 + i * 3));
+            int fy = SURFACE_Y + 24 + (i * 5) % 11;
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        if ((Math.abs(dx) + Math.abs(dy) + Math.abs(dz)) <= 2) {
+                            set(world, fx + dx, fy + dy, fz + dz, rock);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static void set(ServerWorld world, int x, int y, int z, BlockState state) {
+        world.setBlockState(new BlockPos(x, y, z), state, Block.NOTIFY_LISTENERS);
+    }
+}
+''')
+
 # @@INSERT:JAVA@@  (Java templates are inserted above this line)
 
 
@@ -6804,10 +7409,13 @@ def gen_data(out, opts):
               "monster_spawn_block_light_limit": 0}
     out.data_json("dimension_type/black_market.json", dict(common, has_skylight=False, has_ceiling=True, ambient_light=0.15,
                                                           fixed_time=18000, effects="minecraft:overworld"))
-    out.data_json("dimension_type/void_realm.json", dict(common, has_skylight=False, has_ceiling=False, ambient_light=0.25,
-                                                        effects="minecraft:the_end"))
+    out.data_json("dimension_type/bedrock_realm.json", dict(common, has_skylight=False, has_ceiling=False, ambient_light=0.4,
+                                                          effects="minecraft:the_end"))
     out.data_json("dimension/black_market.json", {"type": MOD_ID + ":black_market", "generator": flat_void})
-    out.data_json("dimension/void_realm.json", {"type": MOD_ID + ":void_realm", "generator": flat_void})
+    bedrock_flat = {"type": "minecraft:flat", "settings": {
+        "biome": "minecraft:the_void", "features": False, "lakes": False,
+        "layers": [{"block": "minecraft:bedrock", "height": 5}], "structure_overrides": []}}
+    out.data_json("dimension/bedrock_realm.json", {"type": MOD_ID + ":bedrock_realm", "generator": bedrock_flat})
     out.data_json("recipes/black_market_portal.json", {
         "type": "minecraft:crafting_shaped",
         "category": "misc",
@@ -6841,6 +7449,34 @@ LANG = {
     "entity.realityshop.floppy_projectile": "Glitchy Floppy",
     "entity.realityshop.sucked_block": "Sucked Up Block",
     "hud.realityshop.consumed": "Blocks Consumed: %s",
+    "hud.realityshop.blocks": "Blocks",
+    "tooltip.realityshop.glitch_pickaxe.1": "Power: Glitch Mining",
+    "tooltip.realityshop.glitch_pickaxe.2": "Breaks anything instantly - even obsidian.",
+    "tooltip.realityshop.glitch_pickaxe.3": "Takes the whole 3x3x3 around the block with it.",
+    "tooltip.realityshop.glitch_pickaxe.4": "Everything you mine is added to Blocks Consumed.",
+    "tooltip.realityshop.glitchy_floppy.1": "Power: Glitch Throw",
+    "tooltip.realityshop.glitchy_floppy.2": "Thrown: erases a 5x5x5 cube where it lands.",
+    "tooltip.realityshop.glitchy_floppy.3": "Rains Derp Chickens out of the hole.",
+    "tooltip.realityshop.glitchy_floppy.4": "A glow keeps the hole from going black.",
+    "tooltip.realityshop.cursed_kitty_phone.1": "Power: Cursed Pit",
+    "tooltip.realityshop.cursed_kitty_phone.2": "Right-click the ground: a 50x20x50 pit vanishes at once.",
+    "tooltip.realityshop.cursed_kitty_phone.3": "It opens in FRONT of you - you keep your footing.",
+    "tooltip.realityshop.cursed_kitty_phone.4": "The kitty screams. Loudly.",
+    "tooltip.realityshop.hacked_rgb_furnace.1": "Power: Green Laser Eater",
+    "tooltip.realityshop.hacked_rgb_furnace.2": "Place it: eats a radius-100 half-sphere in front of you.",
+    "tooltip.realityshop.hacked_rgb_furnace.3": "Fires green lasers at everything it consumes (10 s).",
+    "tooltip.realityshop.hacked_rgb_furnace.4": "Right-click it to run it again.",
+    "tooltip.realityshop.beacon_5g.1": "Power: Block Tornado",
+    "tooltip.realityshop.beacon_5g.2": "Place it: a red tornado vacuums the area ahead (radius 200).",
+    "tooltip.realityshop.beacon_5g.3": "Slow and relentless - about a minute for everything.",
+    "tooltip.realityshop.beacon_5g.4": "Right-click it to run it again.",
+    "tooltip.realityshop.quantum_usb.1": "Power: Quantum Purge",
+    "tooltip.realityshop.quantum_usb.2": "Right-click: 500x500 blocks in front of you are purged in 10 s.",
+    "tooltip.realityshop.quantum_usb.3": "Then it pulls you into the Bedrock Realm.",
+    "tooltip.realityshop.quantum_usb.4": "There is no way back - except respawning.",
+    "tooltip.realityshop.black_market_portal.1": "Power: Reality Gate",
+    "tooltip.realityshop.black_market_portal.2": "Place it, walk through - you stand in the Black Market.",
+    "tooltip.realityshop.black_market_portal.3": "Right-click the gate to fold it back into your inventory.",
     "subtitles.realityshop.shop_buy": "Black Market purchase",
     "subtitles.realityshop.shop_denied": "Black Market refuses",
     "subtitles.realityshop.kitty_phone_curse": "Cursed Kitty Phone screams",
@@ -7065,7 +7701,7 @@ def self_check(out):
                 problems.append("%s: invalid JSON (%s)" % (path, exc))
         if path.endswith((".java", ".json", ".gradle", ".properties", ".txt", ".vsh", ".fsh")) and b"@@" in data:
             problems.append("%s: unreplaced @@ token" % path)
-        if path.startswith("src/main/java/") and path.endswith(".java") and b"net.minecraft.client" in data:
+        if path.startswith("src/main/java/") and path.endswith(".java") and b"net.minecraft.client" in data.replace(b"net.minecraft.client.item.TooltipContext", b""):
             problems.append("%s: common code references net.minecraft.client (move it to src/client/java)" % path)
         if path.endswith(".java"):
             m = re.search(rb"^package ([\w.]+);", data, re.M)
