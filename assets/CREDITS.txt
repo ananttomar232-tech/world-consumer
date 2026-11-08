@@ -1,0 +1,15 @@
+Third-party 3D models used by RealityShop (both licensed CC-BY-4.0, http://creativecommons.org/licenses/by/4.0/)
+
+1. DerpChicken entity model
+   This work is based on "Chicken" (https://sketchfab.com/3d-models/chicken-59590091ec7647a4beae2e08acb1903a)
+   by joshuacaca973 (https://sketchfab.com/joshuacaca973) licensed under CC-BY-4.0
+   (http://creativecommons.org/licenses/by/4.0/)
+
+2. Cursed Kitty Phone item model
+   This work is based on "Retro mobile phone with heart icons on the scre"
+   (https://sketchfab.com/3d-models/retro-mobile-phone-with-heart-icons-on-the-scre-493bf5df4b764db8849c24f1a60ca672)
+   by Violetforest (https://sketchfab.com/Violetforest) licensed under CC-BY-4.0
+   (http://creativecommons.org/licenses/by/4.0/)
+
+Changes made: none. Both glTF packages (mesh, textures, materials) are shipped byte-for-byte as supplied and are
+loaded by a runtime glTF reader; they are only scaled/positioned by the renderers (a transform, not a mesh edit).
