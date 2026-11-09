@@ -443,6 +443,35 @@ public final class TycoonGameTests implements FabricGameTest {
                 + (truck[0].getBlockPos().getX() - origin.getX()) + "," + (truck[0].getBlockPos().getZ() - origin.getZ()) + " (local)"));
     }
 
+    /** The back-alley delivery truck must roll in and stop at the loading dock (it used to start 110 blocks away, outside small simulation distances). */
+    @GameTest(templateName = FabricGameTest.EMPTY_STRUCTURE, tickLimit = 2600, batchId = "third_city")
+    public void delivery_truck_rolls_down_the_alley_to_the_dock(TestContext ctx) {
+        ServerWorld w = ctx.getWorld();
+        BlockPos origin = ctx.getAbsolutePos(new BlockPos(0, 4, 0)).add(0, 20, 0);
+        Company c = new Company(UUID.randomUUID(), "delivery");
+        CityBuilder.buildForTest(w, c, origin, null);
+        VehicleEntity[] truck = new VehicleEntity[1];
+        ctx.runAtTick(1500, () -> {
+            expect(ctx, c.cityBuilt, "the city build did not finish in 75 s");
+            for (int x = origin.getX() - 70; x <= origin.getX() + 40; x += 16) {
+                for (int z = origin.getZ() - 60; z <= origin.getZ() - 20; z += 16) {
+                    w.setChunkForced(x >> 4, z >> 4, true);
+                }
+            }
+            truck[0] = ShowroomDirector.spawnDeliveryTruck(w, c);
+        });
+        for (int t = 1540; t <= 2400; t += 20) {
+            ctx.runAtTick(t, () -> {
+                double lx = truck[0].getX() - origin.getX();
+                if (lx < -42 && truck[0].ai() != null && truck[0].ai().finished) {
+                    ctx.complete();
+                }
+            });
+        }
+        ctx.runAtTick(2450, () -> ctx.throwGameTestException("the delivery truck never reached the dock, it is at "
+                + (truck[0].getBlockPos().getX() - origin.getX()) + "," + (truck[0].getBlockPos().getZ() - origin.getZ()) + " (local)"));
+    }
+
     private static boolean spikesNear(ServerWorld w, BlockPos origin) {
         for (int x = -14; x < 50; x++) {
             for (int z = 0; z < 14; z++) {

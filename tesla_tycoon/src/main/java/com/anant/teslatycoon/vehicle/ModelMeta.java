@@ -29,6 +29,10 @@ public final class ModelMeta {
     public float[] seat;
     public float seatHip;
     public float[] steer;
+    /** Scale of the seated driver / passenger (tools/interior_gen.py: the head must stay under the roof lining). 0 = not baked. */
+    public float occ;
+    public float floor;
+    public float roof;
     public float[][] thrusters;
     public String texture;
     public int[] tris;

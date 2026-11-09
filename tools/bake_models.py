@@ -10,7 +10,7 @@ What it does (the originals are never edited; they stay as the ZIPs in assets/te
   * decimates every part to three LODs with meshoptimizer (falls back to vertex clustering if it is not installed),
   * writes  <out>/<name>.ttm  (+ <name>.meta.json, and the texture PNG for the textured models).
 
-usage:  python3 tools/bake_models.py [--only l2_model3] [--preview DIR]
+usage:  python3 tools/bake_models.py [--only l2_model3] [--preview DIR] [--interior-only]
 needs:  numpy, Pillow; optional: meshoptimizer (pip install meshoptimizer) for far better decimation.
 The baked files are committed, so the normal Gradle build does not need Python at all.
 """
@@ -27,6 +27,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ttm_common as T  # noqa: E402
+import interior_gen as G  # noqa: E402
 
 try:
     import meshoptimizer as mo
@@ -59,7 +60,7 @@ def g_l1(mat, path):
     if mat in ("lights", "r_glass"):
         return "light"
     if mat == "interior":
-        return "interior"
+        return None                     # replaced by tools/interior_gen.py (seats, dash, screen ... fitted to the cabin)
     if mat in ("body", "material"):
         return "paint"
     return "trim"
@@ -342,6 +343,71 @@ def luminance_at(img, uv):
     return c @ np.array([0.2126, 0.7152, 0.0722], np.float32), c
 
 
+# ----------------------------------------------------------------------------------------------------------------------
+# procedural interiors (tools/interior_gen.py): every uploaded car is a hollow shell, so the seats, dashboard, screen, console, door
+# cards, floor and headliner are generated for the measured cabin and baked in as the part "interior" (LOD0 + LOD1, none at LOD2)
+# ----------------------------------------------------------------------------------------------------------------------
+def make_interior_part(cab, shell_tris, base):
+    lods, data = [], bytearray()
+    for lod in (0, 1):
+        V, I = G.build(cab, lod, shell_tris)
+        it = "i2" if len(V) < 65536 else "i4"
+        lods.append({"vc": int(len(V)), "ic": int(len(I)), "it": it, "off": base + len(data)})
+        data.extend(V.tobytes())
+        data.extend((I.astype(np.uint16) if it == "i2" else I.astype(np.uint32)).tobytes())
+    lods.append({"vc": 0, "ic": 0, "it": "i2", "off": base + len(data)})
+    return {"name": "interior", "layer": "solid", "wheel": -1, "lods": lods}, bytes(data)
+
+
+def apply_cabin_to_header(header, cab):
+    """The anchors of the seated driver come from the cabin: seat, hip, steering wheel (centre + tilt) and the occupant scale."""
+    header["seat"] = [round(cab.sx, 4), 0.0, round(cab.sz, 4)]
+    header["seatHip"] = round(cab.hip, 4)
+    header["steer"] = [round(cab.sx, 4), round(cab.wy, 4), round(cab.wz, 4), 20.0]
+    header["occ"] = round(cab.k, 4)
+    header["floor"] = round(cab.floor, 4)
+    header["roof"] = round(cab.roof, 4)
+
+
+def rewrite_ttm(header, blob, drop=()):
+    """Copy the parts that are kept into a fresh blob (shared LOD data stays shared); returns (header, bytearray)."""
+    out, memo, parts = bytearray(), {}, []
+    for p in header["parts"]:
+        if p["name"] in drop:
+            continue
+        lods = []
+        for e in p["lods"]:
+            size = e["vc"] * 32 + e["ic"] * (2 if e["it"] == "i2" else 4)
+            if e["off"] not in memo:
+                memo[e["off"]] = len(out)
+                out.extend(blob[e["off"]:e["off"] + size])
+            lods.append(dict(e, off=memo[e["off"]]))
+        parts.append(dict(p, lods=lods))
+    header = dict(header, parts=parts)
+    header["tris"] = [sum(p["lods"][l]["ic"] // 3 for p in parts) for l in range(3)]
+    return header, out
+
+
+def patch_interior(name):
+    """Fast path: put a (new) interior into an already baked model without baking it again."""
+    import cabin_probe as P
+    cab = G.CABINS[name]
+    path = os.path.join(OUT_MODELS, name + ".ttm")
+    header, blob = T.read_ttm(path)
+    header, out = rewrite_ttm(header, bytes(blob), drop=("interior",))
+    _, parts = P.load(name)
+    shell = np.concatenate([t for (n, layer, w, t, c) in parts if layer == "solid" and w < 0 and n == "body"])
+    part, data = make_interior_part(cab, shell, len(out))
+    header["parts"].append(part)
+    out.extend(data)
+    header["tris"] = [sum(p["lods"][l]["ic"] // 3 for p in header["parts"]) for l in range(3)]
+    apply_cabin_to_header(header, cab)
+    T.write_ttm(path, header, bytes(out))
+    with open(os.path.join(OUT_MODELS, name + ".meta.json"), "w") as fh:
+        json.dump({k: v for k, v in header.items() if k != "parts"}, fh, indent=1)
+    print("%-14s interior patched: %d / %d tris (occupant scale %.2f)" % (name, part["lods"][0]["ic"] // 3, part["lods"][1]["ic"] // 3, cab.k))
+
+
 def bake_model(name, cfg, preview_dir=None):
     tmp = tempfile.mkdtemp(prefix="ttbake_")
     try:
@@ -480,6 +546,13 @@ def bake_model(name, cfg, preview_dir=None):
         emit("body", "solid", -1, body_mask, lambda grp: budgets.get(grp, budgets["paint"]))
         glass_mask = (tri_wheel < 0) & (tri_group == "glass")
         emit("glass", "glass", -1, glass_mask, lambda grp: budgets["glass"])
+        cab = G.CABINS.get(name)
+        if cab is not None:
+            ipart, idata = make_interior_part(cab, V["pos"][I[body_mask]].astype(np.float64), len(blob))
+            parts.append(ipart)
+            blob.extend(idata)
+            for l in range(3):
+                total_tris[l] += ipart["lods"][l]["ic"] // 3
         lo_c, hi_c = V["pos"][np.unique(I[(tri_group != "glass")].reshape(-1))].min(0), V["pos"][np.unique(I[(tri_group != "glass")].reshape(-1))].max(0)
         tex_rel = None
         if tex_path:
@@ -498,6 +571,8 @@ def bake_model(name, cfg, preview_dir=None):
             "texture": tex_rel, "emissiveMap": False,
             "lods": 3, "tris": total_tris, "parts": parts,
         }
+        if cab is not None:
+            apply_cabin_to_header(header, cab)
         os.makedirs(OUT_MODELS, exist_ok=True)
         T.write_ttm(os.path.join(OUT_MODELS, name + ".ttm"), header, bytes(blob))
         meta = {k: v for k, v in header.items() if k != "parts"}
@@ -674,7 +749,13 @@ def main():
     ap.add_argument("--only", action="append")
     ap.add_argument("--preview", metavar="DIR")
     ap.add_argument("--lod", type=int, default=0)
+    ap.add_argument("--interior-only", action="store_true", help="only (re)generate the procedural interiors of the already baked cars (fast)")
     a = ap.parse_args()
+    if a.interior_only:
+        for name in G.CABINS:
+            if not a.only or name in a.only:
+                patch_interior(name)
+        return 0
     if mo is None:
         print("warning: meshoptimizer is not installed - using the crude vertex-clustering fallback (pip install meshoptimizer)")
     for name, cfg in MODELS.items():

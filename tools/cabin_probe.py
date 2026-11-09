@@ -191,7 +191,7 @@ def interior_preview(name, out_dir, lod=0):
     keep = tri[:, :, 0].mean(1) >= -0.02
     shell = []
     for (n, layer, w, t, c) in parts:
-        if w >= 0:
+        if w >= 0 or n == "interior":
             continue
         kp = t[:, :, 0].mean(1) >= -0.02
         cc = np.tile(np.array([90, 190, 255] if layer == "glass" else [120, 124, 132], np.uint8), (len(t), 1))

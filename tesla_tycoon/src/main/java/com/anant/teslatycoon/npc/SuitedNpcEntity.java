@@ -166,6 +166,12 @@ public final class SuitedNpcEntity extends PathAwareEntity {
         return source.isOf(net.minecraft.entity.damage.DamageTypes.OUT_OF_WORLD) && super.damage(source, amount);
     }
 
+    /** /kill must work on these damage-proof scripted NPCs as well (the directors simply bring the staff back). */
+    @Override
+    public void kill() {
+        discard();
+    }
+
     @Override
     public boolean canBeLeashedBy(net.minecraft.entity.player.PlayerEntity player) {
         return false;

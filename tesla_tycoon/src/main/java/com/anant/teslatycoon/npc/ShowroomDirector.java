@@ -370,27 +370,35 @@ public final class ShowroomDirector {
 
     // ------------------------------------------------------------------------------------------------------ delivery truck
     private static List<Vec3d> truckIn(Company c) {
-        return List.of(CityBuilder.vec(c, 62, 0.0, -41.5), CityBuilder.vec(c, 20, 0.0, -41.5), CityBuilder.vec(c, -20, 0.0, -41.5), CityBuilder.vec(c, -47, 0.0, -41.5));
+        // (it appears in the middle of the alley, ~70 blocks from the showroom: close enough to be simulated with any simulation distance)
+        return List.of(CityBuilder.vec(c, 24, 0.0, -41.5), CityBuilder.vec(c, -20, 0.0, -41.5), CityBuilder.vec(c, -47, 0.0, -41.5));
     }
 
     private static List<Vec3d> truckOut(Company c) {
         return List.of(CityBuilder.vec(c, -62, 0.0, -41.5), CityBuilder.vec(c, -84, 0.0, -41.5));
     }
 
+    /** The Tesla delivery truck rolls into the back alley towards the loading dock (public so that a game test can run the same drive). */
+    public static VehicleEntity spawnDeliveryTruck(ServerWorld w, Company c) {
+        VehicleEntity truck = new VehicleEntity(ModEntities.vehicle(VehicleSpecs.TRUCK), w);
+        Vec3d start = truckIn(c).get(0);
+        truck.refreshPositionAndAngles(start.x, start.y, start.z, 90f, 0f);
+        VehicleEntity.Ai ai = new VehicleEntity.Ai();
+        ai.points.addAll(truckIn(c));
+        ai.cruise = 0.62;
+        ai.arrive = 3.5;
+        ai.stopAtEnd = true;
+        truck.setAi(ai);
+        w.spawnEntity(truck);
+        return truck;
+    }
+
     private static void tickTruck(ServerWorld w, Company c, Session s, ServerPlayerEntity owner) {
         Truck t = s.truck;
         if (t == null) {
             if (c.cityTick >= s.nextTruck) {
-                VehicleEntity truck = new VehicleEntity(ModEntities.vehicle(VehicleSpecs.TRUCK), w);
-                Vec3d start = truckIn(c).get(0);
-                truck.refreshPositionAndAngles(start.x, start.y, start.z, 90f, 0f);
-                VehicleEntity.Ai ai = new VehicleEntity.Ai();
-                ai.points.addAll(truckIn(c));
-                ai.cruise = 0.62;
-                ai.arrive = 3.5;
-                ai.stopAtEnd = true;
-                truck.setAi(ai);
-                w.spawnEntity(truck);
+                VehicleEntity truck = spawnDeliveryTruck(w, c);
+                Vec3d start = truck.getPos();
                 w.playSound(null, start.x, start.y, start.z, SoundEvents.ENTITY_IRON_GOLEM_REPAIR, SoundCategory.NEUTRAL, 1.5f, 0.5f);
                 t = new Truck();
                 t.entity = truck.getUuid();
@@ -408,6 +416,13 @@ public final class ShowroomDirector {
         t.t++;
         switch (t.stage) {
             case 0 -> {
+                if (t.t > 20 * 40 && truck.ai() != null && !truck.ai().finished) {
+                    Vec3d dock = truckIn(c).get(truckIn(c).size() - 1);        // failsafe: something blocked the alley, so the truck is put at the dock
+                    truck.refreshPositionAndAngles(dock.x, dock.y, dock.z, 90f, 0f);
+                    truck.stopHard();
+                    truck.ai().finished = true;
+                    Tycoon.log("[showroom] delivery truck was held up in the alley and was put at the dock");
+                }
                 if (truck.ai() != null && truck.ai().finished) {
                     t.stage = 1;
                     t.t = 0;

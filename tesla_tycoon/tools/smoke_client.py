@@ -43,11 +43,11 @@ def tour_vehicles():
 
 
 def tour_seat():
+    """Third person, FRONT view (-Dtesla_tycoon.thirdperson=front, short chase distance): the seated player seen through the windscreen."""
     steps = [("00_setup", BASE + KILL_ALL, 3)]
     for v in ["tesla_classic", "tesla_model3", "tesla_cybertruck", "tesla_cybercab", "tesla_roadster"]:
         spawn = ["summon tesla_tycoon:%s 0 -60 0 {Rotation:[0.0f,0.0f]}" % v]
-        steps.append(("%s_seat_outside" % v, KILL_ALL + spawn + ["tp @p 0 -60 6", "ride @p mount @e[type=tesla_tycoon:%s,limit=1]" % v], 8))
-        steps.append(("%s_seat_inside" % v, ["tp @p @s ~ ~ ~ 0 8"], 3))
+        steps.append(("%s_seat_outside" % v, KILL_ALL + spawn + ["tp @p 0 -60 6 0 8", "ride @p mount @e[type=tesla_tycoon:%s,limit=1]" % v], 8))
     return steps
 
 
@@ -96,9 +96,9 @@ def tour_story():
              ("16_level5", [P + "tycoon money 90000", P + "tycoon level 5", P + "tp @s -45.5 -60 -2.5 180 5"], 40),
              ("17_tower", [cam(-45, -50, 30, -44, -38, -6)], 8),
              ("18_climax_start", [P + "tycoon sabotage"], 7),
-             ("19_launch", [P + "tycoon drive 0.6 0 j"], 5),
-             ("20_flight", [], 5),
-             ("21_flight_more", [], 5),
+             ("19_launch", [P + "tycoon drive 0.5 0 j"], 2.5),
+             ("20_flight", [P + "tycoon drive 0 0"], 3),
+             ("21_flight_more", [], 3),
              ("22_emp", [P + "tycoon emp"], 5),
              ("23_victory", [], 8),
              ("24_retry", [P + "tycoon drive off", P + "tycoon retry"], 40),
@@ -174,7 +174,37 @@ def tour_guide():
             ("04_finale_guide", [P + "tycoon sabotage"], 8)]
 
 
-TOURS = {"vehicles": tour_vehicles, "seat": tour_seat, "city": tour_city, "story": tour_story, "finale": tour_finale, "truck": tour_truck, "shop": tour_shop, "delivery": tour_delivery, "guide": tour_guide}
+def tour_occupants():
+    """A suited customer sits in every car (close-ups through the left window and from above: nothing may stick out of the car), then the
+    player takes the wheel and the driver's own first-person view is photographed."""
+    cars = ["tesla_classic", "tesla_model3", "tesla_cybertruck", "tesla_cybercab", "tesla_roadster"]
+    kill = KILL_ALL + ["kill @e[type=tesla_tycoon:suited_villager]"]
+    steps = [("00_setup", BASE + kill + ["tp @p 0 -60 8 180 0"], 3)]
+    for v in cars:
+        spawn = ["summon tesla_tycoon:%s 0 -60 0 {Rotation:[0.0f,0.0f]}" % v,
+                 "summon tesla_tycoon:suited_villager 0 -60 8 {Tags:[\"occ\"]}",
+                 "ride @e[type=tesla_tycoon:suited_villager,tag=occ,limit=1] mount @e[type=tesla_tycoon:%s,limit=1]" % v]
+        steps.append(("%s_window" % v, kill + spawn + [cam(3.3, -59.1, 0.35, 0, -59.5, 0.1)], 8))
+        steps.append(("%s_above" % v, [cam(2.6, -57.4, 3.4, 0, -59.4, 0.0)], 4))
+        steps.append(("%s_rear" % v, [cam(-1.9, -58.3, -4.8, 0, -59.4, 0.0)], 4))
+        steps.append(("%s_first" % v, ["kill @e[type=tesla_tycoon:suited_villager]", "ride @p mount @e[type=tesla_tycoon:%s,limit=1]" % v], 5))
+        steps.append(("%s_free" % v, ["ride @p dismount", "tp @p 0 -60 8 180 0"], 2))
+    return steps
+
+
+def tour_firstperson():
+    """The player takes the wheel of every car: the driver's own eyes (first person) looking ahead and down at the wheel and dash.
+    (A /tp would throw the player out of the car, so the look direction is set before mounting.)"""
+    cars = ["tesla_classic", "tesla_model3", "tesla_cybertruck", "tesla_cybercab", "tesla_roadster"]
+    steps = [("00_setup", BASE + KILL_ALL + ["kill @e[type=tesla_tycoon:suited_villager]", "tp @p 0 -60 6 180 0"], 3)]
+    for v in cars:
+        steps.append(("%s_ahead" % v, KILL_ALL + ["summon tesla_tycoon:%s 0 -60 0 {Rotation:[0.0f,0.0f]}" % v, "tp @p 0 -60 6 0 6",
+                                                  "ride @p mount @e[type=tesla_tycoon:%s,limit=1]" % v], 7))
+        steps.append(("%s_wheel" % v, ["ride @p dismount", "tp @p 0 -60 6 0 42", "ride @p mount @e[type=tesla_tycoon:%s,limit=1]" % v], 6))
+    return steps
+
+
+TOURS = {"vehicles": tour_vehicles, "seat": tour_seat, "city": tour_city, "story": tour_story, "finale": tour_finale, "truck": tour_truck, "shop": tour_shop, "delivery": tour_delivery, "guide": tour_guide, "occupants": tour_occupants, "firstperson": tour_firstperson}
 
 
 def have(tool):
@@ -267,7 +297,7 @@ def main():
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(2)
     env = dict(os.environ, DISPLAY=display, LIBGL_ALWAYS_SOFTWARE="1", GALLIUM_DRIVER="llvmpipe")
-    env["JAVA_TOOL_OPTIONS"] = (env.get("JAVA_TOOL_OPTIONS", "") + " -Xmx2g -Dtesla_tycoon.debugdrive=true -Dtesla_tycoon.guide=" + ("true" if a.tour == "guide" else "false") + " -Dtesla_tycoon.thirdperson=" + ("true" if a.tour in ("seat", "finale", "truck") else "false")).strip()
+    env["JAVA_TOOL_OPTIONS"] = (env.get("JAVA_TOOL_OPTIONS", "") + " -Xmx2g -Dtesla_tycoon.debugdrive=true -Dtesla_tycoon.guide=" + ("true" if a.tour == "guide" else "false") + " -Dtesla_tycoon.thirdperson=" + ("front" if a.tour == "seat" else ("true" if a.tour in ("finale", "truck") else "false")) + " -Dtesla_tycoon.chase=" + ("0.3" if a.tour == "seat" else "1")).strip()
     lf = open(log, "w")
     client = subprocess.Popen([GRADLE, "runClient", "-PttQuickPlay=" + SAVE, "--args=--width %s --height %s" % (w, h), "--console=plain"],
                               cwd=ROOT, env=env, stdout=lf, stderr=subprocess.STDOUT, start_new_session=True)

@@ -30,7 +30,7 @@ def shell_geometry(parts, drop_glass, cut):
     """(tris, vcol, vnrm) of the cut-open shell. cut(tri_centroids) -> boolean mask of triangles to keep."""
     T, C = [], []
     for (n, layer, w, t, c) in parts:
-        if w >= 0:
+        if w >= 0 or n == "interior":
             continue
         if layer == "glass" and drop_glass:
             continue

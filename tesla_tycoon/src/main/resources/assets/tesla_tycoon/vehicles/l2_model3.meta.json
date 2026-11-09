@@ -74,17 +74,20 @@
  "seatHip": 0.5,
  "steer": [
   0.38,
-  0.86,
   0.8,
-  22.0
+  0.5,
+  20.0
  ],
  "thrusters": [],
  "texture": "tesla_tycoon:textures/vehicle/l2_model3.png",
  "emissiveMap": false,
  "lods": 3,
  "tris": [
-  4330,
-  4330,
+  7662,
+  5390,
   4330
- ]
+ ],
+ "occ": 0.7462,
+ "floor": 0.22,
+ "roof": 1.54
 }

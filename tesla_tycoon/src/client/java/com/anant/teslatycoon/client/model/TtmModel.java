@@ -84,7 +84,7 @@ public final class TtmModel {
                 int ic = e.get("ic").getAsInt();
                 boolean wide = "i4".equals(e.get("it").getAsString());
                 int off = blob + e.get("off").getAsInt();
-                part.buffers[l] = upload(buf, off, vc, ic, wide);
+                part.buffers[l] = ic > 0 ? upload(buf, off, vc, ic, wide) : null;      // (an empty level of detail, e.g. no interior far away)
                 part.triangles[l] = ic / 3;
             }
             model.parts.add(part);

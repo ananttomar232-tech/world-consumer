@@ -2,6 +2,7 @@ package com.anant.teslatycoon.client.render;
 
 import com.anant.teslatycoon.TeslaTycoon;
 import com.anant.teslatycoon.npc.SuitedNpcEntity;
+import com.anant.teslatycoon.vehicle.VehicleEntity;
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.render.entity.MobEntityRenderer;
@@ -32,9 +33,13 @@ public final class SuitedNpcRenderer extends MobEntityRenderer<SuitedNpcEntity, 
     @Override
     protected void scale(SuitedNpcEntity e, MatrixStack matrices, float amount) {
         float s = e.role() == SuitedNpcEntity.GOTIYA ? 1.08f : 0.97f;
+        boolean inCar = e.getVehicle() instanceof VehicleEntity;
+        if (e.getVehicle() instanceof VehicleEntity v) {
+            s *= v.spec.occScale;                                    // a customer in a car is scaled to fit under its roof
+        }
         matrices.scale(s, s, s);
-        if (e.isSitting()) {
-            matrices.translate(0, -0.52, 0);
+        if (e.isSitting() && !inCar) {
+            matrices.translate(0, -0.52, 0);                         // (the manager on his chair)
         }
     }
 
@@ -51,7 +56,13 @@ public final class SuitedNpcRenderer extends MobEntityRenderer<SuitedNpcEntity, 
         @Override
         public void setAngles(SuitedNpcEntity e, float limbAngle, float limbDistance, float animationProgress, float headYaw, float headPitch) {
             super.setAngles(e, limbAngle, limbDistance, animationProgress, headYaw, headPitch);
-            if (e.isSitting()) {
+            if (e.getVehicle() instanceof VehicleEntity v) {
+                float lp = v.spec.legPitch();                        // seated in a car: the legs reach the floor
+                rightLeg.pitch = lp;
+                leftLeg.pitch = lp;
+                rightLeg.yaw = 0.12f;
+                leftLeg.yaw = -0.12f;
+            } else if (e.isSitting()) {
                 rightLeg.pitch = -1.45f;
                 leftLeg.pitch = -1.45f;
                 rightLeg.yaw = 0.25f;

@@ -57,7 +57,10 @@ public final class TeslaTycoonClient implements ClientModInitializer {
         });
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(() -> {
             TtmModels.preload();
-            if (Boolean.getBoolean("tesla_tycoon.thirdperson")) {      // used by tools/smoke_client.py to photograph the seated driver
+            String view = System.getProperty("tesla_tycoon.thirdperson", "");      // used by tools/smoke_client.py to photograph the seated driver
+            if ("front".equals(view)) {
+                client.options.setPerspective(net.minecraft.client.option.Perspective.THIRD_PERSON_FRONT);
+            } else if (Boolean.parseBoolean(view)) {
                 client.options.setPerspective(net.minecraft.client.option.Perspective.THIRD_PERSON_BACK);
             }
         }));

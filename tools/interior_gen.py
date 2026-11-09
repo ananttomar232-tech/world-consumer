@@ -92,6 +92,8 @@ class Cabin:
     rear_seats: bool = True
     glass_roof: bool = False       # a glass roof gets no headliner
     seat_w: float = 0.52
+    lining_front: float = None     # z where the headliner meets the windscreen header (default: 0.55 in front of the driver)
+    lining_hw: float = 0.62        # half width of the headliner
     pal: Palette = field(default_factory=Palette)
     k: float = 0.8                 # scale of the seated occupant (computed from the roof)
 
@@ -383,8 +385,8 @@ def headliner(m, c, lod, shell):
     if c.glass_roof or shell is None:
         return
     import cabin_probe as P
-    zs = np.linspace(c.sz + 0.55, c.sz - 1.5, 9 if lod == 0 else 5)
-    xs = np.linspace(-0.62, 0.62, 7 if lod == 0 else 4)
+    zs = np.linspace(c.lining_front if c.lining_front is not None else c.sz + 0.55, c.sz - (1.5 if c.rear_seats else 0.7), 11 if lod == 0 else 6)
+    xs = np.linspace(-c.lining_hw, c.lining_hw, 9 if lod == 0 else 5)
     H = np.full((len(zs), len(xs)), np.nan)
     for i, z in enumerate(zs):
         for j, x in enumerate(xs):
@@ -392,9 +394,22 @@ def headliner(m, c, lod, shell):
             ys = ys[ys > c.belt + 0.25]
             if len(ys):
                 H[i, j] = ys.min() - 0.025
-    ok = ~np.isnan(H)
-    if ok.sum() < 6:
+    if (~np.isnan(H)).sum() < 6:
         return
+    # fill the holes (a glass-lined rear, gaps in the mesh) from their neighbours, staying below the roof: one continuous sheet
+    for _ in range(8):
+        if not np.isnan(H).any():
+            break
+        Hn = H.copy()
+        for i in range(H.shape[0]):
+            for j in range(H.shape[1]):
+                if np.isnan(H[i, j]):
+                    nb = [H[a, b] for a, b in ((i - 1, j), (i + 1, j), (i, j - 1), (i, j + 1))
+                          if 0 <= a < H.shape[0] and 0 <= b < H.shape[1] and not np.isnan(H[a, b])]
+                    if nb:
+                        Hn[i, j] = min(nb)
+        H = Hn
+    ok = ~np.isnan(H)
     col = rgb(c.pal.headliner)
     ids = -np.ones(H.shape, int)
     for i in range(len(zs)):
@@ -451,7 +466,7 @@ CABINS = {
                          pal=Palette(seat="#ecebe5", seat_dark="#d5d2ca", accent="#bdb9af", dash="#e9e7e1", dash_trim="#f6f5f2", door="#e3e1db",
                                      carpet="#4a4b4f", headliner="#f2f1ed", console="#d9d7d0", glow="#ffe9b0")),
     "l5_roadster": Cabin("l5_roadster", sx=0.36, sz=-0.10, hip=0.42, floor=0.14, roof=1.47, belt=0.90, hw=0.83, wz=0.42, wy=0.68, dash_top=0.80,
-                         dash_front=1.20, rear_z=-0.8, rear_seats=False, glass_roof=True, seat_w=0.50,
+                         dash_front=1.20, rear_z=-0.8, rear_seats=False, glass_roof=False, seat_w=0.50, lining_front=0.78, lining_hw=0.8,
                          pal=Palette(seat="#8c1118", seat_dark="#5d0b10", accent="#141416", dash="#111113", dash_trim="#b7b9be", door="#17171a",
                                      carpet="#141416", headliner="#2a2a2c", console="#141416", glow="#ff4a3a")),
 }

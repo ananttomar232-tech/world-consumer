@@ -88,7 +88,7 @@ public final class VehicleRenderer extends EntityRenderer<VehicleEntity> {
         VehicleGfx.begin(matrices, light, tint, tint, tint, 1f, model.textured ? model.texture : null);
         VehicleGfx.pass(0, 1f);
         for (TtmModel.Part part : model.parts) {
-            if (part.glass) {
+            if (part.glass || part.buffers[lod] == null) {
                 continue;
             }
             if (part.wheel >= 0) {
@@ -115,7 +115,7 @@ public final class VehicleRenderer extends EntityRenderer<VehicleEntity> {
         }
         VehicleGfx.pass(1, 0.36f);
         for (TtmModel.Part part : model.parts) {
-            if (part.glass && lod < 2) {
+            if (part.glass && lod < 2 && part.buffers[lod] != null) {
                 VehicleGfx.draw(part.buffers[lod], null, null);
             }
         }

@@ -22,17 +22,35 @@ public abstract class BipedEntityModelMixin {
     @Final
     public ModelPart leftArm;
 
+    @Shadow
+    @Final
+    public ModelPart rightLeg;
+
+    @Shadow
+    @Final
+    public ModelPart leftLeg;
+
     @Inject(method = "setAngles(Lnet/minecraft/entity/LivingEntity;FFFFF)V", at = @At("TAIL"))
     private void tesla_tycoon$holdWheel(LivingEntity entity, float limbAngle, float limbDistance, float animationProgress, float headYaw,
                                         float headPitch, CallbackInfo ci) {
-        if (entity.getVehicle() instanceof VehicleEntity v && v.getControllingPassenger() == entity) {
-            float s = v.steerAngle;
-            rightArm.pitch = -1.22f - s * 0.12f;
-            leftArm.pitch = -1.22f + s * 0.12f;
-            rightArm.yaw = -0.22f - s * 0.05f;
-            leftArm.yaw = 0.22f - s * 0.05f;
-            rightArm.roll = 0.04f;
-            leftArm.roll = -0.04f;
+        if (entity.getVehicle() instanceof VehicleEntity v) {
+            // seated: the legs reach from the hips down to the floor of this cabin (no foot hangs in the air or through the door)
+            float lp = v.spec.legPitch();
+            rightLeg.pitch = lp;
+            leftLeg.pitch = lp;
+            rightLeg.yaw = 0.10f;
+            leftLeg.yaw = -0.10f;
+            rightLeg.roll = 0f;
+            leftLeg.roll = 0f;
+            if (v.getControllingPassenger() == entity) {
+                float s = v.steerAngle;                                // the driver holds the wheel: both arms forward, hands turning with it
+                rightArm.pitch = -1.22f - s * 0.12f;
+                leftArm.pitch = -1.22f + s * 0.12f;
+                rightArm.yaw = -0.22f - s * 0.05f;
+                leftArm.yaw = 0.22f - s * 0.05f;
+                rightArm.roll = 0.04f;
+                leftArm.roll = -0.04f;
+            }
         }
     }
 }

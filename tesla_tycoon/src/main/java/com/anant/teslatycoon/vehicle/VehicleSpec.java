@@ -19,6 +19,7 @@ public final class VehicleSpec {
     public final boolean heavy;        // armoured / ram capable
     public final float seatX;
     public final float seatFeetY;      // where the driver's FEET go (model space, blocks)
+    public final float occScale;       // how big the seated figure is drawn (fitted to the cabin: nothing may stick out of the car)
     public final float seatZ;
     public final float shadow;
 
@@ -40,10 +41,18 @@ public final class VehicleSpec {
         this.canFly = canFly;
         this.heavy = heavy;
         this.seatX = meta.seat[0];
-        this.seatFeetY = meta.seatHip - 0.64f;     // the seated driver is drawn at 0.85 scale: hips sit 0.75 * 0.85 above the feet
+        this.occScale = meta.occ > 0 ? meta.occ : 0.85f;
+        this.seatFeetY = meta.seatHip - 0.70f * occScale;      // the hips of the (scaled) figure are 0.70 above its feet
         this.seatZ = meta.seat[2];
         this.shadow = Math.min(2.2f, meta.length * 0.3f);
     }
 
     public float length() { return meta.length; }
+
+    /** Pitch of the seated figure's legs (radians, negative = forward): they reach from the hips down to the floor of the cabin. */
+    public float legPitch() {
+        double len = 0.70 * occScale;
+        double drop = meta.seatHip - meta.floor - 0.02;
+        return (float) -Math.acos(Math.max(0.0, Math.min(1.0, drop / len)));
+    }
 }

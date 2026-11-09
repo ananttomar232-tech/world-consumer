@@ -88,6 +88,11 @@ public final class ProcMesh {
             b.box(-big, -0.014f, -0.012f, -0.05f, 0.014f, 0.012f, 0.06f, 0.06f, 0.07f, 90, 130);
             b.box(0.05f, -0.014f, -0.012f, big, 0.014f, 0.012f, 0.06f, 0.06f, 0.07f, 90, 130);
             b.box(-0.014f, -big, -0.012f, 0.014f, -0.05f, 0.012f, 0.06f, 0.06f, 0.07f, 90, 130);
+            // brushed-metal logo plate on both faces of the hub, and the two thumb scroll wheels on the spokes
+            b.box(-0.032f, -0.024f, -0.036f, 0.032f, 0.03f, -0.031f, 0.72f, 0.73f, 0.78f, 235, 55);
+            b.box(-0.032f, -0.024f, 0.031f, 0.032f, 0.03f, 0.036f, 0.72f, 0.73f, 0.78f, 235, 55);
+            b.box(-0.15f, 0.014f, -0.016f, -0.1f, 0.03f, 0.016f, 0.45f, 0.46f, 0.5f, 200, 70);
+            b.box(0.1f, 0.014f, -0.016f, 0.15f, 0.03f, 0.016f, 0.45f, 0.46f, 0.5f, 200, 70);
             wheel = b.build();
         }
         return wheel;
