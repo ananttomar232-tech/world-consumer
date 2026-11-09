@@ -129,7 +129,7 @@ The project is an ordinary Fabric/Loom workspace: open `tesla_tycoon/` in Intell
   (it used to jam on a fence pole, so the finale could never be won) and **the delivery truck must reach the loading dock**.
 * **Headless client tours** (`tools/smoke_client.py <tour>`: the real Fabric client under Xvfb + software OpenGL, a screenshot per step,
   every screenshot looked at):
-  `vehicles` (all six models), `city` (every part of the city), `story` (sabotages 1-5, every counter, floors stacking, blackout and solar),
+  `vehicles` (all six models), `city` (every part of the city), `story` (sabotages 1, 2, 3 and 5 with their counters - the Cybertruck really rams the roadblocks with scripted keys -, floors stacking, blackout and solar, a delivery unloading; the Cybercab GPS jam of sabotage 4 is covered by the rules test and code review only),
   `finale` (rooftop launch, **real client-side Roadster flight with the twin plasma thrusters**, the truck smashing the glass front and
   taking the showroom to 86 %, the EMP, victory, landing, `#retryscene`), `occupants` (a suited customer sits in every car: head under the
   roof, photographed through the window and from above), `firstperson` and `seat` (the player at the wheel of every car, from the driver's
