@@ -2,6 +2,10 @@ package com.anant.teslatycoon.vehicle;
 
 /** Everything that differs between the six vehicles: which baked model, hit box, handling numbers, seat. */
 public final class VehicleSpec {
+    /** The tight collision box of every car: wide enough for a lane, never wedged one block away from a curb or a pillar. */
+    public static final float CAR_HIT_W = 1.6F;
+    public static final float CAR_HIT_H = 1.4F;
+
     public final String id;
     public final String model;
     public final String lang;
@@ -29,8 +33,9 @@ public final class VehicleSpec {
         this.model = model;
         this.lang = lang;
         this.meta = ModelMeta.load(model);
-        this.hitW = Math.max(meta.width + 0.3f, 0.55f * meta.length);
-        this.hitH = meta.height + 0.1f;
+        boolean car = model.startsWith("l");               // l1..l5: the five Tesla cars; the trucks keep their size
+        this.hitW = car ? CAR_HIT_W : Math.max(meta.width + 0.3f, 0.55f * meta.length);
+        this.hitH = car ? CAR_HIT_H : meta.height + 0.1f;
         this.maxSpeed = maxSpeed;
         this.flySpeed = flySpeed;
         this.accel = accel;

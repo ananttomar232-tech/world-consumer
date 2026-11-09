@@ -41,7 +41,19 @@ public final class Billboards {
             return Result.PACK_USED_UP;
         }
         board.setAd(true);
-        c.billboardsPlaced++;
+        int idx = 0;
+        double best = Double.MAX_VALUE;
+        for (int i = 0; i < com.anant.teslatycoon.city.Buildings.BILLBOARDS.length; i++) {
+            double[] ctr = com.anant.teslatycoon.city.Buildings.billboardCentre(com.anant.teslatycoon.city.Buildings.BILLBOARDS[i][0],
+                    com.anant.teslatycoon.city.Buildings.BILLBOARDS[i][1], com.anant.teslatycoon.city.Buildings.billboardFacing(i));
+            double d = board.squaredDistanceTo(c.origin.getX() + ctr[0], c.origin.getY() + ctr[1], c.origin.getZ() + ctr[2]);
+            if (d < best) {
+                best = d;
+                idx = i;
+            }
+        }
+        c.billboardMask |= 1 << idx;
+        c.billboardsPlaced = Integer.bitCount(c.billboardMask);
         sw.spawnParticles(ParticleTypes.END_ROD, board.getX(), board.getY(), board.getZ(), 60, board.signWidth() * 0.4, board.signHeight() * 0.4, 0.5, 0.05);
         sw.playSound(null, board.getBlockPos(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.BLOCKS, 1.0f, 1.0f);
         return Result.INSTALLED;
@@ -56,7 +68,7 @@ public final class Billboards {
         switch (install(sw, c, pos)) {
             case NOTHING_NEARBY -> { }
             case ALREADY_LIVE -> player.sendMessage(Text.literal("This billboard already shows the Anant Tesla ad.").formatted(Formatting.GRAY), true);
-            case NEEDS_PACK -> player.sendMessage(Text.literal("Empty ad frame. Buy the Billboard Marketing Pack in the Upgrade Shop to fill it.").formatted(Formatting.RED), true);
+            case NEEDS_PACK -> player.sendMessage(Text.literal("Empty ad frame. Buy the Billboard Marketing Pack in the Upgrade Depot to fill it.").formatted(Formatting.RED), true);
             case PACK_USED_UP -> player.sendMessage(Text.literal("Your marketing pack is used up (" + Company.MAX_BILLBOARDS + " billboards).").formatted(Formatting.YELLOW), true);
             case INSTALLED -> {
                 player.sendMessage(Text.literal("Billboard live! ").formatted(Formatting.AQUA, Formatting.BOLD)

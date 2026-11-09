@@ -51,26 +51,67 @@ def tour_seat():
     return steps
 
 
+def tour_seatback():
+    """Third person from BEHIND with a short chase distance: the seated player (torso, cape) seen through the rear window of every car."""
+    steps = [("00_setup", BASE + KILL_ALL + ["tp @p 0 -60 0 0 0"], 3)]
+    for v in ["tesla_classic", "tesla_model3", "tesla_cybertruck", "tesla_cybercab", "tesla_roadster"]:
+        spawn = ["summon tesla_tycoon:%s 0 -60 0 {Rotation:[0.0f,0.0f]}" % v]
+        steps.append(("%s_seat_behind" % v, KILL_ALL + spawn + ["tp @p 0 -60 6 0 8", "ride @p mount @e[type=tesla_tycoon:%s,limit=1]" % v], 8))
+    return steps
+
+
 def tour_city():
-    """Build the city (origin 0,-61,0 in the flat test world) and photograph every part of it."""
+    """Build the metropolis (origin 0,-61,0 in the flat test world) and photograph every part of it: the HUD, the Grand Boulevard, an
+    intersection from above, the skyline, a robotaxi station, a highway billboard, the petrol station, the depot, the aerial view."""
     steps = [("00_setup", BASE + KILL_ALL + ["tp @p 0 -60 0 0 0"], 4),
-             ("01_start", ["execute as @p run tycoon start"], 45)]
-    def at(name, x, y, z, tx, ty, tz, wait=6):
+             ("01_start", ["execute as @p run tycoon start"], 70)]
+    def at(name, x, y, z, tx, ty, tz, wait=8):
         steps.append((name, [cam(x, y, z, tx, ty, tz)], wait))
-    at("02_showroom_front", -45, -59.5, 16, -44, -52, -6, 9)
-    at("03_aerial_showroom", -8, -18, 46, -40, -52, -12)
-    at("04_banner_closeup", -44, -50, 12, -43.5, -45, -6, 5)
-    at("05_lobby", -45, -59.5, -7, -44, -57.5, -22, 6)
-    at("06_pad_floor1", -52, -58.5, -9, -44, -58.0, -20, 5)
-    at("07_reception", -49, -59.4, -7, -54, -58.4, -13.5, 5)
-    at("08_bay", -33, -59.4, -9, -33, -58.4, -27, 5)
-    at("09_shop_front", -14, -59.5, 8, -14, -56, -6, 6)
-    at("10_shop_inside", -14, -59.4, -7, -14, -58.0, -17, 5)
-    at("11_gotiya", -40, -59.5, 13, -40, -57, 24, 6)
-    at("12_billboard_empty", 8, -55, 1, 8, -52, 15, 6)
-    at("13_street_lamps", -60, -58, 2, -20, -57, 7, 5)
-    at("14_alley", -46, -59, -47, -47, -58, -38, 5)
-    at("15_aerial_city", 5, 70, 80, -10, -55, 5, 7)
+    at("02_hud_showroom", -45.5, -59.0, 14, -44, -55, -6, 10)
+    at("03_boulevard_west", -110, -59.4, 10, 0, -58.5, 10.5, 12)
+    at("04_boulevard_east", 62, -59.4, 11, -60, -58.5, 10.5, 12)
+    steps.append(("04b_spectator", ["gamemode spectator @p"], 3))
+    at("05_intersection_aerial", -83, -20, 46, -83, -61, 10, 12)
+    at("06_skyline_north", 0, -40, 40, 0, -10, -190, 12)
+    at("07_avenue_north", -83, -50, 100, -83, -30, -140, 12)
+    steps.append(("07b_creative", ["gamemode creative @p"], 3))
+    at("08_station", 8, -58.8, 16, 8, -59, -3, 8)
+    at("09_billboard_ring", 100, -58, -166, 100, -52, -154, 14)
+    at("10_gotiya", -40, -59.5, 15, -40, -57, 40, 10)
+    at("11_depot", -14, -59.5, 4, -14, -56, -6, 8)
+    at("12_showroom_lobby", -45, -59.5, -7, -44, -57.5, -22, 8)
+    at("13_alley", -46, -59, -47, -47, -58, -38, 8)
+    steps.append(("13b_spectator", ["gamemode spectator @p"], 3))
+    at("14_aerial_city", -12, 70, 135, -12, -61, -20, 20)
+    at("15_aerial_skyline", 150, 30, -120, -60, -10, -20, 20)
+    at("16_aerial_ring", -170, 60, -165, 100, -40, -150, 20)
+    return steps
+
+
+def tour_hud():
+    """The ProBoiz-style cash bar: the start ($50, +$5/sec), $25,619, level 2 (+$35/sec), the driving bonus, the guide on Right Shift."""
+    P = "execute as @p run "
+    return [("00_setup", BASE + KILL_ALL + ["tp @p 0 -60 0 0 0"], 4),
+            ("01_start", [P + "tycoon start"], 60),
+            ("02_hud_start", [cam(-45.5, -59.0, 14, -44, -55, -6)], 6),
+            ("03_hud_money", [P + "tycoon money 25569"], 7),
+            ("04_hud_level2", [P + "tycoon buy hydraulics", P + "tycoon buy level2"], 22),
+            ("05_hud_level2_rate", [], 4),
+            ("06_hud_driving", [P + "tp @s -33 -60 8 90 0", P + "tycoon car tesla_model3"], 4),
+            ("07_hud_driving_go", [P + "tycoon drive 1 0"], 5),
+            ("08_hud_stop", [P + "tycoon drive off"], 4)]
+
+
+def tour_robotaxi():
+    """Level 4: the four Cybercabs on their loops, stopping at the sidewalk stations for their passengers."""
+    P = "execute as @p run "
+    steps = [("00_setup", BASE + KILL_ALL + ["tp @p 0 -60 0 0 0"], 4),
+             ("01_start", [P + "tycoon start"], 70),
+             ("02_level4", [P + "tycoon money 400000", P + "tycoon level 4"], 30),
+             ("03_terminal", [cam(-39, -59.0, -8, -39, -58.4, -12)], 8)]
+    # the camera stays at the station in front of the showroom (station 8 on the boulevard): a cab of the core loop passes it every ~40 s
+    for i in range(4, 16):
+        steps.append(("%02d_station_watch" % i, [cam(8, -58.6, 14, 6, -59.2, 1)], 8))
     return steps
 
 
@@ -93,38 +134,46 @@ def tour_story():
              ("13_ram_go", [P + "tycoon drive 1 0 r"], 4),
              ("14_ram_smash", [], 4),
              ("15_ram_after", [P + "tycoon drive off"], 5),
-             ("16_level5", [P + "tycoon money 90000", P + "tycoon level 5", P + "tp @s -45.5 -60 -2.5 180 5"], 40),
+             ("16_level5", [P + "tycoon money 400000", P + "tycoon level 5", P + "tp @s -45.5 -60 -2.5 180 5"], 50),
              ("17_tower", [cam(-45, -50, 30, -44, -38, -6)], 8),
-             ("18_climax_start", [P + "tycoon sabotage"], 7),
-             ("19_launch", [P + "tycoon drive 0.5 0 j"], 2.5),
-             ("20_flight", [P + "tycoon drive 0 0"], 3),
-             ("21_flight_more", [], 3),
-             ("22_emp", [P + "tycoon emp"], 5),
-             ("23_victory", [], 8),
-             ("24_retry", [P + "tycoon drive off", P + "tycoon retry"], 40),
-             ("25_retry_launchpad", [], 8)]
+             ("18_alarm", [P + "tycoon sabotage", cam(-64, -58.5, 9, -44, -57, -1)], 8),
+             ("19_lift", [P + "tp @s -51.5 -60 -18.5 0 5"], 5),
+             ("20_roof_battle", [], 8),
+             ("21_mount", ["ride @p mount @e[type=tesla_tycoon:tesla_roadster,x=-43.5,y=-25,z=-21.5,distance=..3,limit=1]"], 3),
+             ("22_launch", [P + "tycoon drive 0.5 0 j"], 2.5),
+             ("23_flight", [P + "tycoon drive 0 0"], 3),
+             ("24_emp", [P + "tycoon emp"], 5),
+             ("25_victory", [], 8),
+             ("26_retry", [P + "tycoon drive off", P + "tycoon retry"], 45),
+             ("27_retry_battle", [], 8)]
     return steps
 
 
 def tour_finale():
-    """Level 5 straight away: the Monster Truck charges and smashes the glass front, a real client-side flight with the thrusters,
-    the EMP, the victory, landing, and #retryscene."""
+    """The survival finale from level 5: the alarm and the gate, the truck ramming it, the lobby launch pad up to the roof, the red
+    Roadster on the helipad, the real flight with the thrusters, the EMP, the victory, then #retryscene."""
     P = "execute as @p run "
     return [("00_setup", BASE + KILL_ALL + ["tp @p 0 -60 0 0 0"], 4),
-            ("01_start", [P + "tycoon start"], 50),
-            ("02_level5", [P + "tycoon money 90000", P + "tycoon level 5", P + "tp @s -45.5 -60 -2.5 180 5"], 45),
-            ("03_tower", [cam(-45, -50, 30, -44, -38, -6)], 7),
-            ("04_climax_start", [P + "tycoon sabotage"], 6),
-            ("05_truck_charge", [], 3),
-            ("06_impact", [], 4),
-            ("07_ignite", [P + "tycoon drive 0.5 0 j"], 2.5),
-            ("08_hover", [P + "tycoon drive 0 0"], 3),
-            ("09_emp", [P + "tycoon emp"], 3),
-            ("10_victory", [], 8),
-            ("11_descend", [P + "tycoon drive 0.3 0 d"], 6),
-            ("12_landed", [P + "tycoon drive off"], 5),
-            ("13_retry", [P + "tycoon retry"], 40),
-            ("14_retry_charge", [], 8)]
+            ("01_start", [P + "tycoon start"], 70),
+            ("02_level5", [P + "tycoon money 400000", P + "tycoon level 5", P + "tp @s -45.5 -60 -2.5 180 5"], 60),
+            ("03_tower", [cam(-45, -50, 30, -44, -38, -6)], 8),
+            ("04_lobby_lift", [cam(-45, -59.5, -8, -52, -57, -19)], 8),
+            ("05_alarm_start", [P + "tycoon sabotage", cam(-64, -58.5, 9, -44, -57, -1)], 8),
+            ("06_truck_ram", [], 8),
+            ("07_truck_ram_again", [], 8),
+            ("08_onto_the_pad", [P + "tp @s -51.5 -60 -18.5 0 5"], 3.2),
+            ("09_rooftop", [], 3.5),
+            ("10_roadster_pad", [P + "tp @s -47.5 -25 -19.5 -80 8"], 4),
+            ("11_gate_shattered", [P + "tp @s -47.5 -25 -19.5 0 25"], 8),
+            ("12_mount", ["ride @p mount @e[type=tesla_tycoon:tesla_roadster,x=-43.5,y=-25,z=-21.5,distance=..3,limit=1]"], 3),
+            ("13_ignite", [P + "tycoon drive 0.5 0 j"], 2.5),
+            ("14_hover", [P + "tycoon drive 0 0"], 3),
+            ("15_emp", [P + "tycoon emp"], 3),
+            ("16_victory", [], 8),
+            ("17_descend", [P + "tycoon drive 0.3 0 d"], 6),
+            ("18_landed", [P + "tycoon drive off"], 5),
+            ("19_retry", [P + "tycoon retry"], 45),
+            ("20_retry_battle", [], 8)]
 
 
 def tour_truck():
@@ -204,7 +253,7 @@ def tour_firstperson():
     return steps
 
 
-TOURS = {"vehicles": tour_vehicles, "seat": tour_seat, "city": tour_city, "story": tour_story, "finale": tour_finale, "truck": tour_truck, "shop": tour_shop, "delivery": tour_delivery, "guide": tour_guide, "occupants": tour_occupants, "firstperson": tour_firstperson}
+TOURS = {"vehicles": tour_vehicles, "seat": tour_seat, "seatback": tour_seatback, "city": tour_city, "hud": tour_hud, "robotaxi": tour_robotaxi, "story": tour_story, "finale": tour_finale, "truck": tour_truck, "shop": tour_shop, "delivery": tour_delivery, "guide": tour_guide, "occupants": tour_occupants, "firstperson": tour_firstperson}
 
 
 def have(tool):
@@ -290,14 +339,16 @@ def main():
     w, h = a.size.split("x")
     open(os.path.join(RUN, "options.txt"), "w").write(
         "onboardAccessibility:false\npauseOnLostFocus:false\ntutorialStep:none\njoinedFirstServer:true\nskipMultiplayerWarning:true\n"
-        "renderDistance:6\nsimulationDistance:6\nmaxFps:30\nguiScale:2\nhideGui:true\nparticles:0\nmipmapLevels:2\n")
+        "renderDistance:%d\nsimulationDistance:%d\nmaxFps:30\nguiScale:2\nhideGui:%s\nparticles:%d\nmipmapLevels:2\n"
+        % (8 if a.tour in ("city", "robotaxi", "finale", "story") else 6, 8 if a.tour in ("city", "robotaxi", "finale", "story") else 6,
+           "false" if a.tour in ("city", "hud", "robotaxi", "finale", "story", "guide", "shop") else "true", 1 if a.tour in ("finale", "story") else 0))
     log = os.path.join(RUN, "client_smoke.log")
     display = ":77"
     xvfb = subprocess.Popen(["Xvfb", display, "-screen", "0", "%sx%sx24" % (w, h), "+extension", "GLX", "+render", "-noreset"],
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(2)
     env = dict(os.environ, DISPLAY=display, LIBGL_ALWAYS_SOFTWARE="1", GALLIUM_DRIVER="llvmpipe")
-    env["JAVA_TOOL_OPTIONS"] = (env.get("JAVA_TOOL_OPTIONS", "") + " -Xmx2g -Dtesla_tycoon.debugdrive=true -Dtesla_tycoon.guide=" + ("true" if a.tour == "guide" else "false") + " -Dtesla_tycoon.thirdperson=" + ("front" if a.tour == "seat" else ("true" if a.tour in ("finale", "truck") else "false")) + " -Dtesla_tycoon.chase=" + ("0.3" if a.tour == "seat" else "1")).strip()
+    env["JAVA_TOOL_OPTIONS"] = (env.get("JAVA_TOOL_OPTIONS", "") + " -Xmx2g -Dtesla_tycoon.debugdrive=true -Dtesla_tycoon.guide=" + ("true" if a.tour == "guide" else "false") + " -Dtesla_tycoon.thirdperson=" + ("front" if a.tour == "seat" else ("true" if a.tour in ("finale", "truck", "seatback") else "false")) + " -Dtesla_tycoon.chase=" + ("0.3" if a.tour in ("seat", "seatback") else "1")).strip()
     lf = open(log, "w")
     client = subprocess.Popen([GRADLE, "runClient", "-PttQuickPlay=" + SAVE, "--args=--width %s --height %s" % (w, h), "--console=plain"],
                               cwd=ROOT, env=env, stdout=lf, stderr=subprocess.STDOUT, start_new_session=True)
@@ -333,7 +384,7 @@ def main():
         time.sleep(2)
         xvfb.terminate()
     text = open(log, errors="replace").read()
-    bad = [l for l in text.splitlines() if any(k in l for k in ("Could not load vehicle model", "core shader is not loaded", "Couldn't load shader", "GLSL", "Failed to load shader", "Exception in thread"))]
+    bad = [l for l in text.splitlines() if any(k in l for k in ("Could not load vehicle model", "core shader is not loaded", "city job completion failed", "rival task failed", "Couldn't load shader", "GLSL", "Failed to load shader", "Exception in thread"))]
     for l in bad[:10]:
         print("ERR  ", l[:220])
     if bad:

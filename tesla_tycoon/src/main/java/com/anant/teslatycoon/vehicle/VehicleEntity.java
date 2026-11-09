@@ -102,6 +102,14 @@ public class VehicleEntity extends Entity {
         public Runnable onFinished;
         public Runnable onWaypoint;
         public int stuckTicks;
+        /** Waypoint indices where the car stops (and waits {@link #hold} ticks) before it drives on: robotaxi stations. */
+        public final java.util.Set<Integer> stops = new java.util.HashSet<>();
+        /** Waypoint indices that are corners: the car slows down for them. */
+        public final java.util.Set<Integer> corners = new java.util.HashSet<>();
+        /** While positive the car waits where it is (counts down; set it very high and clear it to wait for an event). */
+        public int hold;
+        /** While positive the car backs straight up (ramming recoil). */
+        public int reverse;
     }
 
     public final VehicleSpec spec;
@@ -313,7 +321,7 @@ public class VehicleEntity extends Entity {
             return;
         }
         Vec3d o = local(spec.seatX, spec.seatFeetY, spec.seatZ);
-        positionUpdater.accept(passenger, getX() + o.x, getY() + o.y + visualY, getZ() + o.z);
+        positionUpdater.accept(passenger, getX() + o.x, getY() + o.y, getZ() + o.z);
         if (passenger == getControllingPassenger() && !flying) {
             // the cabin turns, so does the camera: exactly what vanilla boats do (prevYaw is left alone on purpose, the
             // renderer interpolates the delta across the tick)
@@ -330,6 +338,12 @@ public class VehicleEntity extends Entity {
         entity.prevYaw += g - f;
         entity.setYaw(entity.getYaw() + g - f);
         entity.setHeadYaw(entity.getYaw());
+    }
+
+    /** The collision box is tight (1.6 x 1.4) but the car is 4 to 6 blocks long: the crosshair still has to find it. */
+    @Override
+    public float getTargetingMargin() {
+        return Math.max(0f, spec.meta.length * 0.5f - spec.hitW * 0.5f) * 0.85f;
     }
 
     @Override
@@ -634,12 +648,33 @@ public class VehicleEntity extends Entity {
         if (ai == null || ai.finished || ai.points.isEmpty() || hasFlag(F_DISABLED)) {
             return;
         }
+        if (ai.reverse > 0) {
+            ai.reverse--;
+            c.throttle = -1f;
+            return;
+        }
+        if (ai.hold > 0) {
+            ai.hold--;
+            c.throttle = speed > 0.03 ? -1f : 0f;
+            return;
+        }
         Vec3d target = ai.points.get(Math.min(ai.index, ai.points.size() - 1));
         double dx = target.x - getX();
         double dz = target.z - getZ();
         double dist = Math.hypot(dx, dz);
         boolean last = ai.index >= ai.points.size() - 1;
-        if (dist < (last ? Math.max(1.4, ai.arrive * 0.6) : ai.arrive)) {
+        boolean stopHere = !last && ai.stops.contains(ai.index);
+        boolean corner = ai.corners.contains(ai.index);
+        if (stopHere) {
+            if (dist < 1.8 && Math.abs(speed) < 0.08) {
+                ai.index++;
+                ai.hold = 4;
+                if (ai.onWaypoint != null) {
+                    ai.onWaypoint.run();
+                }
+                return;
+            }
+        } else if (dist < (last ? Math.max(1.4, ai.arrive * 0.6) : (corner ? ai.arrive + 0.8 : ai.arrive))) {
             if (last) {
                 if (!ai.stopAtEnd || Math.abs(speed) < 0.08) {
                     ai.finished = true;
@@ -660,8 +695,11 @@ public class VehicleEntity extends Entity {
         float err = MathHelper.wrapDegrees(want - getYaw());
         c.steer = MathHelper.clamp(-err / 18f, -1f, 1f);
         double v = ai.cruise * (1.0 - 0.7 * MathHelper.clamp(Math.abs(err) / 70f, 0f, 1f));
-        if (last && ai.stopAtEnd) {
+        if ((last && ai.stopAtEnd) || stopHere) {
             v = Math.min(v, Math.max(0.08, dist * 0.09));
+        }
+        if (corner) {
+            v = Math.min(v, 0.34);
         }
         c.throttle = speed < v - 0.02 ? 1f : (speed > v + 0.04 ? -0.6f : 0f);
         if (Math.abs(speed) < 0.04) {

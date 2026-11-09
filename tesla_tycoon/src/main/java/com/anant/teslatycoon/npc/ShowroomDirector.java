@@ -162,7 +162,7 @@ public final class ShowroomDirector {
             s.manager = m.getUuid();
         }
         if (!alive(w, s.clerk)) {
-            SuitedNpcEntity m = spawnNpc(w, CityBuilder.vec(c, -14.0, 1.0, -16.3), 0f, SuitedNpcEntity.CLERK, 5, "Upgrade Shop Clerk");
+            SuitedNpcEntity m = spawnNpc(w, CityBuilder.vec(c, -14.0, 1.0, -16.3), 0f, SuitedNpcEntity.CLERK, 5, "Upgrade Depot Clerk");
             m.faceTowards(0f);
             s.clerk = m.getUuid();
         }
@@ -212,16 +212,17 @@ public final class ShowroomDirector {
         car.ramUnlocked = c.owns(Upgrade.RAM);
     }
 
-    private static List<Vec3d> loopRoute(Company c) {
-        double[][] pts = {
-                {-33, -12}, {-33, -3}, {-33, 4}, {-33, 10.5}, {0, 10.5}, {40, 10.5}, {58, 10.5}, {61.5, 6}, {61.5, -10}, {61.5, -38}, {58, -42},
-                {20, -42}, {-40, -42}, {-82, -42}, {-85.5, -38}, {-85.5, -10}, {-85.5, 6}, {-82, 10.5}, {-60, 10.5}, {-40, 10.5}, {-33, 7}, {-33, 2},
-                {-33, -4}, {-33, -10}, {-33, -22}};
-        List<Vec3d> out = new ArrayList<>();
-        for (double[] p : pts) {
-            out.add(CityBuilder.vec(c, p[0], 1.0, p[1]));
+    /** The customers' test drive (see CityRoutes.testDrive): out of the bay, round the block, back into the bay. */
+    private static VehicleEntity.Ai testDriveAi(Company c) {
+        VehicleEntity.Ai ai = new VehicleEntity.Ai();
+        java.util.Set<Integer> corners = new java.util.HashSet<>();
+        for (double[] p : com.anant.teslatycoon.city.CityRoutes.testDrive(corners)) {
+            ai.points.add(CityBuilder.vec(c, p[0], 1.0, p[1]));
         }
-        return out;
+        ai.corners.addAll(corners);
+        ai.arrive = 2.8;
+        ai.stopAtEnd = true;
+        return ai;
     }
 
     // ------------------------------------------------------------------------------------------------------ tick
@@ -240,7 +241,7 @@ public final class ShowroomDirector {
         // new customers
         long interval = Math.max(300, 780 - 90L * c.level);
         int maxCustomers = c.level >= 3 ? 3 : 2;
-        if (c.cityTick >= s.nextCustomer && s.customers.size() < maxCustomers && !c.powerOut) {
+        if (c.cityTick >= s.nextCustomer && s.customers.size() < maxCustomers && !c.powerOut && com.anant.teslatycoon.rival.RivalDirector.alarmStage(c) == 0) {
             spawnCustomer(w, c, s);
             s.nextCustomer = c.cityTick + interval + w.random.nextInt(120);
         }
@@ -292,21 +293,31 @@ public final class ShowroomDirector {
                     if (cu.t == 50) {
                         pay(w, c, npc, owner);
                         Tycoon.log("[showroom] customer paid at reception, walking to the test-drive bay");
-                        npc.walk(List.of(CityBuilder.vec(c, -45.5, 1.0, -9.0), CityBuilder.vec(c, -33.5, 1.0, -23.0)), 0.17, null);
+                        npc.walk(List.of(CityBuilder.vec(c, -45.5, 1.0, -9.0), CityBuilder.vec(c, -39.0, 1.0, -15.5)), 0.17, null);
+                        cu.stage = 5;
+                        cu.t = 0;
+                    }
+                }
+                case 5 -> {
+                    // looking at the exhibit on its pad, then on to the test-drive bay
+                    if (!npc.isWalking() && cu.t > 40) {
+                        npc.faceTowards(150f);
+                    }
+                    if (!npc.isWalking() && cu.t > 110) {
+                        npc.walk(List.of(CityBuilder.vec(c, -33.5, 1.0, -22.0)), 0.17, null);
                         cu.stage = 2;
                         cu.t = 0;
                     }
                 }
                 case 2 -> {
                     if (!npc.isWalking()) {
-                        VehicleSpec spec = VehicleSpecs.LEVELS.get(w.random.nextInt(c.level));
+                        VehicleSpec spec = VehicleSpecs.LEVELS.get(c.level - 1);        // the exhibit on the ground floor
                         VehicleEntity car = new VehicleEntity(ModEntities.vehicle(spec), w);
                         car.setOwner(c.owner);
                         applyUpgrades(car, c);
                         Vec3d bay = CityBuilder.vec(c, (BAY_X0 + BAY_X1 + 1) / 2.0, 1.0, BAY_START_Z + 0.5);
                         car.refreshPositionAndAngles(bay.x, bay.y, bay.z, 0f, 0f);
-                        VehicleEntity.Ai ai = new VehicleEntity.Ai();
-                        ai.points.addAll(loopRoute(c));
+                        VehicleEntity.Ai ai = testDriveAi(c);
                         ai.cruise = Math.min(0.72, spec.maxSpeed * 0.62);
                         car.setAi(ai);
                         w.spawnEntity(car);
@@ -348,6 +359,22 @@ public final class ShowroomDirector {
         }
     }
 
+    /** The alarm sounds: every customer and test-drive car leaves the scene (the gate is about to close). */
+    public static void clearCustomers(ServerWorld w, Company c) {
+        Session s = SESSIONS.get(c.owner);
+        if (s == null) {
+            return;
+        }
+        for (Customer cu : s.customers) {
+            Entity e = w.getEntity(cu.npc);
+            if (e != null) {
+                e.discard();
+            }
+            discardCar(w, cu);
+        }
+        s.customers.clear();
+    }
+
     private static void discardCar(ServerWorld w, Customer cu) {
         if (cu.car != null) {
             Entity e = w.getEntity(cu.car);
@@ -358,14 +385,14 @@ public final class ShowroomDirector {
     }
 
     private static void pay(ServerWorld w, Company c, SuitedNpcEntity npc, ServerPlayerEntity owner) {
-        long tip = Math.round(c.incomePerSecond() * 2.0);
+        long tip = c.worth(Company.TIP_SECONDS);
         c.money += tip;
         c.totalEarned += tip;
         c.customersServed++;
         w.spawnParticles(ParticleTypes.HAPPY_VILLAGER, npc.getX(), npc.getY() + 1.6, npc.getZ(), 14, 0.4, 0.4, 0.4, 0.02);
         w.spawnParticles(ParticleTypes.GLOW, npc.getX(), npc.getY() + 1.2, npc.getZ(), 10, 0.5, 0.3, 0.5, 0.1);
         w.playSound(null, npc.getX(), npc.getY(), npc.getZ(), SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.NEUTRAL, 1.0f, 1.3f);
-        owner.sendMessage(Text.literal("Customer paid at reception: +$" + tip).formatted(Formatting.GREEN), true);
+        owner.sendMessage(Text.literal("Customer paid at reception: +$" + String.format(java.util.Locale.US, "%,d", tip)).formatted(Formatting.GREEN), true);
     }
 
     // ------------------------------------------------------------------------------------------------------ delivery truck
@@ -445,12 +472,12 @@ public final class ShowroomDirector {
                         w.setBlockState(at, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
                         w.spawnParticles(ParticleTypes.HAPPY_VILLAGER, at.getX() + 0.5, at.getY() + 0.8, at.getZ() + 0.5, 10, 0.4, 0.4, 0.4, 0.02);
                     }
-                    long bonus = Math.round(c.incomePerSecond() * 6.0);
+                    long bonus = c.worth(Company.DELIVERY_SECONDS);
                     c.money += bonus;
                     c.totalEarned += bonus;
                     c.deliveries++;
                     Tycoon.log("[showroom] delivery unloaded, bonus $" + bonus);
-                    owner.sendMessage(Text.literal("Delivery unloaded! New Tesla stock: +$" + bonus).formatted(Formatting.GOLD), true);
+                    owner.sendMessage(Text.literal("Delivery unloaded! New Tesla stock: +$" + String.format(java.util.Locale.US, "%,d", bonus)).formatted(Formatting.GOLD), true);
                     w.playSound(null, truck.getX(), truck.getY(), truck.getZ(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.NEUTRAL, 1.0f, 1.1f);
                     VehicleEntity.Ai out = new VehicleEntity.Ai();
                     out.points.addAll(truckOut(c));

@@ -347,16 +347,61 @@ def luminance_at(img, uv):
 # procedural interiors (tools/interior_gen.py): every uploaded car is a hollow shell, so the seats, dashboard, screen, console, door
 # cards, floor and headliner are generated for the measured cabin and baked in as the part "interior" (LOD0 + LOD1, none at LOD2)
 # ----------------------------------------------------------------------------------------------------------------------
-def make_interior_part(cab, shell_tris, base):
-    lods, data = [], bytearray()
-    for lod in (0, 1):
-        V, I = G.build(cab, lod, shell_tris)
-        it = "i2" if len(V) < 65536 else "i4"
-        lods.append({"vc": int(len(V)), "ic": int(len(I)), "it": it, "off": base + len(data)})
-        data.extend(V.tobytes())
-        data.extend((I.astype(np.uint16) if it == "i2" else I.astype(np.uint32)).tobytes())
-    lods.append({"vc": 0, "ic": 0, "it": "i2", "off": base + len(data)})
-    return {"name": "interior", "layer": "solid", "wheel": -1, "lods": lods}, bytes(data)
+INTERIOR_PARTS = ("interior", "interior_back", "interior_rear")      # the last two are not drawn while the car has an occupant
+
+
+def make_interior_parts(cab, shell_tris, base):
+    """-> ([part dicts], bytes): the interior in the three parts of interior_gen.build_parts (LOD0 + LOD1, none at LOD2)."""
+    per = [G.build_parts(cab, lod, shell_tris) for lod in (0, 1)]
+    parts, data = [], bytearray()
+    for name in INTERIOR_PARTS:
+        lods = []
+        for lod in (0, 1):
+            V, I = per[lod][name]
+            if len(I) == 0:
+                lods.append({"vc": 0, "ic": 0, "it": "i2", "off": base + len(data)})
+                continue
+            it = "i2" if len(V) < 65536 else "i4"
+            lods.append({"vc": int(len(V)), "ic": int(len(I)), "it": it, "off": base + len(data)})
+            data.extend(V.tobytes())
+            data.extend((I.astype(np.uint16) if it == "i2" else I.astype(np.uint32)).tobytes())
+        lods.append({"vc": 0, "ic": 0, "it": "i2", "off": base + len(data)})
+        parts.append({"name": name, "layer": "solid", "wheel": -1, "lods": lods})
+    return parts, bytes(data)
+
+
+# the Flying Roadster is the red SpaceX Roadster of the finale: the uploaded model is silver/white, so its light neutral paint is
+# re-coloured (shading kept) after baking; black trim, tyres, lights and the interior are not touched.  Idempotent.
+RED_PAINT = {"l5_roadster": (1.00, 0.075, 0.095)}
+
+
+def paint_red(name):
+    mul = RED_PAINT.get(name)
+    if mul is None:
+        return
+    path = os.path.join(OUT_MODELS, name + ".ttm")
+    header, blob = T.read_ttm(path)
+    blob = bytearray(blob)
+    done = set()
+    changed = 0
+    for part in header["parts"]:
+        if part["name"] != "body":
+            continue
+        for lod in part["lods"]:
+            if lod["vc"] == 0 or lod["off"] in done:
+                continue
+            done.add(lod["off"])
+            raw = np.frombuffer(blob, dtype=np.uint8, count=lod["vc"] * 32, offset=lod["off"]).reshape(-1, 32)
+            col = raw[:, 24:27].astype(np.int32)
+            lum = (col * np.array([0.2126, 0.7152, 0.0722])).sum(1)
+            sat = col.max(1) - col.min(1)
+            paint = (lum >= 60) & (sat <= 22)
+            new = np.clip(np.outer(lum / 255.0, np.array(mul)) * 255.0 * 1.02, 0, 255)
+            new = np.maximum(new, np.array([60, 4, 6]))                      # never black: dark red in the shadows
+            raw[paint, 24:27] = new[paint].astype(np.uint8)
+            changed += int(paint.sum())
+    T.write_ttm(path, header, bytes(blob))
+    print("%-14s red paint: %d vertices recoloured" % (name, changed))
 
 
 def apply_cabin_to_header(header, cab):
@@ -394,18 +439,18 @@ def patch_interior(name):
     cab = G.CABINS[name]
     path = os.path.join(OUT_MODELS, name + ".ttm")
     header, blob = T.read_ttm(path)
-    header, out = rewrite_ttm(header, bytes(blob), drop=("interior",))
+    header, out = rewrite_ttm(header, bytes(blob), drop=INTERIOR_PARTS)
     _, parts = P.load(name)
     shell = np.concatenate([t for (n, layer, w, t, c) in parts if layer == "solid" and w < 0 and n == "body"])
-    part, data = make_interior_part(cab, shell, len(out))
-    header["parts"].append(part)
+    ipar, data = make_interior_parts(cab, shell, len(out))
+    header["parts"].extend(ipar)
     out.extend(data)
     header["tris"] = [sum(p["lods"][l]["ic"] // 3 for p in header["parts"]) for l in range(3)]
     apply_cabin_to_header(header, cab)
     T.write_ttm(path, header, bytes(out))
     with open(os.path.join(OUT_MODELS, name + ".meta.json"), "w") as fh:
         json.dump({k: v for k, v in header.items() if k != "parts"}, fh, indent=1)
-    print("%-14s interior patched: %d / %d tris (occupant scale %.2f)" % (name, part["lods"][0]["ic"] // 3, part["lods"][1]["ic"] // 3, cab.k))
+    print("%-14s interior patched: %d / %d tris (occupant scale %.2f)" % (name, sum(q["lods"][0]["ic"] for q in ipar) // 3, sum(q["lods"][1]["ic"] for q in ipar) // 3, cab.k))
 
 
 def bake_model(name, cfg, preview_dir=None):
@@ -548,11 +593,11 @@ def bake_model(name, cfg, preview_dir=None):
         emit("glass", "glass", -1, glass_mask, lambda grp: budgets["glass"])
         cab = G.CABINS.get(name)
         if cab is not None:
-            ipart, idata = make_interior_part(cab, V["pos"][I[body_mask]].astype(np.float64), len(blob))
-            parts.append(ipart)
+            ipar, idata = make_interior_parts(cab, V["pos"][I[body_mask]].astype(np.float64), len(blob))
+            parts.extend(ipar)
             blob.extend(idata)
             for l in range(3):
-                total_tris[l] += ipart["lods"][l]["ic"] // 3
+                total_tris[l] += sum(q["lods"][l]["ic"] for q in ipar) // 3
         lo_c, hi_c = V["pos"][np.unique(I[(tri_group != "glass")].reshape(-1))].min(0), V["pos"][np.unique(I[(tri_group != "glass")].reshape(-1))].max(0)
         tex_rel = None
         if tex_path:
@@ -575,6 +620,7 @@ def bake_model(name, cfg, preview_dir=None):
             apply_cabin_to_header(header, cab)
         os.makedirs(OUT_MODELS, exist_ok=True)
         T.write_ttm(os.path.join(OUT_MODELS, name + ".ttm"), header, bytes(blob))
+        paint_red(name)
         meta = {k: v for k, v in header.items() if k != "parts"}
         with open(os.path.join(OUT_MODELS, name + ".meta.json"), "w") as fh:
             json.dump(meta, fh, indent=1)
@@ -749,8 +795,13 @@ def main():
     ap.add_argument("--only", action="append")
     ap.add_argument("--preview", metavar="DIR")
     ap.add_argument("--lod", type=int, default=0)
+    ap.add_argument("--paint-only", action="store_true", help="only re-colour the Roadster red in the already baked .ttm (fast)")
     ap.add_argument("--interior-only", action="store_true", help="only (re)generate the procedural interiors of the already baked cars (fast)")
     a = ap.parse_args()
+    if a.paint_only:
+        for name in RED_PAINT:
+            paint_red(name)
+        return 0
     if a.interior_only:
         for name in G.CABINS:
             if not a.only or name in a.only:

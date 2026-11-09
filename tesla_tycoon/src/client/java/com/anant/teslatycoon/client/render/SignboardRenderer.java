@@ -73,7 +73,7 @@ public final class SignboardRenderer extends EntityRenderer<SignboardEntity> {
             colors = new int[]{0xFFFFB347, 0xFFFF5A3C, 0xFFFFE08A};
             scales = new float[]{1.0f, 1.55f, 0.55f};
         } else if (kind == SignboardEntity.SHOP) {
-            lines = new String[]{"TYCOON UPGRADE SHOP", "right-click the terminal"};
+            lines = new String[]{"UPGRADE DEPOT", "right-click the terminal"};
             colors = new int[]{0xFF35E6FF, 0xFFB8C7DD};
             scales = new float[]{1.4f, 0.6f};
         } else {

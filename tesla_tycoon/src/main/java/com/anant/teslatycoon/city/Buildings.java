@@ -10,6 +10,8 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.HorizontalFacingBlock;
 import net.minecraft.util.math.Direction;
+import java.util.ArrayList;
+import java.util.List;
 
 /** The buildings: the stacked glass showroom, its roof, the upgrade shop, Gotiya's petrol station and the billboard frames. */
 public final class Buildings {
@@ -178,6 +180,110 @@ public final class Buildings {
         return p;
     }
 
+    // ============================================================================================================ finale: gate, lift
+    /** The roof-top beacons and the gate posts that flash red while the alarm sounds: {x, y, z} city-local (see {@link #alarmLights}). */
+    public static List<int[]> alarmLights(int level) {
+        List<int[]> out = new ArrayList<>();
+        for (int x = GATE_X0; x <= GATE_X1; x += 12) {
+            out.add(new int[]{x, 8, GATE_Z});
+        }
+        int yr = FLOOR_H * level;
+        out.add(new int[]{SX0, yr + 3, SZ0});
+        out.add(new int[]{SX1, yr + 3, SZ0});
+        out.add(new int[]{SX0, yr + 3, SZ1});
+        out.add(new int[]{SX1, yr + 3, SZ1});
+        return out;
+    }
+
+    /**
+     * The security gate along the boulevard pavement: a black plinth, iron bars, black pillars and a red neon rail, with a 3-wide
+     * pedestrian opening. Closed = built; open = removed. The Monster Truck (4.7 blocks wide) cannot get through the opening.
+     */
+    public static Plan gate(boolean closed) {
+        Plan p = new Plan();
+        int z = GATE_Z;
+        if (!closed) {
+            p.clear(GATE_X0 - 1, 1, z, GATE_X1 + 1, 8, z);
+            return p;
+        }
+        BlockState bars = Blocks.IRON_BARS.getDefaultState().with(net.minecraft.block.PaneBlock.EAST, true).with(net.minecraft.block.PaneBlock.WEST, true);
+        p.fill(GATE_X0, 1, z, GATE_X1, 1, z, BLACK);
+        p.fill(GATE_X0, 2, z, GATE_X1, 5, z, bars);
+        for (int x = GATE_X0; x <= GATE_X1; x += 6) {
+            p.fill(x, 1, z, x, 6, z, BLACK);
+        }
+        p.fill(GATE_X1, 1, z, GATE_X1, 6, z, BLACK);
+        p.neonFill(GATE_X0, 6, z, GATE_X1, 6, z, NeonColor.RED);
+        for (int x = GATE_X0; x <= GATE_X1; x += 12) {
+            p.fill(x, 7, z, x, 7, z, BLACK);
+            p.neon(x, 8, z, NeonColor.RED);
+        }
+        p.clear(GATE_DOOR_X0, 1, z, GATE_DOOR_X1, 8, z);
+        p.neonFill(GATE_DOOR_X0 - 1, 1, z, GATE_DOOR_X0 - 1, 7, z, NeonColor.CYAN);
+        p.neonFill(GATE_DOOR_X1 + 1, 1, z, GATE_DOOR_X1 + 1, 7, z, NeonColor.CYAN);
+        return p;
+    }
+
+    /** The hole the Monster Truck makes when the gate shatters (x range of the cleared part). */
+    public static final int GATE_HOLE_X0 = -50;
+    public static final int GATE_HOLE_X1 = -26;
+
+    public static Plan gateHole() {
+        Plan p = new Plan();
+        p.clear(GATE_HOLE_X0, 1, GATE_Z, GATE_HOLE_X1, 8, GATE_Z);
+        return p;
+    }
+
+    /**
+     * Level 5: the high-speed lift. A 3 x 3 shaft in glass runs through every floor slab and the roof (the openings are cleared),
+     * the launch pad glows on the ground floor, a glass cabin tops the shaft on the roof, and four red beacons crown the roof.
+     */
+    public static Plan lift() {
+        Plan p = new Plan();
+        int cx = LIFT_X;
+        int cz = LIFT_Z;
+        for (int k = 1; k <= 5; k++) {
+            int y = FLOOR_H * k;
+            p.clear(cx - 1, y, cz - 1, cx + 1, y, cz + 1);
+        }
+        // shaft walls: glass with black corner pillars, a doorway on the south side of the ground floor
+        p.fill(cx - 2, 1, cz - 2, cx + 2, 38, cz - 2, GLASS);
+        p.fill(cx - 2, 1, cz + 2, cx + 2, 38, cz + 2, GLASS);
+        p.fill(cx - 2, 1, cz - 2, cx - 2, 38, cz + 2, GLASS);
+        p.fill(cx + 2, 1, cz - 2, cx + 2, 38, cz + 2, GLASS);
+        for (int dx : new int[]{-2, 2}) {
+            for (int dz : new int[]{-2, 2}) {
+                p.fill(cx + dx, 1, cz + dz, cx + dx, 39, cz + dz, BLACK);
+            }
+        }
+        p.clear(cx - 1, 1, cz + 2, cx + 1, 3, cz + 2);
+        p.neonFill(cx - 2, 4, cz + 2, cx - 2, 4, cz + 2, NeonColor.CYAN);
+        // glowing rings round the shaft on every floor
+        for (int k = 0; k < 5; k++) {
+            int y = FLOOR_H * k + 5;
+            p.neonFill(cx - 2, y, cz - 2, cx + 2, y, cz - 2, NeonColor.CYAN);
+            p.neonFill(cx - 2, y, cz + 2, cx + 2, y, cz + 2, NeonColor.CYAN);
+            p.neonFill(cx - 2, y, cz - 2, cx - 2, y, cz + 2, NeonColor.CYAN);
+            p.neonFill(cx + 2, y, cz - 2, cx + 2, y, cz + 2, NeonColor.CYAN);
+        }
+        // the cabin's ceiling on the roof and its cap
+        p.fill(cx - 1, 35, cz - 1, cx + 1, 35, cz + 1, GLASS);
+        p.fill(cx - 2, 39, cz - 2, cx + 2, 39, cz + 2, BLACK);
+        p.neonFill(cx - 1, 40, cz - 1, cx + 1, 40, cz + 1, NeonColor.MAGENTA);
+        // the launch pad on the ground floor
+        p.neonFill(cx - 1, 0, cz - 1, cx + 1, 0, cz + 1, NeonColor.CYAN);
+        p.neon(cx, 0, cz, NeonColor.WHITE);
+        // the alarm beacons on the roof corners
+        for (int[] b : alarmLights(5)) {
+            if (b[2] == GATE_Z) {
+                continue;
+            }
+            p.fill(b[0], 36, b[2], b[0], b[1] - 1, b[2], BLACK);
+            p.neon(b[0], b[1], b[2], NeonColor.RED);
+        }
+        return p;
+    }
+
     // ============================================================================================================ upgrade shop
     public static Plan shop() {
         Plan p = new Plan();
@@ -230,7 +336,7 @@ public final class Buildings {
                 p.neonFill(x, 3, z, x + 2, 3, z + 2, NeonColor.CYAN);
             }
         }
-        if (c != null && c.owns(Upgrade.TERMINAL)) {
+        if (c != null && c.level >= 4) {
             p.set(BAY_X0 - 3, 1, -12, ModBlocks.ROBOTAXI_TERMINAL.getDefaultState().with(HorizontalFacingBlock.FACING, Direction.SOUTH));
             p.neonFill(BAY_X0 - 3, 0, -12, BAY_X0 - 3, 0, -12, NeonColor.CYAN);
         }
@@ -242,43 +348,45 @@ public final class Buildings {
         Plan p = new Plan();
         BlockState red = Blocks.RED_CONCRETE.getDefaultState();
         BlockState orange = Blocks.ORANGE_CONCRETE.getDefaultState();
+        int d = GOT_DZ;
+        int wz = 34 + d;                                    // front wall of the workshop
         // workshop: back half of the plot
-        p.fill(GX0, 0, 34, GX1, 0, GZ1, GRAY);
-        p.fill(GX0, 1, 34, GX1, 7, 34, red);
+        p.fill(GX0, 0, wz, GX1, 0, GZ1, GRAY);
+        p.fill(GX0, 1, wz, GX1, 7, wz, red);
         p.fill(GX0, 1, GZ1, GX1, 7, GZ1, red);
-        p.fill(GX0, 1, 34, GX0, 7, GZ1, red);
-        p.fill(GX1, 1, 34, GX1, 7, GZ1, red);
-        p.fill(GX0, 8, 34, GX1, 8, GZ1, BLACK);
+        p.fill(GX0, 1, wz, GX0, 7, GZ1, red);
+        p.fill(GX1, 1, wz, GX1, 7, GZ1, red);
+        p.fill(GX0, 8, wz, GX1, 8, GZ1, BLACK);
         for (int x = GX0 + 4; x <= GX1 - 8; x += 14) {
-            p.clear(x, 1, 34, x + 8, 6, 34);                 // 6 high: the Monster Truck is 4.9 blocks tall
-            p.fill(x - 1, 1, 34, x - 1, 7, 34, orange);
-            p.fill(x + 9, 1, 34, x + 9, 7, 34, orange);
-            p.fill(x - 1, 7, 34, x + 9, 7, 34, orange);
+            p.clear(x, 1, wz, x + 8, 6, wz);                 // 6 high: the Monster Truck is 4.9 blocks tall
+            p.fill(x - 1, 1, wz, x - 1, 7, wz, orange);
+            p.fill(x + 9, 1, wz, x + 9, 7, wz, orange);
+            p.fill(x - 1, 7, wz, x + 9, 7, wz, orange);
         }
         for (int x = GX0 + 6; x < GX1; x += 9) {
-            p.fill(x, 0, 36, x + 2, 0, GZ1 - 1, BLACK);
+            p.fill(x, 0, wz + 2, x + 2, 0, GZ1 - 1, BLACK);
         }
         // sign board on the front wall
-        p.fill(-49, 9, 34, -31, 12, 34, red);
+        p.fill(-49, 9, wz, -31, 12, wz, red);
         // canopy and pumps over the forecourt
         for (int x : new int[]{-58, -22}) {
-            for (int z : new int[]{24, 31}) {
+            for (int z : new int[]{24 + d, 31 + d}) {
                 p.fill(x, 1, z, x, 6, z, WALL);
             }
         }
-        p.fill(-59, 7, 23, -21, 7, 32, orange);              // high enough for the Monster Truck to drive under
-        p.fill(-59, 7, 23, -21, 7, 23, YELLOW);
+        p.fill(-59, 7, 23 + d, -21, 7, 32 + d, orange);      // high enough for the Monster Truck to drive under
+        p.fill(-59, 7, 23 + d, -21, 7, 23 + d, YELLOW);
         for (int x = -54; x <= -30; x += 8) {
             if (x == -46 || x == -38) {
                 continue;                                  // the driveway in the middle stays open: the Monster Truck is 4.7 blocks wide
             }
-            p.fill(x, 1, 27, x, 2, 27, red);
-            p.set(x, 3, 27, Blocks.IRON_BARS.getDefaultState());
-            p.set(x, 0, 27, BLACK);
+            p.fill(x, 1, 27 + d, x, 2, 27 + d, red);
+            p.set(x, 3, 27 + d, Blocks.IRON_BARS.getDefaultState());
+            p.set(x, 0, 27 + d, BLACK);
         }
-        p.fill(GX0, 0, GZ0, GX1, 0, 33, GRAY);
+        p.fill(GX0, 0, GZ0, GX1, 0, 33 + d, GRAY);
         for (int x = GX0; x <= GX1; x += 4) {
-            p.fill(x, 0, GZ0, x, 0, 33, BLACK);
+            p.fill(x, 0, GZ0, x, 0, 33 + d, BLACK);
         }
         for (int x = -60; x <= -20; x += 8) {
             if (x == -44 || x == -36) {
@@ -321,11 +429,38 @@ public final class Buildings {
         };
     }
 
+    /**
+     * The six city billboards, far apart on the highway ring (each one a drive of 130 to 200 blocks from the showroom): the outer
+     * avenues' turns in the north-west / north-east / east / south / south-west / west. {bx, bz} is the board's centre line cell.
+     */
     public static final int[][] BILLBOARDS = {
-            {-66, 15, 0}, {8, 15, 0}, {40, 15, 0}, {-22, 15, 0}, {-60, -46, 2}, {0, -46, 2}
+            {-120, -154}, {100, -154}, {143, 40}, {60, 137}, {-120, 137}, {-169, 0}
     };
+    private static final Direction[] BILLBOARD_FACING = {Direction.NORTH, Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.SOUTH, Direction.WEST};
 
     public static Direction billboardFacing(int idx) {
-        return BILLBOARDS[idx][2] == 0 ? Direction.NORTH : Direction.SOUTH;
+        return BILLBOARD_FACING[idx];
     }
+
+    /** The cell {x, z} of billboard idx's centre, for distance checks. */
+    public static boolean nearBillboard(int x, int z, int margin) {
+        for (int i = 0; i < BILLBOARDS.length; i++) {
+            boolean alongX = BILLBOARD_FACING[i].getAxis() == Direction.Axis.Z;
+            int bx = BILLBOARDS[i][0];
+            int bz = BILLBOARDS[i][1];
+            int hx = alongX ? 10 : 3;
+            int hz = alongX ? 3 : 10;
+            if (x >= bx - hx - margin && x <= bx + hx + margin && z >= bz - hz - margin && z <= bz + hz + margin) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Robotaxi stations {x, z, side} (side = where the road lies: 0 north, 1 south, 2 west, 3 east; see CityLayout.station). */
+    public static final int[][] STATIONS = {
+            {-10, -155, 0}, {143, -20, 3}, {-10, 137, 1}, {-169, -65, 2},        // the outer ring (north, east, south, west)
+            {-20, -83, 0}, {49, -20, 3}, {-73, -20, 2}, {30, 67, 1},             // the inner ring and the core loop
+            {8, -3, 1}, {49, 42, 3}                                              // in front of the showroom, and the inner ring's south side
+    };
 }

@@ -30,7 +30,7 @@ def shell_geometry(parts, drop_glass, cut):
     """(tris, vcol, vnrm) of the cut-open shell. cut(tri_centroids) -> boolean mask of triangles to keep."""
     T, C = [], []
     for (n, layer, w, t, c) in parts:
-        if w >= 0 or n == "interior":
+        if w >= 0 or n.startswith("interior"):
             continue
         if layer == "glass" and drop_glass:
             continue
@@ -48,11 +48,14 @@ def sheet(name, out_dir, lod=0):
     body = np.concatenate([t for (n, layer, w, t, c) in parts if layer == "solid" and w < 0])
     V, I = G.build(cab, lod, body)
     it, ic, inn = R3.mesh_arrays(V, I)
+    # with somebody in the car the game does not draw the driver's seat back or the rear bench (VehicleRenderer): same here
+    seated = G.build_parts(cab, lod, body)["interior"]
+    sit, sic, sin_ = R3.mesh_arrays(*seated)
     occ = R3.occupant_proxy(cab)
     whl = R3.wheel_proxy(cab)
 
     def compose(shell, icut=None, with_occupant=True):
-        a, b, c = it, ic, inn
+        a, b, c = (sit, sic, sin_) if with_occupant else (it, ic, inn)
         if icut is not None:
             keep = icut(a.mean(1))
             a, b, c = a[keep], b[keep], c[keep]

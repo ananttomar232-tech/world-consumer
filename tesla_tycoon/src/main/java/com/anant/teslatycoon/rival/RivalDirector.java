@@ -3,6 +3,7 @@ package com.anant.teslatycoon.rival;
 import static com.anant.teslatycoon.city.CityLayout.*;
 
 import com.anant.teslatycoon.block.NeonColor;
+import com.anant.teslatycoon.city.Buildings;
 import com.anant.teslatycoon.city.CityBuilder;
 import com.anant.teslatycoon.game.Company;
 import com.anant.teslatycoon.game.Tycoon;
@@ -74,6 +75,31 @@ public final class RivalDirector {
         Vec3d lastTruckPos;
         int stuckSecs;
         long phaseSince;
+        // the alarm (stage 1): the gate is rammed until the player visits the roof
+        boolean alarm;
+        long alarmStart;
+        int ramPhase;                   // 0 charging the gate, 1 backing up, 2 pausing
+        long ramSince;
+        int ramCount;
+        int liftCharge;
+        boolean lifting;
+        int liftTicks;
+        long battleAt = -1;
+        boolean onRoof;
+        final List<Dent> dents = new ArrayList<>();
+    }
+
+    /** A bit of the gate that is blown out for a moment when the truck hits it. */
+    private static final class Dent {
+        final BlockPos pos;
+        final BlockState state;
+        final long restoreAt;
+
+        Dent(BlockPos pos, BlockState state, long restoreAt) {
+            this.pos = pos;
+            this.state = state;
+            this.restoreAt = restoreAt;
+        }
     }
 
     private static final class Task {
@@ -152,7 +178,7 @@ public final class RivalDirector {
         State s = state(c);
         Entity e = s.gotiya == null ? null : w.getEntity(s.gotiya);
         if (e == null || !e.isAlive()) {
-            SuitedNpcEntity g = ShowroomDirector.spawnNpc(w, CityBuilder.vec(c, -40.5, 1.0, 20.5), 180f, SuitedNpcEntity.GOTIYA, 4, "Seth Gotiya");
+            SuitedNpcEntity g = ShowroomDirector.spawnNpc(w, CityBuilder.vec(c, -40.5, 1.0, 20.5 + GOT_DZ), 180f, SuitedNpcEntity.GOTIYA, 4, "Seth Gotiya");
             g.faceTowards(180f);
             s.gotiya = g.getUuid();
         }
@@ -160,7 +186,7 @@ public final class RivalDirector {
         if (t == null || !t.isAlive()) {
             VehicleEntity truck = new VehicleEntity(ModEntities.vehicle(VehicleSpecs.GOTIYA), w);
             truck.setMode(VehicleEntity.MODE_DISPLAY);
-            Vec3d pos = CityBuilder.vec(c, -26.0, 1.0, 40.0);
+            Vec3d pos = CityBuilder.vec(c, -26.0, 1.0, 40.0 + GOT_DZ);
             truck.refreshPositionAndAngles(pos.x, pos.y, pos.z, 200f, 0f);
             w.spawnEntity(truck);
             s.showTruck = truck.getUuid();
@@ -190,7 +216,7 @@ public final class RivalDirector {
         if (c.level == 1 && (c.sabTriggered & 2) == 0 && now >= 25 * 20) {
             trigger(w, c, p, 1);
         }
-        if (s.pendingAt >= 0 && now >= s.pendingAt) {
+        if (s.pendingAt >= 0 && now >= s.pendingAt && !(s.pendingLevel == 5 && CityBuilder.busyUrgent())) {
             s.pendingAt = -1;
             trigger(w, c, p, s.pendingLevel);
         }
@@ -219,9 +245,31 @@ public final class RivalDirector {
                 removeBlocks(w, s.barriers, ModBlocks.BARRIER);
             }
         }
+        // after a reload the finale may have been running: pick it up again (never leave the story without its ending)
+        if (c.level >= 5 && !c.climaxWon && (c.sabTriggered & (1 << 5)) != 0 && !s.alarm && !s.climax && s.pendingAt < 0 && now > 100 && !CityBuilder.busyUrgent()) {
+            startAlarm(w, c, p, s, true);
+        }
+        if (c.level >= 5) {
+            liftTick(w, c, p, s);
+        }
+        if (s.alarm || s.climax) {
+            alarmTick(w, c, p, s);
+        }
+        if (s.alarm) {
+            gateRamTick(w, c, p, s);
+        }
         if (s.climax) {
             climaxTick(w, c, p, s);
         }
+    }
+
+    /** 0 quiet, 1 alarm + gate ramming, 2 the Monster Truck attack (drives the HUD's red alert). */
+    public static int alarmStage(Company c) {
+        State s = STATES.get(c.owner);
+        if (s == null) {
+            return 0;
+        }
+        return s.climax ? 2 : (s.alarm ? 1 : 0);
     }
 
     public static boolean climaxActive(Company c) {
@@ -263,7 +311,7 @@ public final class RivalDirector {
             }
             case 5 -> {
                 if (p != null) {
-                    startClimax(w, c, p, s, false);
+                    startAlarm(w, c, p, s, false);
                 }
             }
             default -> {
@@ -290,7 +338,7 @@ public final class RivalDirector {
 
     private static void placeSpikes(ServerWorld w, Company c, State s) {
         s.spikes.clear();
-        int[][] patches = {{-12, 9}, {16, 9}, {44, 9}, {-12, 2}, {60, -22}, {-62, -43}};
+        int[][] patches = {{-56, 0}, {-14, 5}, {20, 13}, {-3, 18}, {53, -24}, {-62, -43}};
         for (int[] pt : patches) {
             for (int dx = 0; dx < 3; dx++) {
                 for (int dz = 0; dz < 4; dz++) {
@@ -306,7 +354,7 @@ public final class RivalDirector {
 
     private static void placeBarricades(ServerWorld w, Company c, State s) {
         s.barriers.clear();
-        int[][] walls = {{-4, 8, 2, 6}, {30, 8, 2, 6}, {59, -22, 6, 2}};     // x, z, width(x), depth(z)
+        int[][] walls = {{-4, 0, 2, 9}, {30, 13, 2, 9}, {52, -22, 7, 2}};     // x, z, width(x), depth(z)
         for (int[] wl : walls) {
             for (int dx = 0; dx < wl[2]; dx++) {
                 for (int dz = 0; dz < wl[3]; dz++) {
@@ -320,7 +368,7 @@ public final class RivalDirector {
                 }
             }
         }
-        w.playSound(null, CityBuilder.pos(c, 0, 0, 10), SoundEvents.BLOCK_ANVIL_PLACE, SoundCategory.BLOCKS, 2f, 0.6f);
+        w.playSound(null, CityBuilder.pos(c, 0, 0, 5), SoundEvents.BLOCK_ANVIL_PLACE, SoundCategory.BLOCKS, 2f, 0.6f);
     }
 
     private static void removeBlocks(ServerWorld w, List<BlockPos> list, Block block) {
@@ -360,15 +408,15 @@ public final class RivalDirector {
                 say("Level " + u.target + "?! Itni jaldi? Ruk ja {p}... ab dekh mera agla daav!".replace("{p}", p.getGameProfile().getName()));
             }
             case LEVEL5 -> {
-                s.pendingAt = c.cityTick + 20 * 9;
+                s.pendingAt = c.cityTick + 20 * 5;
                 s.pendingLevel = 5;
                 say("FLYING ROADSTER?! Mere engine ko takkar dega udhne wali gaadi se?! Ruk, main Monster Truck nikalta hoon!");
             }
             case HYDRAULICS -> p.sendMessage(Text.literal("Jump Hydraulics + Armor Tires fitted: press SPACE to hop, and spikes get crushed.").formatted(Formatting.AQUA), false);
             case SOLAR -> p.sendMessage(Text.literal("Tesla Solar Roof + MegaPack online: the neon is back!").formatted(Formatting.AQUA), false);
             case RAM -> p.sendMessage(Text.literal("Beast Ram Mode unlocked. Drive the Cybertruck, press V, and smash 2 roadblocks.").formatted(Formatting.AQUA), false);
-            case STARLINK, TERMINAL -> p.sendMessage(Text.literal("Installed. Finish the set: Starlink + Robotaxi Terminal + " + Company.BILLBOARDS_NEEDED + " billboards.").formatted(Formatting.AQUA), false);
-            case BILLBOARDS -> p.sendMessage(Text.literal("Marketing pack ready: right-click empty billboard boards around the city.").formatted(Formatting.AQUA), false);
+            case STARLINK -> p.sendMessage(Text.literal("Starlink dish installed. Finish the GPS counter: Billboard pack + " + Company.BILLBOARDS_NEEDED + " billboards put up around the city.").formatted(Formatting.AQUA), false);
+            case BILLBOARDS -> p.sendMessage(Text.literal("Marketing pack ready: drive out to the billboards on the highway turns around the city and right-click them.").formatted(Formatting.AQUA), false);
             default -> {
             }
         }
@@ -462,65 +510,352 @@ public final class RivalDirector {
 
     private static final Map<UUID, Long> lastSmash = new HashMap<>();
 
-    // ============================================================================================================ climax
-    private static void startClimax(ServerWorld w, Company c, ServerPlayerEntity p, State s, boolean fromRetry) {
+    // ============================================================================================================ the finale
+    /** The helipad centre (world), where the red Flying Roadster waits. */
+    private static Vec3d helipad(Company c) {
+        return CityBuilder.vec(c, PAD_X + 0.5, FLOOR_H * 5 + 1.0, HELI_Z + 0.5);
+    }
+
+    /** Where the lobby launch pad puts you: the roof, four blocks from the Roadster. */
+    private static Vec3d landing(Company c) {
+        return CityBuilder.vec(c, PAD_X - 3.5, FLOOR_H * 5 + 1.0, HELI_Z + 2.5);
+    }
+
+    private static boolean onRoof(Company c, ServerPlayerEntity p) {
+        double lx = p.getX() - c.origin.getX();
+        double lz = p.getZ() - c.origin.getZ();
+        double ly = p.getY() - c.origin.getY();
+        return ly >= FLOOR_H * 5 + 0.6 && ly < FLOOR_H * 5 + 14 && lx > SX0 && lx < SX1 && lz > SZ0 && lz < SZ1;
+    }
+
+    /** The red Roadster waits on the rooftop helipad, fuelled and ready (one only). */
+    private static void spawnRoadster(ServerWorld w, Company c) {
+        Vec3d pad = helipad(c);
+        for (VehicleEntity old : w.getEntitiesByClass(VehicleEntity.class, new Box(pad.x - 16, pad.y - 3, pad.z - 16, pad.x + 16, pad.y + 8, pad.z + 16),
+                e -> e.spec == VehicleSpecs.ROADSTER)) {
+            if (old.getPassengerList().isEmpty()) {
+                old.discard();
+            } else {
+                return;
+            }
+        }
+        VehicleEntity car = new VehicleEntity(ModEntities.vehicle(VehicleSpecs.ROADSTER), w);
+        car.setMode(VehicleEntity.MODE_DRIVEN);
+        car.setOwner(c.owner);
+        ShowroomDirector.applyUpgrades(car, c);
+        car.refreshPositionAndAngles(pad.x, pad.y, pad.z, 180f, 0f);
+        w.spawnEntity(car);
+        w.spawnParticles(ParticleTypes.END_ROD, pad.x, pad.y + 1, pad.z, 40, 1.4, 0.8, 1.4, 0.04);
+    }
+
+    /** Level 5 is unlocked: the alarm sounds, the gate slams shut and Gotiya rams it with the Monster Truck. */
+    private static void startAlarm(ServerWorld w, Company c, ServerPlayerEntity p, State s, boolean resume) {
+        Tycoon.log("[rival] the alarm sounds" + (resume ? " (resumed)" : ""));
+        s.alarm = true;
+        s.climax = false;
+        s.defeated = false;
+        s.victoryAt = -1;
+        s.alarmStart = c.cityTick;
+        s.ramPhase = 0;
+        s.ramSince = c.cityTick;
+        s.ramCount = 0;
+        s.battleAt = -1;
+        s.onRoof = false;
+        s.lifting = false;
+        s.nextBoast = c.cityTick + 200;
+        s.boasts = 0;
+        c.sabTriggered |= 1 << 5;
+        c.climaxHp = 100;
+        c.climaxWon = false;
+        killClimaxEntities(w, c, s);
+        ShowroomDirector.clearCustomers(w, c);
+        CityBuilder.setGate(w, c, true, () -> {
+            Vec3d g = CityBuilder.vec(c, -32, 3, GATE_Z);
+            w.playSound(null, g.x, g.y, g.z, SoundEvents.BLOCK_IRON_DOOR_CLOSE, SoundCategory.BLOCKS, 4f, 0.5f);
+            w.playSound(null, g.x, g.y, g.z, SoundEvents.BLOCK_ANVIL_LAND, SoundCategory.BLOCKS, 3f, 0.6f);
+        });
+        spawnRoadster(w, c);
+        VehicleEntity truck = spawnChargeTruck(w, c);
+        s.truck = truck.getUuid();
+        s.lastTruckPos = null;
+        s.stuckSecs = 0;
+        w.playSound(null, truck.getX(), truck.getY(), truck.getZ(), SoundEvents.ENTITY_RAVAGER_ROAR, SoundCategory.HOSTILE, 3f, 0.5f);
+        if (p != null) {
+            p.networkHandler.sendPacket(new TitleFadeS2CPacket(5, 70, 20));
+            p.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal("Gotiya is ramming the gate - take the lobby launch pad up to the roof!").formatted(Formatting.YELLOW)));
+            p.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("SECURITY ALARM").formatted(Formatting.RED, Formatting.BOLD)));
+            p.sendMessage(Text.literal("ALARM! ").formatted(Formatting.RED, Formatting.BOLD)
+                    .append(Text.literal("Step on the glowing launch pad in the showroom lobby: it shoots you up to the rooftop helipad where the red Flying Roadster is fuelled and waiting.").formatted(Formatting.WHITE)), false);
+            Tycoon.sync(p, c);
+        }
+    }
+
+    /** The siren, the flashing beacons, the gate's dents mending. */
+    private static void alarmTick(ServerWorld w, Company c, ServerPlayerEntity p, State s) {
+        long now = c.cityTick;
+        Vec3d centre = CityBuilder.vec(c, -35, 6, -10);
+        if (now % 10 == 0) {
+            boolean on = (now / 10) % 2 == 0;
+            for (int[] b : Buildings.alarmLights(c.level)) {
+                BlockPos bp = CityBuilder.pos(c, b[0], b[1], b[2]);
+                BlockState st = w.getBlockState(bp);
+                if (st.isOf(ModBlocks.NEON)) {
+                    w.setBlockState(bp, st.with(com.anant.teslatycoon.block.NeonBlock.LIT, on), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+                }
+            }
+            if (on) {
+                w.spawnParticles(new net.minecraft.particle.DustParticleEffect(new org.joml.Vector3f(1f, 0.1f, 0.1f), 2.2f), centre.x, centre.y + 28, centre.z, 6, 14, 3, 10, 0.0);
+            }
+        }
+        int period = now - s.alarmStart > 20 * 90 ? 80 : 40;
+        if (now % period == 0) {
+            w.playSound(null, centre.x, centre.y, centre.z, net.minecraft.sound.SoundEvents.BLOCK_NOTE_BLOCK_BIT.value(), SoundCategory.HOSTILE, 5f, 1.5f);
+        } else if (now % period == 12) {
+            w.playSound(null, centre.x, centre.y, centre.z, net.minecraft.sound.SoundEvents.BLOCK_NOTE_BLOCK_BIT.value(), SoundCategory.HOSTILE, 5f, 0.95f);
+        }
+        Iterator<Dent> it = s.dents.iterator();
+        while (it.hasNext()) {
+            Dent d = it.next();
+            if (now >= d.restoreAt) {
+                if (w.getBlockState(d.pos).isAir()) {
+                    w.setBlockState(d.pos, d.state, Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+                }
+                it.remove();
+            }
+        }
+    }
+
+    /** Phase 1: the Monster Truck charges the gate, bounces off, backs up and charges again; nothing is damaged. */
+    private static void gateRamTick(ServerWorld w, Company c, ServerPlayerEntity p, State s) {
+        long now = c.cityTick;
+        // the rooftop: the real attack starts a moment after the player gets there
+        if (s.battleAt < 0 && onRoof(c, p)) {
+            s.onRoof = true;
+            s.battleAt = now + 70;
+            say("Oye! Chhat pe chadh gaya? Ab dekh {p}, gate toota ki toota!".replace("{p}", p.getGameProfile().getName()));
+            p.networkHandler.sendPacket(new TitleFadeS2CPacket(5, 40, 15));
+            p.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal("Mount the Roadster: right-click it, SPACE = thrusters").formatted(Formatting.YELLOW)));
+            p.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("ROOFTOP HELIPAD").formatted(Formatting.AQUA, Formatting.BOLD)));
+        }
+        if (s.battleAt >= 0 && now >= s.battleAt) {
+            startBattle(w, c, p, s, false);
+            return;
+        }
+        Entity te = s.truck == null ? null : w.getEntity(s.truck);
+        if (!(te instanceof VehicleEntity truck) || !truck.isAlive()) {
+            VehicleEntity nt = spawnChargeTruck(w, c);
+            s.truck = nt.getUuid();
+            s.ramPhase = 0;
+            s.ramSince = now;
+            return;
+        }
+        double lz = truck.getZ() - c.origin.getZ();
+        double lx = truck.getX() - c.origin.getX();
+        long since = now - s.ramSince;
+        switch (s.ramPhase) {
+            case 0 -> {
+                boolean atGate = lz < 3.6 && lz > -4 && lx > GATE_X0 - 4 && lx < GATE_X1 + 4;
+                if (atGate && since > 20) {
+                    ramGate(w, c, s, truck);
+                    s.ramPhase = 1;
+                    s.ramSince = now;
+                    truck.stopHard();
+                    VehicleEntity.Ai back = new VehicleEntity.Ai();
+                    back.points.add(CityBuilder.vec(c, lx, 1.0, 14.0));
+                    back.reverse = 48;
+                    back.stopAtEnd = true;
+                    back.cruise = 0.5;
+                    truck.setAi(back);
+                } else if (since > 20 * 45) {
+                    // stuck somewhere: back to the staging point
+                    Vec3d at = CityBuilder.vec(c, -39.5, 1.0, 16.0);
+                    truck.refreshPositionAndAngles(at.x, at.y, at.z, 180f, 0f);
+                    truck.stopHard();
+                    truck.setAi(rushGate(c, -39.5));
+                    s.ramSince = now;
+                }
+            }
+            case 1 -> {
+                if (since > 56) {
+                    s.ramPhase = 2;
+                    s.ramSince = now;
+                    truck.stopHard();
+                    truck.setAi(null);
+                    truck.setMode(VehicleEntity.MODE_AI);
+                }
+            }
+            default -> {
+                if (since > 20 * 3) {
+                    s.ramPhase = 0;
+                    s.ramSince = now;
+                    truck.setAi(rushGate(c, -42.0 + w.random.nextInt(9)));
+                    w.playSound(null, truck.getX(), truck.getY(), truck.getZ(), SoundEvents.ENTITY_RAVAGER_ROAR, SoundCategory.HOSTILE, 3f, 0.6f);
+                }
+            }
+        }
+        if (now >= s.nextBoast) {
+            say(GotiyaChat.truckBoast(p.getGameProfile().getName(), s.boasts++));
+            s.nextBoast = now + 20 * 14;
+        }
+        if (now % 6 == 0) {
+            w.spawnParticles(ParticleTypes.LARGE_SMOKE, truck.getX(), truck.getY() + 1.2, truck.getZ(), 2, 0.4, 0.2, 0.4, 0.01);
+        }
+    }
+
+    /** A short run at the gate from wherever the truck stands on the boulevard. */
+    private static VehicleEntity.Ai rushGate(Company c, double x) {
+        VehicleEntity.Ai ai = new VehicleEntity.Ai();
+        ai.points.add(CityBuilder.vec(c, x, 1.0, 8.0));
+        ai.points.add(CityBuilder.vec(c, x, 1.0, 1.0));
+        ai.points.add(CityBuilder.vec(c, x, 1.0, -3.0));
+        ai.cruise = 0.9;
+        ai.arrive = 2.6;
+        ai.stopAtEnd = false;
+        return ai;
+    }
+
+    /** The truck hits the gate: shock, sparks, a few bars blown out and mended again (no damage to anything). */
+    private static void ramGate(ServerWorld w, Company c, State s, VehicleEntity truck) {
+        s.ramCount++;
+        Tycoon.log("[rival] the monster truck rams the gate (" + s.ramCount + ")");
+        Vec3d hit = new Vec3d(truck.getX(), truck.getY() + 2, c.origin.getZ() + 0.2);
+        w.playSound(null, hit.x, hit.y, hit.z, SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.HOSTILE, 3f, 1.4f);
+        w.playSound(null, hit.x, hit.y, hit.z, SoundEvents.BLOCK_ANVIL_LAND, SoundCategory.HOSTILE, 3f, 0.5f);
+        w.spawnParticles(ParticleTypes.EXPLOSION, hit.x, hit.y, hit.z, 4, 1.5, 1.0, 0.5, 0.0);
+        w.spawnParticles(ParticleTypes.ELECTRIC_SPARK, hit.x, hit.y, hit.z, 70, 2.5, 1.5, 0.6, 0.4);
+        w.spawnParticles(ParticleTypes.LAVA, hit.x, hit.y, hit.z, 16, 2.0, 1.0, 0.5, 0.0);
+        for (int i = 0; i < 7; i++) {
+            BlockPos b = CityBuilder.pos(c, Math.floor(truck.getX() - c.origin.getX()) - 3 + w.random.nextInt(7), 2 + w.random.nextInt(4), GATE_Z);
+            BlockState st = w.getBlockState(b);
+            if (st.isOf(Blocks.IRON_BARS)) {
+                s.dents.add(new Dent(b, st, c.cityTick + 25 + w.random.nextInt(15)));
+                w.setBlockState(b, Blocks.AIR.getDefaultState(), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+            }
+        }
+    }
+
+    /**
+     * Phase 2, started by the player's visit to the roof: the gate shatters, the Monster Truck charges the showroom, the Roadster
+     * (already on the helipad) is the only way to stop it: right-click it, SPACE for the thrusters, R for the EMP.
+     */
+    private static void startBattle(ServerWorld w, Company c, ServerPlayerEntity p, State s, boolean fromRetry) {
+        Tycoon.log("[rival] the battle starts");
+        s.alarm = false;
         s.climax = true;
         s.defeated = false;
         s.phase = 0;
         s.hitCooldown = 40;
         s.victoryAt = -1;
         s.climaxStart = c.cityTick;
-        s.nextBoast = c.cityTick + 100;
+        s.nextBoast = c.cityTick + 120;
         s.boasts = 0;
+        s.battleAt = -1;
         c.climaxHp = 100;
         c.climaxWon = false;
         c.sabTriggered |= 1 << 5;
-        killClimaxEntities(w, c, s);
-        // the player and a fresh Flying Roadster on the rooftop launchpad
-        Vec3d pad = CityBuilder.vec(c, PAD_X + 0.5, FLOOR_H * 5 + 1.0, -21.5);
-        for (VehicleEntity old : w.getEntitiesByClass(VehicleEntity.class, new Box(pad.x - 14, pad.y - 3, pad.z - 14, pad.x + 14, pad.y + 6, pad.z + 14),
-                e -> e.spec == VehicleSpecs.ROADSTER && e.getMode() == VehicleEntity.MODE_DRIVEN)) {
-            old.discard();
+        spawnRoadster(w, c);
+        if (fromRetry) {
+            p.stopRiding();
+            Vec3d at = landing(c);
+            p.teleport(w, at.x, at.y + 0.2, at.z, 90f, 12f);
         }
-        p.stopRiding();
-        VehicleEntity car = new VehicleEntity(ModEntities.vehicle(VehicleSpecs.ROADSTER), w);
-        car.setMode(VehicleEntity.MODE_DRIVEN);
-        car.setOwner(c.owner);
-        ShowroomDirector.applyUpgrades(car, c);
-        car.refreshPositionAndAngles(pad.x, pad.y, pad.z, 0f, 0f);
-        w.spawnEntity(car);
-        p.teleport(w, pad.x, pad.y + 0.2, pad.z, 0f, 15f);
-        p.startRiding(car, true);
-        // Seth Gotiya's Monster Truck leaves his garage and charges the showroom
-        VehicleEntity truck = spawnChargeTruck(w, c);
-        s.truck = truck.getUuid();
+        CityBuilder.breakGate(w, c, null);
+        Vec3d g = CityBuilder.vec(c, -38, 3, GATE_Z);
+        w.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, g.x, g.y, g.z, 3, 8.0, 1.5, 1.0, 0.0);
+        w.spawnParticles(new net.minecraft.particle.BlockStateParticleEffect(ParticleTypes.BLOCK, Blocks.IRON_BARS.getDefaultState()), g.x, g.y, g.z, 90, 9.0, 2.0, 0.8, 0.2);
+        w.playSound(null, g.x, g.y, g.z, SoundEvents.ENTITY_GENERIC_EXPLODE, SoundCategory.HOSTILE, 5f, 0.6f);
+        w.playSound(null, g.x, g.y, g.z, SoundEvents.BLOCK_IRON_DOOR_OPEN, SoundCategory.HOSTILE, 4f, 0.5f);
+        Entity te = s.truck == null ? null : w.getEntity(s.truck);
+        VehicleEntity truck;
+        if (te instanceof VehicleEntity t && t.isAlive() && !fromRetry) {
+            truck = t;
+            truck.setFlag(VehicleEntity.F_DISABLED, false);
+            truck.setAi(attackRoute(c));
+        } else {
+            killClimaxEntities(w, c, s);
+            truck = spawnChargeTruck(w, c);
+            truck.setAi(chargeRoute(c));
+            s.truck = truck.getUuid();
+        }
         s.phaseSince = c.cityTick;
         s.lastTruckPos = null;
         s.stuckSecs = 0;
         w.playSound(null, truck.getX(), truck.getY(), truck.getZ(), SoundEvents.ENTITY_RAVAGER_ROAR, SoundCategory.HOSTILE, 3f, 0.5f);
-        p.sendMessage(Text.literal("LAUNCH! Hold SPACE to ignite the thrusters, fly at the truck and press R for the EMP shockwave!").formatted(Formatting.RED, Formatting.BOLD), false);
+        p.networkHandler.sendPacket(new TitleFadeS2CPacket(5, 60, 15));
+        p.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal("Right-click the Roadster, hold SPACE for the thrusters, press R for the EMP").formatted(Formatting.YELLOW)));
+        p.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("THE GATE IS DOWN!").formatted(Formatting.RED, Formatting.BOLD)));
         if (fromRetry) {
             p.sendMessage(Text.literal("Scene restarted cleanly.").formatted(Formatting.GREEN), true);
         }
+        Tycoon.sync(p, c);
     }
 
-    /** Gotiya's garage door (local x = -39.5) is where the Monster Truck starts; the driveway to the road has no poles in the way. */
+    /** The lobby launch pad: stand on it and a high-speed lift shoots you through the glass shaft to the rooftop helipad. */
+    private static void liftTick(ServerWorld w, Company c, ServerPlayerEntity p, State s) {
+        double lx = p.getX() - c.origin.getX();
+        double ly = p.getY() - c.origin.getY();
+        double lz = p.getZ() - c.origin.getZ();
+        if (s.lifting) {
+            s.liftTicks++;
+            Vec3d at = CityBuilder.vec(c, LIFT_X + 0.5, 0, LIFT_Z + 0.5);
+            double ddx = (at.x - p.getX()) * 0.25;
+            double ddz = (at.z - p.getZ()) * 0.25;
+            p.setVelocity(ddx, 1.05, ddz);
+            p.velocityModified = true;
+            p.fallDistance = 0f;
+            w.spawnParticles(ParticleTypes.END_ROD, p.getX(), p.getY(), p.getZ(), 4, 0.5, 0.1, 0.5, 0.02);
+            w.spawnParticles(ParticleTypes.CLOUD, p.getX(), p.getY() - 0.5, p.getZ(), 2, 0.4, 0.1, 0.4, 0.0);
+            if (ly >= FLOOR_H * 5 - 1.8 || s.liftTicks > 60 || p.getVehicle() != null) {
+                s.lifting = false;
+                Vec3d land = landing(c);
+                p.setVelocity(Vec3d.ZERO);
+                p.velocityModified = true;
+                p.teleport(w, land.x, land.y, land.z, 90f, 12f);
+                p.fallDistance = 0f;
+                p.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.SLOW_FALLING, 100, 0, false, false));
+                w.playSound(null, land.x, land.y, land.z, SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 1.2f, 1.6f);
+                w.spawnParticles(ParticleTypes.FIREWORK, land.x, land.y, land.z, 30, 1.0, 0.6, 1.0, 0.1);
+                p.sendMessage(Text.literal("Rooftop helipad. The red Flying Roadster is fuelled: right-click it.").formatted(Formatting.AQUA), true);
+            }
+            return;
+        }
+        boolean onPad = Math.abs(lx - (LIFT_X + 0.5)) < 1.45 && Math.abs(lz - (LIFT_Z + 0.5)) < 1.45 && ly >= 0.9 && ly < 2.6 && p.getVehicle() == null;
+        if (!onPad) {
+            s.liftCharge = 0;
+            return;
+        }
+        s.liftCharge++;
+        if (s.liftCharge == 3) {
+            w.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.BLOCK_BEACON_POWER_SELECT, SoundCategory.PLAYERS, 1.5f, 1.6f);
+        }
+        if (s.liftCharge >= 14) {
+            s.liftCharge = 0;
+            s.lifting = true;
+            s.liftTicks = 0;
+            w.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ENTITY_FIREWORK_ROCKET_LAUNCH, SoundCategory.PLAYERS, 2f, 0.6f);
+            w.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.BLOCK_PISTON_EXTEND, SoundCategory.PLAYERS, 2f, 0.5f);
+        }
+    }
+
+    /** Gotiya's garage door: the Monster Truck starts inside, drives out over the forecourt and across the boulevard to the gate. */
     public static VehicleEntity spawnChargeTruck(ServerWorld w, Company c) {
         VehicleEntity truck = new VehicleEntity(ModEntities.vehicle(VehicleSpecs.GOTIYA), w);
         truck.setOwner(c.owner);
-        Vec3d start = CityBuilder.vec(c, -39.5, 1.0, 38.0);
+        Vec3d start = CityBuilder.vec(c, -39.5, 1.0, 46.0);
         truck.refreshPositionAndAngles(start.x, start.y, start.z, 180f, 0f);
         truck.setAi(chargeRoute(c));
         w.spawnEntity(truck);
         return truck;
     }
 
-    /** Out of the garage and across the forecourt through the open driveway, over the road and in through the showroom entrance. */
+    /** Out of the garage, over the forecourt and the south pavement, across the boulevard (through the gap in the median) to the gate. */
     public static VehicleEntity.Ai chargeRoute(Company c) {
         VehicleEntity.Ai ai = new VehicleEntity.Ai();
+        ai.points.add(CityBuilder.vec(c, -39.5, 1.0, 36.0));
         ai.points.add(CityBuilder.vec(c, -39.5, 1.0, 26.0));
-        ai.points.add(CityBuilder.vec(c, -39.5, 1.0, 15.0));
-        ai.points.add(CityBuilder.vec(c, -44.2, 1.0, 5.0));
+        ai.points.add(CityBuilder.vec(c, -40.0, 1.0, 15.0));
+        ai.points.add(CityBuilder.vec(c, -42.0, 1.0, 5.0));
+        ai.points.add(CityBuilder.vec(c, -44.2, 1.0, -3.0));
         ai.points.add(CityBuilder.vec(c, -44.2, 1.0, -12.0));
         ai.cruise = 0.92;
         ai.arrive = 3.0;
@@ -528,10 +863,11 @@ public final class RivalDirector {
         return ai;
     }
 
-    /** The last stretch only: used after a retreat, and when the truck had to be put back on the road. */
+    /** The last stretch only (through the hole in the gate): used after a retreat, and when the truck had to be put back on the road. */
     public static VehicleEntity.Ai attackRoute(Company c) {
         VehicleEntity.Ai ai = new VehicleEntity.Ai();
         ai.points.add(CityBuilder.vec(c, -44.2, 1.0, 5.0));
+        ai.points.add(CityBuilder.vec(c, -44.2, 1.0, -3.0));
         ai.points.add(CityBuilder.vec(c, -44.2, 1.0, -12.0));
         ai.cruise = 0.92;
         ai.arrive = 3.0;
@@ -539,12 +875,12 @@ public final class RivalDirector {
         return ai;
     }
 
+    /** After a hit on the showroom the truck backs straight up for a few blocks, then charges again. */
     private static VehicleEntity.Ai retreatRoute(Company c) {
         VehicleEntity.Ai ai = new VehicleEntity.Ai();
-        ai.points.add(CityBuilder.vec(c, -44.2, 1.0, 10.0));
-        ai.points.add(CityBuilder.vec(c, -44.2, 1.0, 10.5));
+        ai.points.add(CityBuilder.vec(c, -44.2, 1.0, 12.0));
+        ai.reverse = 55;
         ai.cruise = 0.7;
-        ai.arrive = 3.0;
         ai.stopAtEnd = true;
         return ai;
     }
@@ -563,12 +899,26 @@ public final class RivalDirector {
         }
     }
 
+    /** The finale is over: the beacons go dark, the security gate opens again. */
+    private static void endFinale(ServerWorld w, Company c) {
+        for (int[] b : Buildings.alarmLights(c.level)) {
+            BlockPos bp = CityBuilder.pos(c, b[0], b[1], b[2]);
+            BlockState st = w.getBlockState(bp);
+            if (st.isOf(ModBlocks.NEON)) {
+                w.setBlockState(bp, st.with(com.anant.teslatycoon.block.NeonBlock.LIT, !c.powerOut), Block.NOTIFY_LISTENERS | Block.FORCE_STATE);
+            }
+        }
+        CityBuilder.setGate(w, c, false, null);
+    }
+
     private static void climaxTick(ServerWorld w, Company c, ServerPlayerEntity p, State s) {
         Entity te = s.truck == null ? null : w.getEntity(s.truck);
         long now = c.cityTick;
         if (s.victoryAt >= 0) {
             if (now >= s.victoryAt) {
                 s.climax = false;
+                s.alarm = false;
+                endFinale(w, c);
                 if (te != null) {
                     w.spawnParticles(ParticleTypes.POOF, te.getX(), te.getY() + 1, te.getZ(), 40, 1.5, 1, 1.5, 0.05);
                     te.discard();
@@ -634,7 +984,7 @@ public final class RivalDirector {
             if (s.stuckSecs >= 3) {
                 s.stuckSecs = 0;
                 Tycoon.log("[rival] the monster truck was stuck at " + truck.getBlockPos().toShortString() + ", back on the road");
-                Vec3d back = CityBuilder.vec(c, -44.2, 1.0, 8.0);
+                Vec3d back = CityBuilder.vec(c, -44.2, 1.0, 10.0);
                 truck.refreshPositionAndAngles(back.x, back.y, back.z, 180f, 0f);
                 truck.stopHard();
                 truck.setAi(attackRoute(c));
@@ -747,6 +1097,11 @@ public final class RivalDirector {
 
     // ============================================================================================================ #retryscene
     public static void retryScene(ServerPlayerEntity p) {
+        retryScene(p, false);
+    }
+
+    /** {@code full}: also replay the alarm and the lift (otherwise the battle restarts straight away on the roof). */
+    public static void retryScene(ServerPlayerEntity p, boolean full) {
         Company c = Tycoon.companyOf(p);
         if (c == null || !c.cityBuilt) {
             p.sendMessage(Text.literal("Build your city first: /tycoon start").formatted(Formatting.RED), false);
@@ -763,12 +1118,22 @@ public final class RivalDirector {
         s.pendingAt = -1;
         killClimaxEntities(w, c, s);
         s.climax = false;
+        s.alarm = false;
+        s.lifting = false;
+        s.battleAt = -1;
+        s.dents.clear();
         c.climaxHp = 100;
         c.climaxWon = false;
         boolean finale = c.level >= 5;
+        if (finale) {
+            c.gateClosed = true;                    // the rebuild puts the intact gate back
+            c.gateBroken = false;
+        }
         CityBuilder.rebuildAll(p, c, () -> {
-            if (finale) {
-                startClimax(w, c, p, s, true);
+            if (finale && full) {
+                startAlarm(w, c, p, s, false);
+            } else if (finale) {
+                startBattle(w, c, p, s, true);
             } else {
                 c.sabTriggered &= ~(1 << c.level);
                 s.seen = 0;

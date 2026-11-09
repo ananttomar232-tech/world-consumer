@@ -339,7 +339,7 @@ def lang():
     L["itemGroup.tesla_tycoon"] = "Tesla Tycoon"
     L["item.tesla_tycoon.wall_poster"] = "Luxury Wall Poster"
     for k, v in {"asphalt": "Asphalt", "neon": "Neon Panel", "road_spikes": "Gotiya's Road Spikes", "concrete_barrier": "Gotiya's Concrete Roadblock",
-                 "billboard_panel": "Billboard Board", "shop_terminal": "Upgrade Shop Terminal", "robotaxi_terminal": "Robotaxi Terminal",
+                 "billboard_panel": "Billboard Board", "shop_terminal": "Upgrade Depot Terminal", "robotaxi_terminal": "Robotaxi Terminal",
                  "delivery_crate": "Tesla Delivery Crate", "megapack": "Tesla MegaPack", "starlink_dish": "Starlink Satellite Dish"}.items():
         L["block.tesla_tycoon.%s" % k] = v
     names = {"tesla_classic": "Tesla Classic Compact", "tesla_model3": "Tesla Model 3 (Autopilot Sedan)", "tesla_cybertruck": "Armored Tesla Cybertruck",
@@ -355,29 +355,28 @@ def lang():
     L["key.categories.tesla_tycoon"] = "Tesla Tycoon"
     L["key.tesla_tycoon.ram"] = "Beast Ram Mode (Cybertruck)"
     L["key.tesla_tycoon.emp"] = "Fire EMP Shockwave (Roadster)"
-    L["key.tesla_tycoon.shop"] = "Open the Upgrade Shop"
+    L["key.tesla_tycoon.shop"] = "Open the Upgrade Depot"
     L["key.tesla_tycoon.guide"] = "Show / hide the guide"
     up = {
         "hydraulics": ("Jump Hydraulics + Armor Tires", "Counter to Gotiya's road spikes. SPACE makes any car hop, and armored tires crush the spikes instead of puncturing."),
         "level2": ("Showroom Level 2: Tesla Model 3", "Adds a glass floor. The Model 3 (Autopilot Sedan) takes the ground floor; the Classic Compact moves up."),
-        "solar": ("Tesla Solar Roof + MegaPack", "Counter to the blackout: brings the neon back, adds solar panels and MegaPacks. +20% income."),
+        "solar": ("Tesla Solar Roof + MegaPack", "Counter to the blackout: brings the neon back and adds solar panels and MegaPacks."),
         "level3": ("Showroom Level 3: Armored Cybertruck", "Adds a glass floor and unlocks the Armored Cybertruck."),
         "ram": ("Beast Ram Mode Module", "Counter to Gotiya's roadblocks: press V in the Cybertruck, then smash 2 concrete roadblocks."),
-        "level4": ("Showroom Level 4: Cybercab Robotaxi", "Adds a glass floor and unlocks the Autonomous Cybercab."),
-        "starlink": ("Starlink Satellite Dish", "Part 1 of the GPS counter: a dish on the roof. +10% income."),
-        "terminal": ("Robotaxi Terminal", "Part 2 of the GPS counter: a fleet kiosk next to the bay. +25% income."),
-        "billboards": ("Billboard Marketing Pack", "Part 3 of the GPS counter: right-click empty city billboards to run the Anant Tesla ad (+6% income each, 3 needed)."),
-        "level5": ("Showroom Level 5: Flying Roadster", "The finale: unlocks the Flying SpaceX Roadster, its rooftop launchpad and the EMP shockwave (R)."),
+        "level4": ("Showroom Level 4: Cybercab Robotaxi Network", "Adds a glass floor, the Robotaxi Terminal and 4 autonomous Cybercabs that loop the whole city and carry passengers between the sidewalk stations."),
+        "starlink": ("Starlink Satellite Dish", "Part 1 of the GPS counter: a dish on the roof."),
+        "billboards": ("Billboard Marketing Pack", "Part 2 of the GPS counter: right-click empty billboards on the highway turns around the city to run the Anant Tesla ad (+6% income each, 3 needed)."),
+        "level5": ("Showroom Level 5: Flying Roadster", "The finale: unlocks the Flying SpaceX Roadster on the rooftop helipad, the lobby launch pad and the EMP shockwave (R)."),
         "posters": ("Luxury Wall Poster x4", "Four wall posters to decorate the showroom walls and glass pillars."),
     }
     for k, (n, dsc) in up.items():
         L["upgrade.tesla_tycoon.%s" % k] = n
         L["upgrade.tesla_tycoon.%s.desc" % k] = dsc
-    L["screen.tesla_tycoon.shop"] = "TYCOON UPGRADE SHOP"
+    L["screen.tesla_tycoon.shop"] = "UPGRADE DEPOT"
     L["screen.tesla_tycoon.shop_sub"] = "Buy counters to Seth Gotiya's sabotage, upgrade the showroom floor by floor"
     L["hud.tesla_tycoon.level"] = "Showroom Lv.%s - %s"
     L["hud.tesla_tycoon.next"] = "Next: %s - $%s"
-    L["hud.tesla_tycoon.shop_hint"] = "Press B (or use the Shop Terminal) to buy!"
+    L["hud.tesla_tycoon.shop_hint"] = "Press B (or use the Depot Terminal) to buy!"
     L["hud.tesla_tycoon.guide_title"] = "GUIDE  -  press Right Shift to hide"
     L["hud.tesla_tycoon.blackout"] = "BLACKOUT: neon is down"
     L["hud.tesla_tycoon.showroom_hp"] = "Showroom %s%%"
@@ -390,11 +389,15 @@ def lang():
     s = {1: ("GOTIYA'S ROAD SPIKES on the road!", "Buy Jump Hydraulics + Armor Tires (B)"),
          2: ("GOTIYA CUT THE POWER! Neon is dead", "Buy the Tesla Solar Roof + MegaPack (B)"),
          3: ("GOTIYA'S CONCRETE ROADBLOCKS!", "Buy Beast Ram Mode, then smash 2 roadblocks with the Cybertruck (V)"),
-         4: ("GOTIYA JAMMED THE CYBERCAB GPS!", "Buy Starlink + Robotaxi Terminal, then place 3 billboards"),
+         4: ("GOTIYA JAMMED THE CYBERCAB GPS!", "Buy the Starlink dish + Billboard pack, then put up 3 billboards"),
          5: ("MONSTER TRUCK ATTACK ON THE SHOWROOM!", "Fly the Roadster: SPACE thrusters, then R = EMP on the truck")}
     for k, (a, b) in s.items():
         L["hud.tesla_tycoon.sabotage.%d" % k] = a
         L["hud.tesla_tycoon.counter.%d" % k] = b
+    L["hud.tesla_tycoon.alarm.gate"] = "SECURITY ALARM - GOTIYA IS RAMMING THE GATE!"
+    L["hud.tesla_tycoon.alarm.attack"] = "MONSTER TRUCK ATTACK - FLY THE ROADSTER, PRESS R"
+    L["hud.tesla_tycoon.alarm.hint1"] = "Step on the glowing launch pad in the lobby: it takes you to the roof."
+    L["hud.tesla_tycoon.alarm.hint2"] = "Right-click the red Roadster, SPACE = thrusters, R = EMP the truck."
     w(os.path.join(A, "lang/en_us.json"), L)
 
 

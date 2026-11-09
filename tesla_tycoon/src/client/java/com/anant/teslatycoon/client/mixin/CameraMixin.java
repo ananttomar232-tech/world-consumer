@@ -23,6 +23,12 @@ public abstract class CameraMixin {
     @Shadow
     protected abstract void moveBy(double x, double y, double z);
 
+    @Shadow
+    private net.minecraft.util.math.Vec3d pos;
+
+    @Shadow
+    protected abstract void setPos(net.minecraft.util.math.Vec3d pos);
+
     @ModifyArg(method = "update", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/Camera;clipToSpace(D)D"), index = 0)
     private double tesla_tycoon$chaseDistance(double distance) {
         if (focusedEntity != null && focusedEntity.getVehicle() instanceof VehicleEntity v) {
@@ -34,6 +40,11 @@ public abstract class CameraMixin {
     @Inject(method = "update", at = @At("TAIL"))
     private void tesla_tycoon$eyeHeight(BlockView area, Entity focused, boolean thirdPerson, boolean inverseView, float tickDelta, CallbackInfo ci) {
         if (focused.getVehicle() instanceof VehicleEntity v) {
+            // the car climbs a curb in one step; the camera (and only the camera) rises smoothly like on a suspension
+            float smooth = net.minecraft.util.math.MathHelper.lerp(tickDelta, v.prevVisualY, v.visualY);
+            if (Math.abs(smooth) > 0.001f) {
+                setPos(pos.add(0.0, smooth, 0.0));
+            }
             if (thirdPerson) {
                 moveBy(0.0, 0.7 + v.spec.meta.height * 0.25, 0.0);
             } else {

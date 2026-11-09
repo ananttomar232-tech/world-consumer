@@ -74,7 +74,10 @@ public final class TycoonCommand {
                 .then(CommandManager.literal("retry").executes(ctx -> {
                     RivalDirector.retryScene(ctx.getSource().getPlayerOrThrow());
                     return 1;
-                }))
+                }).then(CommandManager.literal("full").executes(ctx -> {
+                    RivalDirector.retryScene(ctx.getSource().getPlayerOrThrow(), true);
+                    return 1;
+                })))
                 .then(CommandManager.literal("rebuild").requires(s -> s.hasPermissionLevel(2)).executes(ctx -> {
                     ServerPlayerEntity p = ctx.getSource().getPlayerOrThrow();
                     Company c = need(ctx.getSource(), p);

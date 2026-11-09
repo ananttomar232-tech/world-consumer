@@ -3,20 +3,20 @@ package com.anant.teslatycoon.game;
 import java.util.List;
 
 /**
- * Everything the Upgrade Shop sells. Costs come from tools/pacing_sim.py: with the planned income every purchase takes
- * 95-115 seconds, so a new upgrade or counter-item is affordable every 1.5 to 2 minutes without grinding.
+ * Everything the Upgrade Depot sells. The level prices are the brief's (1,500 / 10,000 / 50,000 / 250,000); the counter-items
+ * are priced by tools/pacing_sim.py so that an active player (driving, customers, deliveries, robotaxi fares) needs 2 to 3
+ * minutes per showroom level, while an idle one needs about 4.
  */
 public enum Upgrade {
-    HYDRAULICS("hydraulics", 350, Kind.COUNTER, 1, 1),
-    LEVEL2("level2", 550, Kind.LEVEL, 2, 1),
-    SOLAR("solar", 650, Kind.COUNTER, 2, 2),
-    LEVEL3("level3", 1250, Kind.LEVEL, 3, 2),
-    RAM("ram", 1350, Kind.COUNTER, 3, 3),
-    LEVEL4("level4", 2500, Kind.LEVEL, 4, 3),
-    STARLINK("starlink", 2350, Kind.COUNTER, 4, 4),
-    TERMINAL("terminal", 2700, Kind.COUNTER, 4, 4),
-    BILLBOARDS("billboards", 3200, Kind.COUNTER, 4, 4),
-    LEVEL5("level5", 7600, Kind.LEVEL, 5, 4),
+    HYDRAULICS("hydraulics", 250, Kind.COUNTER, 1, 1),
+    LEVEL2("level2", 1_500, Kind.LEVEL, 2, 1),
+    SOLAR("solar", 1_500, Kind.COUNTER, 2, 2),
+    LEVEL3("level3", 10_000, Kind.LEVEL, 3, 2),
+    RAM("ram", 5_000, Kind.COUNTER, 3, 3),
+    LEVEL4("level4", 50_000, Kind.LEVEL, 4, 3),
+    STARLINK("starlink", 25_000, Kind.COUNTER, 4, 4),
+    BILLBOARDS("billboards", 15_000, Kind.COUNTER, 4, 4),
+    LEVEL5("level5", 250_000, Kind.LEVEL, 5, 4),
     POSTERS("posters", 150, Kind.EXTRA, 0, 1);
 
     public enum Kind { LEVEL, COUNTER, EXTRA }
@@ -51,7 +51,7 @@ public enum Upgrade {
             case LEVEL2 -> List.of(HYDRAULICS);
             case LEVEL3 -> List.of(SOLAR);
             case LEVEL4 -> List.of(RAM);
-            case LEVEL5 -> List.of(STARLINK, TERMINAL, BILLBOARDS);
+            case LEVEL5 -> List.of(STARLINK, BILLBOARDS);
             default -> List.of();
         };
     }

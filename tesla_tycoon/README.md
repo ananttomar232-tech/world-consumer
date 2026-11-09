@@ -1,22 +1,50 @@
-# Tesla Tycoon for Fabric 1.20.1
+# Tesla Tycoon for Fabric 1.20.1  -  v2.0.0
 
-Build **Anant Tesla Showroom**, out-sell **Seth Gotiya's Petrol Motors** across the street, survive five rounds of his sabotage
-and fly the SpaceX Roadster off the roof in the finale. The six cars are your uploaded 3D models, the showroom banner,
-billboards and wall posters are your uploaded images (shipped unchanged).
+Build **Anant Tesla Showroom** in a real metropolis, out-sell **Seth Gotiya's Petrol Motors** across the Grand Boulevard, survive his
+sabotage and win the finale in pure **Survival**: alarm, gate, rooftop launch pad, the red Flying SpaceX Roadster, the EMP. The six cars
+are your uploaded 3D models, the showroom banner, billboards and wall posters are your uploaded images (shipped unchanged).
 
 * Minecraft **1.20.1**, Fabric Loader 0.15+, **Fabric API** (0.92.x), Java 17+
-* Jar: `dist/tesla_tycoon-1.0.0.jar` (drop it in `mods/`). In a world type **`/tycoon start`**.
+* Jar: `dist/tesla_tycoon-2.0.0.jar` (drop it in `mods/`). In a world type **`/tycoon start`**.
+
+## What is new in 2.0.0
+* **A real city**: 391 x 371 blocks. Four N-S avenues and six E-W streets (15 wide, with lane lines, centre lines, edge lines, zebra
+  crossings, stop lines and traffic lights at all **24 intersections**; the outer ring is the highway), the **Grand Boulevard** (22 wide,
+  four lanes and a planted median), street trees and neon lamps on every pavement, parks, 10 robotaxi stations, and **80+ skyscrapers**
+  (up to 130 blocks, every one a different shape, with lit windows, glowing corner strips, stepped crowns and antennas) - the tallest on
+  the outer rows, so the horizon is a wall of towers. The district around the showroom is built first (you can play at once); the skyline
+  rises around you in the background (a boss bar shows the progress; it never lags, the build uses ~11 ms per tick and loads chunks ahead
+  with temporary tickets).
+* **Showroom and Gotiya face each other across the boulevard.** The **Upgrade Depot** stands right next door to the showroom.
+  The six **billboards** are on the highway turns, 130-200 blocks from the showroom and far from each other: you have to drive round the
+  city to put the ads up.
+* **ProBoiz-style cash bar**: a dark rounded bar with a glowing green cash stack, `$25,619` (with commas, counting up smoothly), and
+  `+$35/sec` in small green text under it (`x2 DRIVING` while you drive). Nothing else is on screen; Right Shift shows the guide.
+* **Tycoon pacing**: $5 / $35 / $150 / $800 per second at levels 1-4, level prices $1,500 / $10,000 / $50,000 / $250,000. An active player
+  (driving = double income, customers' tips, delivery trucks, robotaxi fares) needs **2 to 3 minutes per level**; standing still takes 4 to 6.
+* **Autonomous robotaxis**: level 4 switches on the Robotaxi Terminal and **4 Cybercabs** that drive closed loops through the whole city
+  and stop at the sidewalk stations to let a passenger out and pick up the next one (fares pay you).
+* **Showroom customers** walk in, go to reception, look at the exhibit on its pad, take that model for a test drive round the block and
+  bring it back to the bay.
+* **Survival finale** (no creative mode): buying level 5 sounds an **alarm** (siren, red flashing beacons, red HUD frame), a security
+  gate slams shut across the pavement and Gotiya's Monster Truck rams it from across the boulevard. Step on the glowing **launch pad** in
+  the lobby: a high-speed lift takes you to the **rooftop helipad**, where the **red Flying Roadster** is fuelled and waiting. Only when
+  you reach the roof does the gate shatter and the real attack begin: right-click the Roadster, **SPACE** for the twin rocket thrusters,
+  **R** for the EMP that disables the truck. `#retryscene` resets the battle instantly (`#retryscene full` replays the alarm and the lift).
+* **Vehicles**: all five cars have a tight **1.6 x 1.4 hit box** (no more getting stuck a block away from curbs and pillars), the body
+  never sinks into the road after a curb (the smoothing is camera-only), and the driver sits upright on the seat with the full torso and
+  the cape visible - the seat back and the rear bench are not drawn while somebody sits in the car.
 
 ## Quick start
 
-1. `/tycoon start` - the city is built around you in a few seconds (never lags: blocks are placed in small per-tick slices) and the
-   time is set to night so the neon shines. You get 2 wall posters.
-2. Customers (suited villagers) walk in **by themselves**, pay at reception, test-drive a car around the ring road and bring it back.
-   A transport truck unloads Tesla crates in the back alley every ~90 s. Income arrives automatically.
+1. `/tycoon start` - the district is built around you in seconds, the skyline follows (time is set to night so the neon shines). You
+   get 2 wall posters and $50.
+2. Customers (suited villagers) walk in **by themselves**, pay at reception, look at the exhibit and test-drive it. A transport truck
+   unloads Tesla crates in the back alley every ~90 s. Income arrives automatically; **driving a company car doubles it**.
 3. **Right-click the rotating exhibit** to test-drive that model yourself (it appears in the glass test-drive bay).
-4. Press **B** (or use the **Shop Terminal** in the Tycoon Upgrade Shop next door) to buy upgrades and counter-items.
-5. The screen stays clean: only your money, income and showroom level are always shown. Press **Right Shift** to show / hide the
-   **guide** (what to buy next, Gotiya's alerts, the key hints of the car you sit in).
+4. Press **B** (or use the **Depot Terminal** in the Upgrade Depot next door) to buy upgrades and counter-items.
+5. The screen stays clean: only the cash bar. Press **Right Shift** to show / hide the **guide** (what to buy next, Gotiya's alerts,
+   the key hints of the car you sit in).
 
 ## Controls
 
@@ -30,37 +58,46 @@ billboards and wall posters are your uploaded images (shipped unchanged).
 | **V** | | | **Beast Ram Mode** on/off (after the Ram module) |
 | **R** | | **EMP shockwave** | |
 | **Shift** | get out (not possible while flying) | | |
-| **B** | open the Upgrade Shop | | |
+| **B** | open the Upgrade Depot | | |
 | **Right Shift** | show / hide the on-screen guide (next purchase, Gotiya's alert, key hints) | | |
 
-`stepHeight` is **1.2** on every vehicle: 1-block curbs, slabs and stair-like inclines are driven over without stopping, and a short
-decaying camera offset hides the step so first- and third-person (F5) views stay smooth. The driver is drawn seated at the cabin's own scale
-(see *Interiors and seated people*) with both hands on a rotating steering wheel and the feet on the floor; the glass is translucent so you can see them.
+`stepHeight` is **1.2** on every vehicle: 1-block curbs, slabs and stair-like inclines are driven over without stopping; a short decaying
+offset of the **camera** (never of the car) hides the step so first- and third-person (F5) views stay smooth. The driver is drawn seated at
+the cabin's own scale (see *Interiors and seated people*) with both hands on a rotating steering wheel and the feet on the floor.
 
-## The story (about 17 minutes, a purchase every 1.5 - 2 minutes)
+## The story (about 12 minutes of active play, 2 to 3 minutes per showroom level)
 
-Costs were solved by `tools/pacing_sim.py` and are checked by a game test. Each *counter* answers one of Gotiya's sabotages.
+Prices and incomes are solved by `tools/pacing_sim.py` and checked by a game test. Each *counter* answers one of Gotiya's sabotages.
 
 | # | You buy | Cost | Gotiya's move | What it does |
 |---|---|---|---|---|
-| 1 | **Jump Hydraulics + Armor Tires** | $350 | **Road puncture spikes** on the road (25 s after the city starts) | SPACE hops; armoured tires crush spikes |
-| 2 | **Showroom Level 2** | $550 | | New glass floor; **Tesla Model 3** on the ground floor, the Compact moves up |
-| 3 | **Tesla Solar Roof + MegaPack** | $650 | **Blackout** - every neon block goes dark, customers stop | Neon power restored, +20% income |
-| 4 | **Showroom Level 3** | $1,250 | | **Armored Cybertruck** |
-| 5 | **Beast Ram Mode Module** | $1,350 | **Concrete roadblocks** on the road | Press V in the Cybertruck, smash 2 roadblocks |
-| 6 | **Showroom Level 4** | $2,500 | | **Cybercab (Robotaxi)** |
-| 7 | **Starlink Satellite Dish** | $2,350 | **Cybercab GPS jammed** (it steers drunk) | +10% income |
-| 8 | **Robotaxi Terminal** | $2,700 | | +25% income |
-| 9 | **Billboard Marketing Pack** | $3,200 | | Right-click empty billboard boards: `city_billboard.png` goes up, **+6% income each**, 3 needed. Gotiya's customers are stolen |
-| 10 | **Showroom Level 5** | $7,600 | **Finale: Gotiya's Monster Truck attacks the showroom** | **Flying Roadster**, rooftop launchpad, EMP |
+| 1 | **Jump Hydraulics + Armor Tires** | $250 | **Road puncture spikes** on the road (25 s after the city starts) | SPACE hops; armoured tires crush spikes |
+| 2 | **Showroom Level 2** | $1,500 | | New glass floor; **Tesla Model 3** on the ground floor, the Compact moves up. **$35/sec** |
+| 3 | **Tesla Solar Roof + MegaPack** | $1,500 | **Blackout** - every neon block goes dark, customers stop | Neon power restored |
+| 4 | **Showroom Level 3** | $10,000 | | **Armored Cybertruck**. **$150/sec** |
+| 5 | **Beast Ram Mode Module** | $5,000 | **Concrete roadblocks** on the boulevard | Press V in the Cybertruck, smash 2 roadblocks |
+| 6 | **Showroom Level 4** | $50,000 | | **Cybercab Robotaxi network**: terminal + 4 autonomous cabs. **$800/sec** |
+| 7 | **Starlink Satellite Dish** | $25,000 | **Cybercab GPS jammed** (it steers drunk) | Part 1 of the GPS counter |
+| 8 | **Billboard Marketing Pack** | $15,000 | | Part 2: drive to the billboards on the highway turns and right-click them: `city_billboard.png` goes up, **+6% income each**, 3 needed |
+| 9 | **Showroom Level 5** | $250,000 | **Finale** (see below) | **Flying Roadster** on the rooftop helipad, the lobby launch pad, the EMP |
 
-*Finale*: you are placed in the Roadster on the rooftop launchpad. Hold **SPACE**, fly at the truck and press **R**: the EMP shockwave
-fries it. Every hit the truck lands smashes glass and costs the showroom 14% - at 0% type **#retryscene**.
+Passive incomes are exactly $5 / $35 / $150 / $800 per second at levels 1-4 (billboards add 6% each); driving a company car doubles the
+rate, a customer's tip is 15 s of income, a delivery 8 s, a robotaxi ride 0.7 s.
+
+### The finale (Survival, no creative mode)
+1. **Level 5 is bought** - alarm: siren, red flashing beacons on the roof and the gate posts, red pulsing frame and banner on the HUD.
+   The security gate closes along the boulevard pavement (it has a 3-wide opening for you, not for a 4.7-wide truck). Gotiya's Monster
+   Truck leaves his garage, crosses the boulevard and **rams the gate again and again** (sparks, shaking bars, nothing is damaged yet).
+2. **The lobby launch pad**: stand on the glowing pad in the showroom lobby - a glass lift shaft through every floor shoots you up to the
+   rooftop helipad (about 1.5 s). The red Flying Roadster is there, fuelled.
+3. **On the roof** the real attack starts (a moment later): the gate shatters, the truck charges the glass front (every hit costs the
+   showroom 14%). Right-click the Roadster, hold **SPACE** (twin plasma thrusters), fly down at the truck and press **R**: the EMP
+   shockwave fries it. At 0% type **#retryscene**.
 
 ### `#retryscene`
-Typing `#retryscene` in chat (or `/tycoon retry`) instantly **repairs every showroom block**, puts you and a fresh Flying Roadster on the
-rooftop launchpad and **restarts Gotiya's Monster Truck attack cleanly** so you can record the scene again. (Below level 5 it repairs and
-restarts the current level's sabotage.)
+Typing `#retryscene` in chat (or `/tycoon retry`) instantly **repairs every showroom block and the gate**, puts you on the roof next to a
+fresh red Roadster and **restarts the Monster Truck attack**. `#retryscene full` (or `/tycoon retry full`) starts again at the alarm (gate, lift and all). (Below
+level 5 it repairs and restarts the current level's sabotage.)
 
 ### Seth Gotiya's chat
 He wears a suit outside his dealership, taunts you every ~15-30 s as `[Seth Gotiya]: ...` and answers **any** message you type with a
@@ -89,11 +126,13 @@ The Level 5 emissive texture was baked into vertex colours, so there is no 2048 
 | 5 | Flying SpaceX Tesla Roadster | "Tesla Roadtser 2026" (+ generated twin rocket nozzles and plasma flames) | 54k / 13k / 4k |
 | - | Seth Gotiya's Monster Truck | "Stylized Monster Truck \| HandPaint" | 1.5k |
 
-The only vehicle that is *not* one of your models is the **delivery truck** in the back-alley scene (generated from boxes).
+The Level 5 Roadster is **recoloured red** after baking (`tools/bake_models.py --paint-only`; the uploaded model is silver). The only vehicle that is *not* one of your models is the **delivery truck** in the back-alley scene (generated from boxes).
 
 ### Interiors and seated people
 The uploaded cars are hollow shells (only the Classic Compact had a dark interior of its own), so `tools/interior_gen.py` builds a real
-interior for every car and bakes it into the model as the part `interior` (LOD0 and LOD1, ~3.3k / ~1k triangles): soft leather seats with
+interior for every car and bakes it into the model as the parts `interior`, `interior_back` (the driver's seat back and head restraint) and
+`interior_rear` (rear bench and parcel shelf) (LOD0 and LOD1, ~3.3k / ~1k triangles in total; the last two are skipped while the car has an
+occupant, otherwise they would hide the torso and the cape from a chase camera): soft leather seats with
 bolsters, centre inserts and headrests, a rear bench (the Roadster has a bulkhead), a dashboard with a trim band and an LED line, the glowing
 pixel-art touch screen (navigation map, car, app dock), a steering column, a centre console with cup holders, door cards with armrests and
 ambient LEDs, a carpeted floor with pedals and - for solid roofs - a headliner that follows the roof exactly. Each car has its own colours:
@@ -114,29 +153,40 @@ stays below the roof lining, the arms reach the wheel and the legs reach the flo
 
 ## Build from source
 ```
-python3 build_tesla_tycoon.py            # JDK 17+; gradle build -> dist/tesla_tycoon-1.0.0.jar
+python3 build_tesla_tycoon.py            # JDK 17+; gradle build -> dist/tesla_tycoon-2.0.0.jar
 python3 build_tesla_tycoon.py --rebake   # also re-bake models/resources (pip install numpy pillow meshoptimizer)
 cd tesla_tycoon && ./gradlew build runGametest
 ```
 The project is an ordinary Fabric/Loom workspace: open `tesla_tycoon/` in IntelliJ.
 
 ## Verification that was actually run
-* **12 GameTests** (`./gradlew runGametest`, about 20 s): acceleration steps never exceed the spec (no jerks), cars do not turn while standing
-  still, braking/reverse, a 1-block curb is climbed and the camera offset engages and decays, the Roadster lifts off, hovers and lands, AI cars
-  drive a route and park, purchases arrive every 80-130 s, upgrade rules, the Hinglish chat, the city plan, an **integration test that builds
-  the city, switches the neon off and on, adds floors, checks the exhibit of every floor and installs a billboard (+6 % income, never counted
-  twice)**, and two drive tests that each caught a real bug: **Gotiya's Monster Truck must get out of his garage and reach the showroom front**
-  (it used to jam on a fence pole, so the finale could never be won) and **the delivery truck must reach the loading dock**.
+* **16 GameTests** (`./gradlew runGametest`, about 30 s, all green): acceleration steps never exceed the spec, cars do not turn while
+  standing still, braking/reverse, a 1-block curb is climbed (with the 1.6 x 1.4 hit box) and the camera offset engages and decays, the
+  Roadster lifts off, hovers and lands, AI cars drive a route and park, **the economy test plays the whole story three ways (active, idle,
+  AFK): $5 / $35 / $150 / $800 per second, level prices 1.5k / 10k / 50k / 250k, 2 to 3.3 minutes per level when active and clearly longer
+  when standing still**, upgrade rules, the Hinglish chat, the city plan, geometry tests (the plot is 391 x 371, 80+ buildings and none on a
+  road or in the showroom compound, the three robotaxi loops stay on the roads and stop at the 10 stations, the billboards are 120+ blocks
+  apart and 110+ from the showroom, the lift opens every slab and the gate leaves a door a 4.7-wide truck cannot use), an **integration test
+  that builds the district, switches the neon off and on, adds floors, checks the exhibit of every floor and installs a billboard (+6%, never
+  counted twice)**, and the two drive tests: Gotiya's Monster Truck must get out of his garage and reach the showroom front, the delivery
+  truck must reach the loading dock.
 * **Headless client tours** (`tools/smoke_client.py <tour>`: the real Fabric client under Xvfb + software OpenGL, a screenshot per step,
   every screenshot looked at):
-  `vehicles` (all six models), `city` (every part of the city), `story` (sabotages 1, 2, 3 and 5 with their counters - the Cybertruck really rams the roadblocks with scripted keys -, floors stacking, blackout and solar, a delivery unloading; the Cybercab GPS jam of sabotage 4 is covered by the rules test and code review only),
-  `finale` (rooftop launch, **real client-side Roadster flight with the twin plasma thrusters**, the truck smashing the glass front and
-  taking the showroom to 86 %, the EMP, victory, landing, `#retryscene`), `occupants` (a suited customer sits in every car: head under the
-  roof, photographed through the window and from above), `firstperson` and `seat` (the player at the wheel of every car, from the driver's
-  eyes and through the windscreen), `shop` (the upgrade screen), `guide` (Right Shift guide on) and the debug tours `truck` / `delivery`.
-  The server log was checked for "moved wrongly" / "moved too quickly" during client-side driving and flight: none.
-* Not verified here: how it feels on a real GPU with a real keyboard, audio (the sandbox has no sound device), and compatibility with
-  shader packs (Iris) - custom core shaders are not supported by most shader packs. Sodium/Lithium are fine in principle.
+  * `city`: the cash bar, the Grand Boulevard with lanes, zebra crossings, median trees and lamps, the skyline behind the showroom, a robotaxi
+    station, a highway billboard in front of the towers, Gotiya's station across the boulevard, the Upgrade Depot next door, the lobby.
+  * `finale` (Survival, nothing in creative): level 5 -> alarm (siren, red frame and banner, gate closes) -> the Monster Truck rams the gate
+    -> the lobby launch pad shoots the player to the roof -> the red Roadster on the helipad -> the gate shatters and the attack starts ->
+    mount, thrusters, EMP -> victory -> `#retryscene` puts the player back on the roof with a fresh Roadster. The server log shows the
+    sequence (`alarm sounds`, `rams the gate`, `battle starts`, `hits the showroom front`, `EMP disabled the monster truck - victory`).
+  * `robotaxi`: the level-4 cash bar (`$473,086`, `+$944/sec`), a Cybercab stopped at the sidewalk station and `Robotaxi fare: +$661`.
+  * `seatback`: the seated player seen from behind through the rear glass of every car: upright on the cushion, torso and head visible
+    (the seat back and rear bench are not drawn while somebody sits in the car).
+  * `hud`, `story`, `occupants`, `firstperson`, `seat`, `shop`, `guide`, `vehicles` and the debug tours `truck` / `delivery` from 1.0.0.
+  A real bug was found this way: a server freeze at the first chunk load (the neon fix-up asked the world for a block of the chunk that was
+  being promoted); `jcmd Thread.print` of the stuck client showed the server thread waiting for itself. No game test can see it.
+* Not verified here: how it feels on a real GPU with a real keyboard, audio (the sandbox has no sound device), the white cape (the test
+  player has the default skin, no cape: the seat back that used to hide it is not drawn any more), the Cybercab GPS jam of sabotage 4
+  (covered by the rules test only), and compatibility with shader packs (Iris) - custom core shaders are not supported by most shader packs.
 
 ## Credits
 See `CREDITS.txt` (5 CC-BY-4.0 models, the Sketchfab-licensed Monster Truck - **do not extract and re-upload it**).

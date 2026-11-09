@@ -197,7 +197,10 @@ class Mesh:
 
 
 # ---------------------------------------------------------------------------------------------------------------- parts
-def seat(m, c, x, z, lod, rear=False, width=None, heads=1, tilt=None, tall=1.0):
+def seat(m, c, x, z, lod, rear=False, width=None, heads=1, tilt=None, tall=1.0, mb=None):
+    """Cushion, bolsters and base go into `m`; the backrest and head restraints into `mb` (default: `m`)."""
+    if mb is None:
+        mb = m
     if not rear:
         z = z + 0.09            # the seated figure is centred on the hip anchor: the backrest is just behind its back
     pal = c.pal
@@ -222,19 +225,19 @@ def seat(m, c, x, z, lod, rear=False, width=None, heads=1, tilt=None, tall=1.0):
     pivot = np.array([x, hip - 0.02, z - depth / 2 + 0.04])
     R = rot_x(-tilt)
     back_h = 0.60 * tall
-    m.squircle(x, pivot[1] + back_h / 2, pivot[2] - 0.03, w / 2, back_h / 2, 0.065, 0.32, leather, LEATHER, nu, nv, R, pivot)
+    mb.squircle(x, pivot[1] + back_h / 2, pivot[2] - 0.03, w / 2, back_h / 2, 0.065, 0.32, leather, LEATHER, nu, nv, R, pivot)
     if lod == 0:
         for s in (-1, 1):
-            m.squircle(x + s * (w / 2 - 0.045), pivot[1] + back_h * 0.5, pivot[2] - 0.0, 0.045, back_h / 2 - 0.04, 0.07, 0.4, dark, LEATHER, 6, 5, R, pivot)
-        m.squircle(x, pivot[1] + back_h * 0.5, pivot[2] + 0.036, w / 2 - 0.13, back_h / 2 - 0.1, 0.014, 0.45, acc, LEATHER, 8, 5, R, pivot)   # centre insert
+            mb.squircle(x + s * (w / 2 - 0.045), pivot[1] + back_h * 0.5, pivot[2] - 0.0, 0.045, back_h / 2 - 0.04, 0.07, 0.4, dark, LEATHER, 6, 5, R, pivot)
+        mb.squircle(x, pivot[1] + back_h * 0.5, pivot[2] + 0.036, w / 2 - 0.13, back_h / 2 - 0.1, 0.014, 0.45, acc, LEATHER, 8, 5, R, pivot)   # centre insert
     # head restraint(s)
     for k in range(heads):
         hx = x + ((k - (heads - 1) / 2) * (w / heads) if heads > 1 else 0.0)
         hw = 0.12 if heads == 1 else 0.10
-        m.squircle(hx, pivot[1] + back_h + 0.07, pivot[2] - 0.035, hw, 0.085, 0.05, 0.4, leather, LEATHER, 8 if lod == 0 else 6, 4, R, pivot)
+        mb.squircle(hx, pivot[1] + back_h + 0.07, pivot[2] - 0.035, hw, 0.085, 0.05, 0.4, leather, LEATHER, 8 if lod == 0 else 6, 4, R, pivot)
         if lod == 0:
             for s in (-1, 1):
-                m.box(hx + s * 0.05 - 0.007, pivot[1] + back_h - 0.02, pivot[2] - 0.06, hx + s * 0.05 + 0.007, pivot[1] + back_h + 0.03, pivot[2] - 0.045,
+                mb.box(hx + s * 0.05 - 0.007, pivot[1] + back_h - 0.02, pivot[2] - 0.06, hx + s * 0.05 + 0.007, pivot[1] + back_h + 0.03, pivot[2] - 0.045,
                       (120, 122, 128, 255), CHROME, R, pivot)
 
 
@@ -423,21 +426,37 @@ def headliner(m, c, lod, shell):
                 m.I += [q[0], q[1], q[2], q[0], q[2], q[3]]
 
 
-def build(c, lod, shell=None):
-    """The interior of one car at level of detail `lod` (0 or 1) as (vertices, indices)."""
-    m = Mesh()
-    dashboard(m, c, lod)
-    column(m, c, lod)
-    console(m, c, lod)
-    doors(m, c, lod)
-    floor_and_pedals(m, c, lod)
-    seat(m, c, c.sx, c.sz, lod)                                  # driver
-    seat(m, c, -c.sx, c.sz, lod)                                 # front passenger
+def build_parts(c, lod, shell=None):
+    """The interior of one car at level of detail `lod` (0 or 1), split in three parts so that whoever sits in the car can be seen:
+       interior       always drawn: dashboard, console, doors, floor, cushions, passenger seat, headliner
+       interior_back  the driver's seat back and head restraint: they stand right behind the seated figure, so they hide its torso
+                      and the cape from a chase camera - the renderer skips this part while the car has an occupant
+       interior_rear  the rear bench and the parcel shelf: from behind they cut the seated figure off at the chest (a 'floating head')
+    -> {part name: (vertices, indices)}"""
+    main, back, rear = Mesh(), Mesh(), Mesh()
+    dashboard(main, c, lod)
+    column(main, c, lod)
+    console(main, c, lod)
+    doors(main, c, lod)
+    floor_and_pedals(main, c, lod)
+    seat(main, c, c.sx, c.sz, lod, mb=back)                      # driver
+    seat(main, c, -c.sx, c.sz, lod)                              # front passenger
     if c.rear_seats:
-        seat(m, c, 0.0, c.sz - 0.98, lod, rear=True, width=min(1.18, 2 * c.hw - 0.2), heads=3, tilt=math.radians(14))
-    rear_shelf(m, c, lod)
-    headliner(m, c, lod, shell)
-    return m.arrays()
+        seat(rear, c, 0.0, c.sz - 0.98, lod, rear=True, width=min(1.18, 2 * c.hw - 0.2), heads=3, tilt=math.radians(14))
+    rear_shelf(rear, c, lod)
+    headliner(main, c, lod, shell)
+    return {"interior": main.arrays(), "interior_back": back.arrays(), "interior_rear": rear.arrays()}
+
+
+def build(c, lod, shell=None):
+    """The whole interior as one mesh (previews and tests)."""
+    parts = build_parts(c, lod, shell)
+    vs = [v for v, i in parts.values()]
+    off, idx = 0, []
+    for v, i in parts.values():
+        idx.append(i + off)
+        off += len(v)
+    return np.concatenate(vs), np.concatenate(idx).astype(np.uint32)
 
 
 # ---------------------------------------------------------------------------------------------------------------- occupant fitting

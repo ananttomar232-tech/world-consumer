@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Tesla Tycoon - one-command build.
 
-    python3 build_tesla_tycoon.py                 # gradle build -> dist/tesla_tycoon-1.0.0.jar
+    python3 build_tesla_tycoon.py                 # gradle build -> dist/tesla_tycoon-2.0.0.jar
     python3 build_tesla_tycoon.py --rebake        # first re-bake the six glTF models and regenerate the small resources
     python3 build_tesla_tycoon.py --test          # also run the headless game tests (needs eula; see below)
 
@@ -20,7 +20,7 @@ import zipfile
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.join(ROOT, "tesla_tycoon")
-VERSION = "1.0.0"
+VERSION = "2.0.0"
 
 
 def run(cmd, cwd=None, env=None):

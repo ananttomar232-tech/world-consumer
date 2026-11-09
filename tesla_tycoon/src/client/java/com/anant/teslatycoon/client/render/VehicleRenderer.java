@@ -72,7 +72,7 @@ public final class VehicleRenderer extends EntityRenderer<VehicleEntity> {
         float tint = disabled ? (0.45f + 0.25f * MathHelper.sin(time * 0.9f)) : 1f;
 
         matrices.push();
-        matrices.translate(0, MathHelper.lerp(tickDelta, e.prevVisualY, e.visualY), 0);
+        // (the curb step-up smoothing lives in CameraMixin: the body and the seated figure are always drawn on the real surface)
         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-yaw));
         float pitch = e.lerpedPitch(tickDelta) + MathHelper.lerp(tickDelta, e.prevVisPitch, e.visPitch);
         float roll = MathHelper.lerp(tickDelta, e.prevVisRoll, e.visRoll);
@@ -87,9 +87,13 @@ public final class VehicleRenderer extends EntityRenderer<VehicleEntity> {
         ModelMeta meta = model.meta;
         VehicleGfx.begin(matrices, light, tint, tint, tint, 1f, model.textured ? model.texture : null);
         VehicleGfx.pass(0, 1f);
+        boolean seated = e.hasPassengers();
         for (TtmModel.Part part : model.parts) {
             if (part.glass || part.buffers[lod] == null) {
                 continue;
+            }
+            if (seated && (part.name.equals("interior_back") || part.name.equals("interior_rear"))) {
+                continue;               // the seat back and the rear bench would hide the seated figure's torso and cape from behind
             }
             if (part.wheel >= 0) {
                 ModelMeta.Wheel w = meta.wheels[part.wheel];

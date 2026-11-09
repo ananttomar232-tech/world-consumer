@@ -13,6 +13,9 @@ public final class ClientState {
     public static int climaxHp = 100;
     public static boolean powerOut;
     public static int empCooldown;
+    public static boolean driving;
+    /** 0 = quiet, 1 = the alarm is on and Gotiya rams the gate, 2 = the Monster Truck attack. */
+    public static int alarm;
 
     private ClientState() {}
 

@@ -56,8 +56,10 @@ public final class Tycoon {
         CommandRegistrationCallback.EVENT.register((dispatcher, registry, env) -> TycoonCommand.register(dispatcher));
         ServerMessageEvents.ALLOW_CHAT_MESSAGE.register((message, sender, params) -> {
             String text = message.getSignedContent().trim();
-            if (text.toLowerCase(Locale.ROOT).equals("#retryscene")) {
-                sender.server.execute(() -> RivalDirector.retryScene(sender));
+            String lower = text.toLowerCase(Locale.ROOT);
+            if (lower.equals("#retryscene") || lower.equals("#retryscene full")) {
+                boolean full = lower.endsWith("full");
+                sender.server.execute(() -> RivalDirector.retryScene(sender, full));
                 return false;
             }
             return true;
@@ -113,6 +115,10 @@ public final class Tycoon {
             if (w == null) {
                 continue;
             }
+            updateDriving(c, p);
+            if (!c.cityComplete && t % 100 == 7 && !CityBuilder.busy()) {
+                CityBuilder.resumeOutskirts(w, c, p);
+            }
             c.carry += c.incomePerSecond() / 20.0;
             long whole = (long) c.carry;
             if (whole > 0) {
@@ -122,6 +128,7 @@ public final class Tycoon {
             }
             c.cityTick++;
             ShowroomDirector.tick(w, c, p);
+            com.anant.teslatycoon.npc.RobotaxiDirector.tick(w, c, p);
             RivalDirector.tick(w, c, p);
             if (t % 10 == (p.getId() & 7)) {
                 ModNetwork.sendState(p, c, RivalDirector.empCooldown(p));
@@ -130,6 +137,22 @@ public final class Tycoon {
         if (t % 200 == 0) {
             st.markDirty();
         }
+    }
+
+    /** The driving bonus: the owner is at the wheel of a company car and it is moving (held for a second so the HUD does not flicker). */
+    private static void updateDriving(Company c, ServerPlayerEntity p) {
+        if (p.getVehicle() instanceof com.anant.teslatycoon.vehicle.VehicleEntity v && v.getControllingPassenger() == p) {
+            double d = Math.hypot(v.getX() - c.lastDriveX, v.getZ() - c.lastDriveZ);
+            c.lastDriveX = v.getX();
+            c.lastDriveZ = v.getZ();
+            if (d > 0.04 && d < 8.0) {
+                c.drivingUntil = c.cityTick + 30;
+            }
+        } else {
+            c.lastDriveX = Double.NaN;
+            c.lastDriveZ = Double.NaN;
+        }
+        c.driving = c.cityTick < c.drivingUntil;
     }
 
     /** Pushes a fresh snapshot to the owner right now (after a purchase or an event). */

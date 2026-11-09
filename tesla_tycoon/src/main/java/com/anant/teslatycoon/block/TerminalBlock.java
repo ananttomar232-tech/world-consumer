@@ -60,9 +60,9 @@ public final class TerminalBlock extends HorizontalFacingBlock {
                 ModNetwork.sendOpenShop(sp);
             }
         } else if (c != null) {
-            boolean on = c.owns(Upgrade.TERMINAL);
-            sp.sendMessage(Text.literal(on ? "Robotaxi Terminal online: Cybercab fares add +25% income. GPS lock via Starlink: "
-                    + (c.owns(Upgrade.STARLINK) ? "LOCKED" : "NO SIGNAL") : "Robotaxi Terminal offline (buy it in the Upgrade Shop)")
+            boolean on = c.level >= 4;
+            sp.sendMessage(Text.literal(on ? com.anant.teslatycoon.npc.RobotaxiDirector.status(c)
+                    : "Robotaxi Terminal offline (reach showroom level 4 in the Upgrade Depot)")
                     .formatted(on ? Formatting.AQUA : Formatting.RED), true);
         }
         return ActionResult.CONSUME;

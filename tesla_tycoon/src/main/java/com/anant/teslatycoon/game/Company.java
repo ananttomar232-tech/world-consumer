@@ -11,8 +11,14 @@ import net.minecraft.util.math.BlockPos;
 
 /** One player's showroom business. Saved with the world (see {@link TycoonState}). */
 public final class Company {
-    public static final double[] BASE_INCOME = {0, 5.0, 10.0, 19.0, 34.0, 58.0};     // $/s per showroom level
+    /** $/s of the showroom at each level: the brief's 5 / 35 / 150 / 800 (level 5 is the endgame). */
+    public static final double[] BASE_INCOME = {0, 5.0, 35.0, 150.0, 800.0, 2500.0};
     public static final double SABOTAGE_FACTOR = 0.60;
+    public static final double BILLBOARD_BONUS = 0.06;      // per placed billboard
+    public static final double DRIVE_BONUS = 1.0;           // +100% while the owner drives a company car
+    public static final double TIP_SECONDS = 15.0;          // a customer pays this many seconds of income at reception
+    public static final double DELIVERY_SECONDS = 8.0;      // the delivery truck's stock bonus
+    public static final double FARE_SECONDS = 0.7;          // one robotaxi ride
     public static final int BILLBOARDS_NEEDED = 3;
     public static final int MAX_BILLBOARDS = 6;
 
@@ -24,6 +30,7 @@ public final class Company {
     public int level = 1;
     public final Set<Upgrade> owned = EnumSet.noneOf(Upgrade.class);
     public int billboardsPlaced;
+    public int billboardMask;              // bit i set: billboard i shows the ad
     public long totalEarned;
     public int customersServed;
 
@@ -32,10 +39,13 @@ public final class Company {
     public boolean climaxWon;
     public long climaxHp = 100;
     public boolean powerOut;              // sabotage 2 is cutting the neon
+    public boolean gateClosed;            // the finale's security gate (level 5) stands
+    public boolean gateBroken;            // ... and the Monster Truck has smashed a hole in it
     public int deliveries;
 
     // ---- city
     public boolean cityBuilt;
+    public boolean cityComplete = true;   // false while the skyline around the district is still being built (resumed after a restart)
     public BlockPos origin = BlockPos.ORIGIN;
     public String dimension = "minecraft:overworld";
     public long cityTick;
@@ -58,7 +68,7 @@ public final class Company {
             case 1 -> owns(Upgrade.HYDRAULICS) ? 0 : 1;
             case 2 -> owns(Upgrade.SOLAR) ? 0 : 2;
             case 3 -> owns(Upgrade.RAM) && ramSmashed >= 2 ? 0 : 3;
-            case 4 -> (owns(Upgrade.STARLINK) && owns(Upgrade.TERMINAL) && owns(Upgrade.BILLBOARDS) && billboardsPlaced >= BILLBOARDS_NEEDED) ? 0 : 4;
+            case 4 -> (owns(Upgrade.STARLINK) && owns(Upgrade.BILLBOARDS) && billboardsPlaced >= BILLBOARDS_NEEDED) ? 0 : 4;
             case 5 -> climaxWon ? 0 : 5;
             default -> 0;
         };
@@ -66,18 +76,16 @@ public final class Company {
 
     public int ramSmashed;
 
-    public double incomePerSecond() {
+    /** True while the owner is driving a company car (set by {@code Tycoon.tick}; not saved). */
+    public transient boolean driving;
+    public transient long drivingUntil;
+    public transient double lastDriveX = Double.NaN;
+    public transient double lastDriveZ = Double.NaN;
+
+    /** The showroom's own income, without the driving bonus: this is what tips, deliveries and fares are measured in. */
+    public double passivePerSecond() {
         double r = BASE_INCOME[Math.max(1, Math.min(5, level))];
-        if (owns(Upgrade.SOLAR)) {
-            r *= 1.20;
-        }
-        if (owns(Upgrade.STARLINK)) {
-            r *= 1.10;
-        }
-        if (owns(Upgrade.TERMINAL)) {
-            r *= 1.25;
-        }
-        r *= 1.0 + 0.06 * billboardsPlaced;
+        r *= 1.0 + BILLBOARD_BONUS * billboardsPlaced;
         if (activeSabotage() != 0 && activeSabotage() != 5) {
             r *= SABOTAGE_FACTOR;
         }
@@ -85,6 +93,16 @@ public final class Company {
             r *= 1.25;
         }
         return r;
+    }
+
+    /** What the HUD shows as +$/sec and what accrues every tick: the passive income, doubled while the owner drives. */
+    public double incomePerSecond() {
+        return passivePerSecond() * (driving ? 1.0 + DRIVE_BONUS : 1.0);
+    }
+
+    /** A bonus worth {@code seconds} of the showroom's passive income (rounded, at least $1). */
+    public long worth(double seconds) {
+        return Math.max(1L, Math.round(passivePerSecond() * seconds));
     }
 
     /** Why this cannot be bought now, or null if it can. */
@@ -128,6 +146,9 @@ public final class Company {
         }
         n.put("Owned", list);
         n.putInt("Billboards", billboardsPlaced);
+        n.putInt("BbMask", billboardMask);
+        n.putBoolean("Gate", gateClosed);
+        n.putBoolean("GateBroken", gateBroken);
         n.putLong("Earned", totalEarned);
         n.putInt("Served", customersServed);
         n.putInt("Sab", sabTriggered);
@@ -137,6 +158,7 @@ public final class Company {
         n.putInt("Deliveries", deliveries);
         n.putInt("Smashed", ramSmashed);
         n.putBoolean("City", cityBuilt);
+        n.putBoolean("Complete", cityComplete);
         n.putLong("Origin", origin.asLong());
         n.putString("Dim", dimension);
         n.putLong("CityTick", cityTick);
@@ -155,6 +177,9 @@ public final class Company {
             }
         }
         c.billboardsPlaced = n.getInt("Billboards");
+        c.billboardMask = n.contains("BbMask") ? n.getInt("BbMask") : (1 << c.billboardsPlaced) - 1;
+        c.gateClosed = n.getBoolean("Gate");
+        c.gateBroken = n.getBoolean("GateBroken");
         c.totalEarned = n.getLong("Earned");
         c.customersServed = n.getInt("Served");
         c.sabTriggered = n.getInt("Sab");
@@ -164,6 +189,7 @@ public final class Company {
         c.deliveries = n.getInt("Deliveries");
         c.ramSmashed = n.getInt("Smashed");
         c.cityBuilt = n.getBoolean("City");
+        c.cityComplete = !n.contains("Complete") || n.getBoolean("Complete");
         c.origin = BlockPos.fromLong(n.getLong("Origin"));
         c.dimension = n.getString("Dim");
         c.cityTick = n.getLong("CityTick");

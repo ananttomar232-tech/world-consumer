@@ -95,8 +95,12 @@ public final class TeslaTycoonClient implements ClientModInitializer {
             boolean city = buf.readBoolean();
             int smashed = buf.readVarInt();
             int emp = buf.readVarInt();
+            boolean driving = buf.readBoolean();
+            int alarm = buf.readVarInt();
             client.execute(() -> {
                 ClientState.apply(money, income, level, mask, billboards, sab, hp, power, city, smashed, emp);
+                ClientState.driving = driving;
+                ClientState.alarm = alarm;
                 if (client.currentScreen instanceof ShopScreen s) {
                     s.refresh();
                 }

@@ -59,6 +59,8 @@ public final class ModNetwork {
         b.writeBoolean(c.cityBuilt);
         b.writeVarInt(c.ramSmashed);
         b.writeVarInt(empCooldownTicks);
+        b.writeBoolean(c.driving);
+        b.writeVarInt(com.anant.teslatycoon.rival.RivalDirector.alarmStage(c));
         ServerPlayNetworking.send(p, STATE, b);
     }
 

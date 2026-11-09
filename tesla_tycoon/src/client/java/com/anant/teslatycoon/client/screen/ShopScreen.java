@@ -15,7 +15,7 @@ import net.minecraft.network.PacketByteBuf;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 
-/** The Tycoon Upgrade Shop: showroom levels, Gotiya counter-items, extras. */
+/** The Tycoon Upgrade Depot: showroom levels, Gotiya counter-items, extras. */
 public final class ShopScreen extends Screen {
     private final List<Card> cards = new ArrayList<>();
 
