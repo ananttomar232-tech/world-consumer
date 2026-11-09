@@ -1,0 +1,14 @@
+{
+  "replace": false,
+  "values": [
+    "tesla_tycoon:asphalt",
+    "tesla_tycoon:neon",
+    "tesla_tycoon:road_spikes",
+    "tesla_tycoon:concrete_barrier",
+    "tesla_tycoon:billboard_panel",
+    "tesla_tycoon:shop_terminal",
+    "tesla_tycoon:robotaxi_terminal",
+    "tesla_tycoon:megapack",
+    "tesla_tycoon:starlink_dish"
+  ]
+}

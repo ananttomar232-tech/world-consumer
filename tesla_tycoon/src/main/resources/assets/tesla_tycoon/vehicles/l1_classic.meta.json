@@ -1,0 +1,90 @@
+{
+ "name": "l1_classic",
+ "title": "Tesla Classic Compact",
+ "units": "blocks",
+ "bbox": [
+  -0.9612,
+  -0.0015,
+  -2.2739,
+  0.9612,
+  1.5341,
+  2.2261
+ ],
+ "length": 4.5,
+ "width": 1.922,
+ "height": 1.536,
+ "wheelbase": 2.7306,
+ "track": 1.466,
+ "wheelRadius": 0.3503,
+ "wheels": [
+  {
+   "name": "FL",
+   "pivot": [
+    0.733,
+    0.3503,
+    1.3653
+   ],
+   "radius": 0.3503,
+   "hw": 0.1416,
+   "front": true,
+   "left": true
+  },
+  {
+   "name": "FR",
+   "pivot": [
+    -0.733,
+    0.3503,
+    1.3653
+   ],
+   "radius": 0.3503,
+   "hw": 0.1416,
+   "front": true,
+   "left": false
+  },
+  {
+   "name": "RL",
+   "pivot": [
+    0.733,
+    0.3479,
+    -1.3653
+   ],
+   "radius": 0.3503,
+   "hw": 0.1416,
+   "front": false,
+   "left": true
+  },
+  {
+   "name": "RR",
+   "pivot": [
+    -0.733,
+    0.3479,
+    -1.3653
+   ],
+   "radius": 0.3503,
+   "hw": 0.1416,
+   "front": false,
+   "left": false
+  }
+ ],
+ "seat": [
+  0.36,
+  0.0,
+  0.05
+ ],
+ "seatHip": 0.46,
+ "steer": [
+  0.36,
+  0.86,
+  0.78,
+  22.0
+ ],
+ "thrusters": [],
+ "texture": null,
+ "emissiveMap": false,
+ "lods": 3,
+ "tris": [
+  28565,
+  7340,
+  2313
+ ]
+}

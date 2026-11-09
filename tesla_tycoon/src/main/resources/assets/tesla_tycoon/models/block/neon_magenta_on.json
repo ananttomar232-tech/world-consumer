@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "tesla_tycoon:block/neon_magenta_on"
+  }
+}

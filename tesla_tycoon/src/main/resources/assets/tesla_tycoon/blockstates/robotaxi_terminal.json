@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "tesla_tycoon:block/robotaxi_terminal"
+    },
+    "facing=east": {
+      "model": "tesla_tycoon:block/robotaxi_terminal",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "tesla_tycoon:block/robotaxi_terminal",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "tesla_tycoon:block/robotaxi_terminal",
+      "y": 270
+    }
+  }
+}

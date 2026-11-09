@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "tesla_tycoon:item/wall_poster"
+  }
+}

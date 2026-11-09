@@ -1,0 +1,90 @@
+{
+ "name": "rival_truck",
+ "title": "Seth Gotiya's Diesel Monster Truck",
+ "units": "blocks",
+ "bbox": [
+  -2.2069,
+  -0.0006,
+  -3.309,
+  2.2069,
+  4.842,
+  2.291
+ ],
+ "length": 5.6,
+ "width": 4.414,
+ "height": 4.843,
+ "wheelbase": 2.3502,
+ "track": 2.7834,
+ "wheelRadius": 1.1134,
+ "wheels": [
+  {
+   "name": "FL",
+   "pivot": [
+    1.3917,
+    1.1149,
+    1.1751
+   ],
+   "radius": 1.1134,
+   "hw": 0.8727,
+   "front": true,
+   "left": true
+  },
+  {
+   "name": "FR",
+   "pivot": [
+    -1.3917,
+    1.1149,
+    1.1751
+   ],
+   "radius": 1.1134,
+   "hw": 0.8727,
+   "front": true,
+   "left": false
+  },
+  {
+   "name": "RL",
+   "pivot": [
+    1.3917,
+    1.1149,
+    -1.1751
+   ],
+   "radius": 1.1134,
+   "hw": 0.8727,
+   "front": false,
+   "left": true
+  },
+  {
+   "name": "RR",
+   "pivot": [
+    -1.3917,
+    1.1149,
+    -1.1751
+   ],
+   "radius": 1.1134,
+   "hw": 0.8727,
+   "front": false,
+   "left": false
+  }
+ ],
+ "seat": [
+  0.0,
+  0.0,
+  -0.1
+ ],
+ "seatHip": 2.35,
+ "steer": [
+  0.0,
+  2.9,
+  0.65,
+  20.0
+ ],
+ "thrusters": [],
+ "texture": "tesla_tycoon:textures/vehicle/rival_truck.png",
+ "emissiveMap": false,
+ "lods": 3,
+ "tris": [
+  1511,
+  1511,
+  1511
+ ]
+}

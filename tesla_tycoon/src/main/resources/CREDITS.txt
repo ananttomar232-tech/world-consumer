@@ -1,0 +1,37 @@
+Tesla Tycoon - third-party 3D models
+====================================
+
+The six vehicle packages the author supplied are used as follows. Five are licensed CC-BY-4.0
+(http://creativecommons.org/licenses/by/4.0/); the Monster Truck uses the Sketchfab Standard licence.
+
+Level 1  Tesla Classic Compact
+  This work is based on "Tesla Model Y" (https://sketchfab.com/3d-models/tesla-model-y-df871e1660044645ac6c170ab2059f2c)
+  by Nieve5677 (https://sketchfab.com/niev) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+
+Level 2  Tesla Model 3 (Autopilot Sedan)
+  This work is based on "VEHICLE - TESLA MODEL 3" (https://sketchfab.com/3d-models/vehicle-tesla-model-3-43512c27667f412297bced6b9857a735)
+  by Thcyrax (https://sketchfab.com/thcyrax) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+
+Level 3  Armored Tesla Cybertruck
+  This work is based on "Tesla Cybertruck Low Poly" (https://sketchfab.com/3d-models/tesla-cybertruck-low-poly-a686ae619cc342879d45c2021aa2e303)
+  by rifdanzz (https://sketchfab.com/rifdanzz) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+
+Level 4  Autonomous Tesla Cybercab (Robotaxi)
+  This work is based on "Hyundai based concept car" (https://sketchfab.com/3d-models/hyundai-based-concept-car-f0203ff27c07470087a4e923bd2140f9)
+  by LagzDesign (https://sketchfab.com/LagzDesign) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+
+Level 5  Flying SpaceX Tesla Roadster
+  This work is based on "Tesla Roadtser 2026" (https://sketchfab.com/3d-models/tesla-roadtser-2026-7630c9fe842d4f5ea86fc1f122753b89)
+  by asiphy007 (https://sketchfab.com/asiphy007) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+
+Rival  Seth Gotiya's Diesel Monster Truck
+  "Stylized Monster Truck | HandPaint" (https://sketchfab.com/3d-models/stylized-monster-truck-handpaint-a0537f99888b4400a4146da9713e3f82)
+  by Viktor Balashov (https://sketchfab.com/SpacySeal), SKETCHFAB Standard licence (https://sketchfab.com/licenses):
+  use worldwide, on all types of media, commercially or not, in derivative works. The licence does NOT allow re-publishing the
+  model as a standalone asset: this mod only ships it converted inside the jar, as a game vehicle. Do not extract and re-upload it.
+
+Changes made (CC-BY-4.0 section 3(a)(1)(B)): the glTF meshes were converted to a game-ready format - node transforms baked,
+re-oriented and scaled to blocks, wheels / glass / lights separated into parts, triangle counts reduced (Levels 1, 4 and 5),
+the Level 5 emissive texture baked into vertex colours - and the wheel, steering, glass and light behaviour is added by the mod.
+The delivery truck (back-alley scene) is generated from boxes and is not based on any third-party model.
+The three banner / billboard / poster images are shipped unchanged as supplied by the author.

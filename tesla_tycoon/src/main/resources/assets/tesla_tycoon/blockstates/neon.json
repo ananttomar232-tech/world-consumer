@@ -1,0 +1,28 @@
+{
+  "variants": {
+    "color=cyan,lit=true": {
+      "model": "tesla_tycoon:block/neon_cyan_on"
+    },
+    "color=cyan,lit=false": {
+      "model": "tesla_tycoon:block/neon_cyan_off"
+    },
+    "color=magenta,lit=true": {
+      "model": "tesla_tycoon:block/neon_magenta_on"
+    },
+    "color=magenta,lit=false": {
+      "model": "tesla_tycoon:block/neon_magenta_off"
+    },
+    "color=white,lit=true": {
+      "model": "tesla_tycoon:block/neon_white_on"
+    },
+    "color=white,lit=false": {
+      "model": "tesla_tycoon:block/neon_white_off"
+    },
+    "color=red,lit=true": {
+      "model": "tesla_tycoon:block/neon_red_on"
+    },
+    "color=red,lit=false": {
+      "model": "tesla_tycoon:block/neon_red_off"
+    }
+  }
+}

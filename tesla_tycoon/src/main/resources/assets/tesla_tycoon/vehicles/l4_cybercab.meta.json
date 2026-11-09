@@ -1,0 +1,90 @@
+{
+ "name": "l4_cybercab",
+ "title": "Autonomous Tesla Cybercab",
+ "units": "blocks",
+ "bbox": [
+  -1.1238,
+  -0.0003,
+  -2.882,
+  1.1251,
+  1.7302,
+  2.418
+ ],
+ "length": 5.3,
+ "width": 2.249,
+ "height": 1.731,
+ "wheelbase": 3.3408,
+ "track": 1.8784,
+ "wheelRadius": 0.4668,
+ "wheels": [
+  {
+   "name": "FL",
+   "pivot": [
+    0.9392,
+    0.4668,
+    1.6704
+   ],
+   "radius": 0.4668,
+   "hw": 0.2137,
+   "front": true,
+   "left": true
+  },
+  {
+   "name": "FR",
+   "pivot": [
+    -0.9392,
+    0.4668,
+    1.6704
+   ],
+   "radius": 0.4668,
+   "hw": 0.2137,
+   "front": true,
+   "left": false
+  },
+  {
+   "name": "RL",
+   "pivot": [
+    0.9392,
+    0.4668,
+    -1.6704
+   ],
+   "radius": 0.4668,
+   "hw": 0.2137,
+   "front": false,
+   "left": true
+  },
+  {
+   "name": "RR",
+   "pivot": [
+    -0.9392,
+    0.4668,
+    -1.6704
+   ],
+   "radius": 0.4668,
+   "hw": 0.2137,
+   "front": false,
+   "left": false
+  }
+ ],
+ "seat": [
+  0.42,
+  0.0,
+  0.05
+ ],
+ "seatHip": 0.58,
+ "steer": [
+  0.42,
+  0.98,
+  0.85,
+  20.0
+ ],
+ "thrusters": [],
+ "texture": null,
+ "emissiveMap": false,
+ "lods": 3,
+ "tris": [
+  17867,
+  5390,
+  1575
+ ]
+}

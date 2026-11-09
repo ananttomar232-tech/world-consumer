@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "id": "tesla_tycoon",
+  "version": "${version}",
+  "name": "Tesla Tycoon",
+  "description": "Build the Anant Tesla Showroom, out-sell Seth Gotiya's Petrol Motors and fly the Roadster into the finale.",
+  "authors": [
+    "Anant"
+  ],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.anant.teslatycoon.TeslaTycoon"
+    ],
+    "client": [
+      "com.anant.teslatycoon.client.TeslaTycoonClient"
+    ],
+    "fabric-gametest": [
+      "com.anant.teslatycoon.gametest.TycoonGameTests"
+    ]
+  },
+  "mixins": [
+    "tesla_tycoon.mixins.json",
+    {
+      "config": "tesla_tycoon.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "~1.20.1",
+    "java": ">=17",
+    "fabric-api": "*"
+  },
+  "icon": "assets/tesla_tycoon/icon.png",
+  "contributors": [
+    "Models: see CREDITS.txt (CC-BY-4.0 Sketchfab authors; Monster Truck: Sketchfab Standard licence)"
+  ]
+}

@@ -1,0 +1,101 @@
+{
+ "name": "l5_roadster",
+ "title": "Flying SpaceX Tesla Roadster",
+ "units": "blocks",
+ "bbox": [
+  -1.2203,
+  0.0,
+  -2.6408,
+  1.2158,
+  1.4814,
+  2.9592
+ ],
+ "length": 5.6,
+ "width": 2.436,
+ "height": 1.481,
+ "wheelbase": 3.4044,
+ "track": 1.9546,
+ "wheelRadius": 0.4296,
+ "wheels": [
+  {
+   "name": "FL",
+   "pivot": [
+    0.9758,
+    0.4296,
+    1.7022
+   ],
+   "radius": 0.4296,
+   "hw": 0.2805,
+   "front": true,
+   "left": true
+  },
+  {
+   "name": "FR",
+   "pivot": [
+    -0.9788,
+    0.4296,
+    1.7022
+   ],
+   "radius": 0.4296,
+   "hw": 0.2805,
+   "front": true,
+   "left": false
+  },
+  {
+   "name": "RL",
+   "pivot": [
+    0.9758,
+    0.4296,
+    -1.7022
+   ],
+   "radius": 0.4296,
+   "hw": 0.2805,
+   "front": false,
+   "left": true
+  },
+  {
+   "name": "RR",
+   "pivot": [
+    -0.9729,
+    0.4296,
+    -1.7022
+   ],
+   "radius": 0.4296,
+   "hw": 0.2805,
+   "front": false,
+   "left": false
+  }
+ ],
+ "seat": [
+  0.36,
+  0.0,
+  -0.1
+ ],
+ "seatHip": 0.42,
+ "steer": [
+  0.36,
+  0.8,
+  0.62,
+  18.0
+ ],
+ "thrusters": [
+  [
+   0.55,
+   0.52,
+   -2.62
+  ],
+  [
+   -0.55,
+   0.52,
+   -2.62
+  ]
+ ],
+ "texture": null,
+ "emissiveMap": false,
+ "lods": 3,
+ "tris": [
+  54301,
+  13390,
+  4030
+ ]
+}
