@@ -60,6 +60,88 @@ def tour_seatback():
     return steps
 
 
+def tour_depot():
+    """v3: the physical Upgrade Depot (floating 3D models with price tags), buying puts the item in the hand, placing it builds the floor;
+    Gotiya walking out to lay his spikes by hand; the Cybercab's roof and boot; the Roadster cockpit."""
+    P = "execute as @p run "
+    return [("00_setup", BASE + KILL_ALL + ["tp @p 0 -60 0 0 0"], 4),
+            ("01_start", [P + "tycoon start"], 45),
+            ("02_depot_inside", ["gamemode survival @p", P + "money set 4000", cam(-14, -59.5, -8, -14, -58.6, -24)], 8),
+            ("03_depot_west", [cam(-15, -59.5, -15, -21, -58.4, -13)], 6),
+            ("04_depot_north", [cam(-14, -59.5, -17, -14, -58.4, -24)], 6),
+            ("05_buy_hydraulics", [P + "tycoon buy hydraulics", cam(-17, -59.5, -11, -21, -58.4, -9)], 5),
+            ("06_deploy_hydraulics", [P + "tp @s -40 -60 -3 180 10", P + "tycoon deploy hydraulics"], 5),
+            ("07_buy_level2", [P + "tycoon buy level2", cam(-17, -59.5, -15, -21, -58.4, -13)], 5),
+            ("08_carry_to_showroom", [P + "tp @s -45 -60 6 0 -10"], 4),
+            ("09_place_level2", [P + "tycoon deploy level2"], 18),
+            ("10_gotiya_walks", [P + "tycoon sabotage", cam(-50, -57.5, 30, -58, -60, 20)], 7),
+            ("11_gotiya_spikes", [cam(-52, -57, 14, -60, -61, 10)], 9),
+            ("12_gotiya_spikes_done", [cam(-52, -55, -4, -61, -61, 10)], 12),
+            ("13_chat", [], 6),
+            ("14_cybercab", ["gamemode creative @p", "summon tesla_tycoon:tesla_cybercab -30 -61 10 {Rotation:[90.0f,0.0f]}", cam(-24, -57.5, 6, -30, -60, 10)], 7),
+            ("15_cybercab_rear", [cam(-25, -58, 14.5, -30, -60, 10)], 6),
+            ("16_roadster_cockpit", ["summon tesla_tycoon:tesla_roadster -30 -61 16 {Rotation:[90.0f,0.0f]}", "tp @p -30 -61 16 90 12",
+                                     "ride @p mount @e[type=tesla_tycoon:tesla_roadster,x=-30,y=-61,z=16,distance=..3,limit=1]"], 5),
+            ("17_cockpit_steer", [P + "tycoon drive 0.6 1"], 3),
+            ("18_cockpit_steer2", [P + "tycoon drive 0.6 -1"], 3),
+            ("19_punch_note", [P + "tycoon drive off"], 3)]
+
+
+def tour_gotiya():
+    """v3: Gotiya as a person - spying at the showroom pillars, laying the spike belt and the roadblocks by hand, then the delayed finale:
+    a quiet level 5, the launch pad that starts the alarm, Gotiya at the wheel of the one Monster Truck, the flight, the EMP, #retryscene."""
+    P = "execute as @p run "
+    wide = cam(-44, -53, 22, -44, -60, -4)
+    return [("00_setup", BASE + KILL_ALL + ["tp @p 0 -60 0 0 0"], 4),
+            ("01_start", [P + "tycoon start"], 45),
+            ("02_quiet_start", [wide], 14),
+            ("03_spy_a", [wide], 12),
+            ("04_spy_b", [wide], 12),
+            ("05_spy_west", [cam(-72, -58.5, 4, -61.6, -59.5, -4.4)], 5),
+            ("06_spy_east", [cam(-16, -58.5, 4, -26.4, -59.5, -4.4)], 5),
+            ("07_spikes_0", [P + "tycoon sabotage", cam(-50, -57, 18, -58.5, -60, 12)], 4),
+            ("08_spikes_1", [], 4),
+            ("09_spikes_2", [], 4),
+            ("10_spikes_3", [], 5),
+            ("11_spikes_done", [], 12),
+            ("12_level3", [P + "money add 900000", P + "tycoon level 3", cam(-45, -57, 26, -44, -50, -6)], 40),
+            ("13_blocks_0", [P + "tycoon sabotage", cam(-2, -56.5, 10, -10, -60, 18)], 5),
+            ("14_blocks_1", [], 4),
+            ("15_blocks_2", [], 5),
+            ("16_blocks_east", [cam(12, -56.5, 10, 21, -60, 18)], 8),
+            ("17_blocks_east2", [], 6),
+            ("18_level5", [P + "tycoon level 5", cam(-45, -50, 30, -44, -38, -6)], 60),
+            ("19_level5_quiet", [cam(-80, -56, 12, -40, -60, 10)], 8),
+            ("20_onto_the_pad", [P + "tp @s -51.5 -60 -18.5 0 5"], 4),
+            ("21_truck_driver", [cam(-64, -58.5, 9, -44, -57, -1)], 6),
+            ("22_truck_driver2", [], 6),
+            ("23_roof", [P + "tp @s -47.5 -25 -19.5 -80 8"], 4),
+            ("24_mount", ["ride @p mount @e[type=tesla_tycoon:tesla_roadster,x=-43.5,y=-25,z=-21.5,distance=..3,limit=1]"], 3),
+            ("25_ignite", [P + "tycoon drive 0 0 j"], 2.5),
+            ("26_hover", [P + "tycoon drive 0 0"], 3),
+            ("27_emp", [P + "tycoon emp"], 3),
+            ("28_victory", [], 8),
+            ("29_retry", [P + "tycoon drive off", P + "tycoon retry"], 45),
+            ("30_retry_state", [cam(-64, -58.5, 9, -44, -57, -1)], 8)]
+
+
+def tour_emp():
+    P = "execute as @p run "
+    return [("00_setup", BASE + KILL_ALL + ["tp @p 0 -60 0 0 0"], 4),
+            ("01_start", [P + "tycoon start"], 45),
+            ("02_level5", [P + "money add 900000", P + "tycoon level 5", cam(-45, -50, 30, -44, -38, -6)], 60),
+            ("03_pad", [P + "tp @s -51.5 -60 -18.5 0 5"], 5),
+            ("04_truck", [cam(-56, -57, 12, -44, -59, -3)], 4),
+            ("05_truck2", [cam(-50, -58.5, 8, -44, -58.5, -4)], 5),
+            ("06_roof", [P + "tp @s -47.5 -25 -19.5 -80 8"], 4),
+            ("07_mount", ["ride @p mount @e[type=tesla_tycoon:tesla_roadster,x=-43.5,y=-25,z=-21.5,distance=..3,limit=1]"], 3),
+            ("08_ignite", [P + "tycoon drive 0 0 j"], 2.5),
+            ("09_hover", [P + "tycoon drive 0 0"], 12),
+            ("10_emp", [P + "tycoon emp"], 3),
+            ("11_victory", [], 8),
+            ("12_gotiya_out", [P + "tycoon drive off", cam(-56, -57, 12, -44, -59, -3)], 8)]
+
+
 def tour_city():
     """Build the metropolis (origin 0,-61,0 in the flat test world) and photograph every part of it: the HUD, the Grand Boulevard, an
     intersection from above, the skyline, a robotaxi station, a highway billboard, the petrol station, the depot, the aerial view."""
@@ -94,7 +176,7 @@ def tour_hud():
     return [("00_setup", BASE + KILL_ALL + ["tp @p 0 -60 0 0 0"], 4),
             ("01_start", [P + "tycoon start"], 60),
             ("02_hud_start", [cam(-45.5, -59.0, 14, -44, -55, -6)], 6),
-            ("03_hud_money", [P + "tycoon money 25569"], 7),
+            ("03_hud_money", [P + "money add 25619"], 7),
             ("04_hud_level2", [P + "tycoon buy hydraulics", P + "tycoon buy level2"], 22),
             ("05_hud_level2_rate", [], 4),
             ("06_hud_driving", [P + "tp @s -33 -60 8 90 0", P + "tycoon car tesla_model3"], 4),
@@ -107,7 +189,7 @@ def tour_robotaxi():
     P = "execute as @p run "
     steps = [("00_setup", BASE + KILL_ALL + ["tp @p 0 -60 0 0 0"], 4),
              ("01_start", [P + "tycoon start"], 70),
-             ("02_level4", [P + "tycoon money 400000", P + "tycoon level 4"], 30),
+             ("02_level4", [P + "money add 900000", P + "tycoon level 4"], 30),
              ("03_terminal", [cam(-39, -59.0, -8, -39, -58.4, -12)], 8)]
     # the camera stays at the station in front of the showroom (station 8 on the boulevard): a cab of the core loop passes it every ~40 s
     for i in range(4, 16):
@@ -134,7 +216,7 @@ def tour_story():
              ("13_ram_go", [P + "tycoon drive 1 0 r"], 4),
              ("14_ram_smash", [], 4),
              ("15_ram_after", [P + "tycoon drive off"], 5),
-             ("16_level5", [P + "tycoon money 400000", P + "tycoon level 5", P + "tp @s -45.5 -60 -2.5 180 5"], 50),
+             ("16_level5", [P + "money add 900000", P + "tycoon level 5", P + "tp @s -45.5 -60 -2.5 180 5"], 50),
              ("17_tower", [cam(-45, -50, 30, -44, -38, -6)], 8),
              ("18_alarm", [P + "tycoon sabotage", cam(-64, -58.5, 9, -44, -57, -1)], 8),
              ("19_lift", [P + "tp @s -51.5 -60 -18.5 0 5"], 5),
@@ -155,7 +237,7 @@ def tour_finale():
     P = "execute as @p run "
     return [("00_setup", BASE + KILL_ALL + ["tp @p 0 -60 0 0 0"], 4),
             ("01_start", [P + "tycoon start"], 70),
-            ("02_level5", [P + "tycoon money 400000", P + "tycoon level 5", P + "tp @s -45.5 -60 -2.5 180 5"], 60),
+            ("02_level5", [P + "money add 900000", P + "tycoon level 5", P + "tp @s -45.5 -60 -2.5 180 5"], 60),
             ("03_tower", [cam(-45, -50, 30, -44, -38, -6)], 8),
             ("04_lobby_lift", [cam(-45, -59.5, -8, -52, -57, -19)], 8),
             ("05_alarm_start", [P + "tycoon sabotage", cam(-64, -58.5, 9, -44, -57, -1)], 8),
@@ -253,7 +335,7 @@ def tour_firstperson():
     return steps
 
 
-TOURS = {"vehicles": tour_vehicles, "seat": tour_seat, "seatback": tour_seatback, "city": tour_city, "hud": tour_hud, "robotaxi": tour_robotaxi, "story": tour_story, "finale": tour_finale, "truck": tour_truck, "shop": tour_shop, "delivery": tour_delivery, "guide": tour_guide, "occupants": tour_occupants, "firstperson": tour_firstperson}
+TOURS = {"depot": tour_depot, "gotiya": tour_gotiya, "emp": tour_emp, "vehicles": tour_vehicles, "seat": tour_seat, "seatback": tour_seatback, "city": tour_city, "hud": tour_hud, "robotaxi": tour_robotaxi, "story": tour_story, "finale": tour_finale, "truck": tour_truck, "shop": tour_shop, "delivery": tour_delivery, "guide": tour_guide, "occupants": tour_occupants, "firstperson": tour_firstperson}
 
 
 def have(tool):
@@ -341,7 +423,7 @@ def main():
         "onboardAccessibility:false\npauseOnLostFocus:false\ntutorialStep:none\njoinedFirstServer:true\nskipMultiplayerWarning:true\n"
         "renderDistance:%d\nsimulationDistance:%d\nmaxFps:30\nguiScale:2\nhideGui:%s\nparticles:%d\nmipmapLevels:2\n"
         % (8 if a.tour in ("city", "robotaxi", "finale", "story") else 6, 8 if a.tour in ("city", "robotaxi", "finale", "story") else 6,
-           "false" if a.tour in ("city", "hud", "robotaxi", "finale", "story", "guide", "shop") else "true", 1 if a.tour in ("finale", "story") else 0))
+           "false" if a.tour in ("depot", "city", "hud", "robotaxi", "finale", "story", "guide", "shop") else "true", 1 if a.tour in ("finale", "story") else 0))
     log = os.path.join(RUN, "client_smoke.log")
     display = ":77"
     xvfb = subprocess.Popen(["Xvfb", display, "-screen", "0", "%sx%sx24" % (w, h), "+extension", "GLX", "+render", "-noreset"],

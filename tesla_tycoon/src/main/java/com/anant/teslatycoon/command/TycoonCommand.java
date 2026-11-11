@@ -37,7 +37,43 @@ public final class TycoonCommand {
         return 1;
     }
 
+    private static int money(ServerCommandSource src, java.util.function.BiConsumer<ServerPlayerEntity, Company> action) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayerEntity p = src.getPlayerOrThrow();
+        Company c = need(src, p);
+        if (c != null) {
+            action.accept(p, c);
+            Tycoon.sync(p, c);
+        }
+        return 1;
+    }
+
+    private static void note(ServerPlayerEntity p, String msg) {
+        p.sendMessage(Text.literal(msg).formatted(Formatting.GREEN), true);
+    }
+
     public static void register(CommandDispatcher<ServerCommandSource> d) {
+        d.register(CommandManager.literal("money").requires(s -> s.hasPermissionLevel(2))
+                .then(CommandManager.literal("add").then(CommandManager.argument("amount", LongArgumentType.longArg()).executes(ctx ->
+                        money(ctx.getSource(), (p, c) -> {
+                            c.money = Math.max(0, c.money + LongArgumentType.getLong(ctx, "amount"));
+                            note(p, String.format(java.util.Locale.US, "Balance: $%,d", c.money));
+                        }))))
+                .then(CommandManager.literal("set").then(CommandManager.argument("amount", LongArgumentType.longArg(0)).executes(ctx ->
+                        money(ctx.getSource(), (p, c) -> {
+                            c.money = LongArgumentType.getLong(ctx, "amount");
+                            c.carry = 0;
+                            note(p, String.format(java.util.Locale.US, "Balance: $%,d", c.money));
+                        }))))
+                .then(CommandManager.literal("speed").then(CommandManager.argument("multiplier", FloatArgumentType.floatArg(0f, 1000f)).executes(ctx ->
+                        money(ctx.getSource(), (p, c) -> {
+                            c.speed = FloatArgumentType.getFloat(ctx, "multiplier");
+                            note(p, String.format(java.util.Locale.US, "Income speed x%.2f: +$%,d/sec", c.speed, Math.round(c.incomePerSecond())));
+                        }))))
+                .then(CommandManager.literal("toggle").executes(ctx ->
+                        money(ctx.getSource(), (p, c) -> {
+                            c.hudHidden = !c.hudHidden;
+                            note(p, c.hudHidden ? "Money HUD off" : "Money HUD on");
+                        }))));
         d.register(CommandManager.literal("tycoon")
                 .then(CommandManager.literal("start").executes(ctx -> {
                     ServerPlayerEntity p = ctx.getSource().getPlayerOrThrow();
@@ -49,13 +85,6 @@ public final class TycoonCommand {
                     Company c = need(ctx.getSource(), p);
                     if (c != null) {
                         CityBuilder.teleportHome(p, c);
-                    }
-                    return 1;
-                }))
-                .then(CommandManager.literal("shop").executes(ctx -> {
-                    ServerPlayerEntity p = ctx.getSource().getPlayerOrThrow();
-                    if (need(ctx.getSource(), p) != null) {
-                        ModNetwork.sendOpenShop(p);
                     }
                     return 1;
                 }))
@@ -122,6 +151,20 @@ public final class TycoonCommand {
                             Tycoon.buy(p, u);
                             return 1;
                         })))
+                .then(CommandManager.literal("deploy").requires(s -> s.hasPermissionLevel(2)).then(CommandManager.argument("id", StringArgumentType.word()).executes(ctx -> {
+                    ServerPlayerEntity p = ctx.getSource().getPlayerOrThrow();
+                    Upgrade u = Upgrade.byId(StringArgumentType.getString(ctx, "id"));
+                    if (u != null) {
+                        net.minecraft.item.Item it = com.anant.teslatycoon.registry.ModItems.UPGRADES.get(u);
+                        for (int i = 0; i < p.getInventory().size(); i++) {
+                            if (p.getInventory().getStack(i).isOf(it)) {
+                                Tycoon.deploy(p, u, p.getInventory().getStack(i));
+                                break;
+                            }
+                        }
+                    }
+                    return 1;
+                })))
                 .then(CommandManager.literal("car").requires(s -> s.hasPermissionLevel(2))
                         .then(CommandManager.argument("model", StringArgumentType.word())
                                 .suggests((c2, b) -> {

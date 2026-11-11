@@ -57,7 +57,7 @@ public final class TerminalBlock extends HorizontalFacingBlock {
             if (c == null || !c.cityBuilt) {
                 sp.sendMessage(Text.literal("Build your city first: /tycoon start").formatted(Formatting.RED), true);
             } else {
-                ModNetwork.sendOpenShop(sp);
+                sp.sendMessage(Text.literal("Right-click a pedestal in the Upgrade Depot to buy its upgrade.").formatted(Formatting.AQUA), true);
             }
         } else if (c != null) {
             boolean on = c.level >= 4;

@@ -12,27 +12,27 @@ BASE = {1: 5.0, 2: 35.0, 3: 150.0, 4: 800.0, 5: 2500.0}     # $/s of the showroo
 BILLBOARD = 0.06                                            # +6 % per placed billboard
 PENALTY = 0.60                                              # income factor while a Gotiya sabotage is unresolved
 DRIVE_BONUS = 1.0                                           # +100 % while the owner drives a company car
-TIP_SECONDS = 15.0                                          # a customer pays this many seconds of income at reception
+TIP_SECONDS = 26.0                                          # a customer pays this many seconds of income at reception
 DELIVERY_SECONDS = 8.0                                      # the delivery truck's stock bonus
 FARE_SECONDS = 0.7                                          # one robotaxi ride
-CUSTOMER_EVERY = {1: 37.5, 2: 33.0, 3: 28.5, 4: 24.0, 5: 19.5}   # s between customers: (780-90*level)/20 + 3 s of randomness
+CUSTOMER_EVERY = {1: 12.5, 2: 12.5, 3: 12.5, 4: 12.5, 5: 12.5}   # s between customers: (780-90*level)/20 + 3 s of randomness
 DELIVERY_EVERY = 95.0
 RIDES_PER_MIN = 12.8                                        # level 4+: 4 Cybercabs together (stations every ~15 s per cab)
 
 # (id, cost): counters answer the sabotage of the level they are bought in, level purchases move to the next level
 PLAN = [
-    ("hydraulics", 250),
+    ("hydraulics", 1200),
     ("level2", 1500),
-    ("solar", 1500),
+    ("solar", 8000),
     ("level3", 10000),
-    ("ram", 5000),
+    ("ram", 35000),
     ("level4", 50000),
-    ("starlink", 25000),
-    ("billboards", 15000),
+    ("starlink", 180000),
+    ("billboards", 180000),
     ("level5", 250000),
 ]
-SAB_FIRST_AT = 25.0
-SAB_DELAY = 7.0
+SAB_FIRST_AT = 95.0
+SAB_DELAY = 95.0
 EXTRA_TIME = {"ram": 14.0, "billboards": 0.0}               # seconds the player is busy but still earns (smashing roadblocks, driving to billboards)
 
 
@@ -69,7 +69,7 @@ def simulate(plan, prof, verbose=True):
 
     dt = 0.05
     i = 0
-    next_customer = 10.0
+    next_customer = 6.0
     next_delivery = 35.0
     while i < len(plan):
         pid, cost = plan[i]

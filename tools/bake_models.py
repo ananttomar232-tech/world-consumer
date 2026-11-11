@@ -67,6 +67,9 @@ def g_l1(mat, path):
 
 
 def g_l3(mat, path):
+    # the studio backdrop of the upload: a ground plane, two background rings and the author's 3D text ("RifdanAdidan")
+    if mat == "material_0" or any(k in path for k in ("Text", "Plane_", "Circle.004", "Circle.005")):
+        return None
     if mat in ("panoramic", "kaca"):
         return "glass"
     if mat in ("headlight", "redlight"):
@@ -404,6 +407,127 @@ def paint_red(name):
     print("%-14s red paint: %d vertices recoloured" % (name, changed))
 
 
+def _lod_arrays(blob, lod):
+    v = np.frombuffer(blob, dtype=T.VERT_DT, count=lod["vc"], offset=lod["off"]).copy()
+    it = np.uint16 if lod["it"] == "i2" else np.uint32
+    i = np.frombuffer(blob, dtype=it, count=lod["ic"], offset=lod["off"] + lod["vc"] * 32).astype(np.uint32)
+    return v, i
+
+
+def _append_lod(out, v, i):
+    if len(i) == 0:
+        return {"vc": 0, "ic": 0, "it": "i2", "off": len(out)}
+    used, inv = np.unique(i, return_inverse=True)
+    v = v[used]
+    i = inv.astype(np.uint32)
+    it = "i2" if len(v) < 65536 else "i4"
+    lod = {"vc": int(len(v)), "ic": int(len(i)), "it": it, "off": len(out)}
+    out.extend(v.tobytes())
+    out.extend((i.astype(np.uint16) if it == "i2" else i).tobytes())
+    return lod
+
+
+def _write_model(name, header, out):
+    header["tris"] = [sum(p["lods"][l]["ic"] // 3 for p in header["parts"]) for l in range(3)]
+    T.write_ttm(os.path.join(OUT_MODELS, name + ".ttm"), header, bytes(out))
+    with open(os.path.join(OUT_MODELS, name + ".meta.json"), "w") as fh:
+        json.dump({k: v for k, v in header.items() if k != "parts"}, fh, indent=1)
+
+
+def fix_cybercab(name="l4_cybercab"):
+    """The uploaded Cybercab is glass from the windscreen over the roof down to the bumper, so in game the roof and the boot look
+    open. The flat top becomes a dark tinted sunroof (part glass_tint, drawn almost opaque) and everything behind the cabin a closed
+    boot lid in body colour (part trunk, solid). Idempotent."""
+    path = os.path.join(OUT_MODELS, name + ".ttm")
+    if not os.path.exists(path):
+        return
+    header, blob = T.read_ttm(path)
+    blob = bytes(blob)
+    if any(p["name"] == "glass_tint" for p in header["parts"]):
+        return
+    cab = G.CABINS[name]
+    body = [p for p in header["parts"] if p["name"] == "body"][0]
+    bv, _ = _lod_arrays(blob, body["lods"][0])
+    lum = bv["col"][:, :3].astype(np.float32).mean(1)
+    paint = np.median(bv["col"][lum > np.percentile(lum, 60)][:, :3], axis=0).astype(np.uint8)
+    glass = [p for p in header["parts"] if p["name"] == "glass"][0]
+    header, out = rewrite_ttm(header, blob, drop=("glass",))
+    parts = {"glass": [], "glass_tint": [], "trunk": []}
+    rear_z = cab.sz - 1.75                                   # behind the rear seats: the boot
+    for lod in glass["lods"]:
+        v, i = _lod_arrays(blob, lod)
+        tri = i.reshape(-1, 3)
+        pos = v["pos"][tri]
+        cen = pos.mean(1)
+        n = np.cross(pos[:, 1] - pos[:, 0], pos[:, 2] - pos[:, 0])
+        n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-9)
+        boot = cen[:, 2] < rear_z
+        roof = (~boot) & (np.abs(n[:, 1]) > 0.80) & (cen[:, 1] > cab.roof - 0.22) & (cen[:, 2] < cab.sz + 0.30)     # not the windscreen
+        keep = ~(boot | roof)
+        vt = v.copy()
+        vt["col"][:, :3] = (10, 14, 22)
+        vt["mat"] = (60, 40, 0, 1)
+        vb = v.copy()
+        vb["col"][:, :3] = paint
+        vb["mat"] = (0, 255, 0, 1)
+        parts["glass"].append(_append_lod(out, v, tri[keep].reshape(-1)))
+        parts["glass_tint"].append(_append_lod(out, vt, tri[roof].reshape(-1)))
+        parts["trunk"].append(_append_lod(out, vb, tri[boot].reshape(-1)))
+    header["parts"].append({"name": "glass", "layer": "glass", "wheel": -1, "lods": parts["glass"]})
+    header["parts"].append({"name": "glass_tint", "layer": "glass", "wheel": -1, "lods": parts["glass_tint"]})
+    header["parts"].append({"name": "trunk", "layer": "solid", "wheel": -1, "lods": parts["trunk"]})
+    _write_model(name, header, out)
+    print("%-14s sunroof %d tris, boot lid %d tris, clear glass %d tris" % (name, parts["glass_tint"][0]["ic"] // 3, parts["trunk"][0]["ic"] // 3, parts["glass"][0]["ic"] // 3))
+
+
+def align_wheels(name):
+    """Every wheel sits flush inside its fender (the tyre's outer face 3 cm inside the body side at the wheel arch) and turns about
+    the exact centre of its own mesh, so it rolls about X and steers about Y without wobbling. Idempotent."""
+    path = os.path.join(OUT_MODELS, name + ".ttm")
+    if not os.path.exists(path):
+        return
+    header, blob = T.read_ttm(path)
+    out = bytearray(blob)
+    body = [p for p in header["parts"] if p["name"] == "body"][0]
+    bv, _ = _lod_arrays(bytes(out), body["lods"][0])
+    bp = bv["pos"]
+    moved = []
+    for part in header["parts"]:
+        w = part["wheel"]
+        if w < 0:
+            continue
+        v0, _ = _lod_arrays(bytes(out), part["lods"][0])
+        lo, hi = v0["pos"].min(0), v0["pos"].max(0)
+        side = 1.0 if (lo[0] + hi[0]) > 0 else -1.0
+        near = bp[(bp[:, 2] > lo[2] - 0.15) & (bp[:, 2] < hi[2] + 0.15) & (bp[:, 1] < hi[1] + 0.35) & (bp[:, 0] * side > 0)]
+        fender = np.percentile(np.abs(near[:, 0]), 98) if len(near) > 20 else max(abs(lo[0]), abs(hi[0]))
+        outer = max(abs(lo[0]), abs(hi[0]))
+        shift = max(-0.07, min(0.0, (fender - 0.03) - outer))           # only ever inwards, and never by much
+        done = set()
+        for lod in part["lods"]:
+            if lod["vc"] == 0 or lod["off"] in done:
+                continue
+            done.add(lod["off"])
+            arr = np.frombuffer(out, dtype=T.VERT_DT, count=lod["vc"], offset=lod["off"])
+            arr["pos"][:, 0] += side * shift
+        v0, _ = _lod_arrays(bytes(out), part["lods"][0])
+        lo, hi = v0["pos"].min(0), v0["pos"].max(0)
+        wd = header["wheels"][w]
+        wd["pivot"] = [round(float((lo[k] + hi[k]) / 2), 4) for k in range(3)]
+        wd["radius"] = round(float(max(hi[1] - lo[1], hi[2] - lo[2]) / 2), 4)
+        moved.append(round(float(shift), 3))
+    header["wheelRadius"] = header["wheels"][0]["radius"]
+    _write_model(name, header, out)
+    print("%-14s wheels moved in by %s" % (name, moved))
+
+
+def post_fix(name):
+    if name == "l4_cybercab":
+        fix_cybercab(name)
+    if name in MODELS and name != "rival_truck":          # (a monster truck's wheels are meant to stand out)
+        align_wheels(name)
+
+
 def apply_cabin_to_header(header, cab):
     """The anchors of the seated driver come from the cabin: seat, hip, steering wheel (centre + tilt) and the occupant scale."""
     header["seat"] = [round(cab.sx, 4), 0.0, round(cab.sz, 4)]
@@ -423,10 +547,14 @@ def rewrite_ttm(header, blob, drop=()):
         lods = []
         for e in p["lods"]:
             size = e["vc"] * 32 + e["ic"] * (2 if e["it"] == "i2" else 4)
-            if e["off"] not in memo:
-                memo[e["off"]] = len(out)
+            key = (e["off"], size)                      # (an empty LOD shares its offset with whatever follows it)
+            if size == 0:
+                lods.append(dict(e, off=len(out)))
+                continue
+            if key not in memo:
+                memo[key] = len(out)
                 out.extend(blob[e["off"]:e["off"] + size])
-            lods.append(dict(e, off=memo[e["off"]]))
+            lods.append(dict(e, off=memo[key]))
         parts.append(dict(p, lods=lods))
     header = dict(header, parts=parts)
     header["tris"] = [sum(p["lods"][l]["ic"] // 3 for p in parts) for l in range(3)]
@@ -621,6 +749,7 @@ def bake_model(name, cfg, preview_dir=None):
         os.makedirs(OUT_MODELS, exist_ok=True)
         T.write_ttm(os.path.join(OUT_MODELS, name + ".ttm"), header, bytes(blob))
         paint_red(name)
+        post_fix(name)
         meta = {k: v for k, v in header.items() if k != "parts"}
         with open(os.path.join(OUT_MODELS, name + ".meta.json"), "w") as fh:
             json.dump(meta, fh, indent=1)
@@ -795,9 +924,15 @@ def main():
     ap.add_argument("--only", action="append")
     ap.add_argument("--preview", metavar="DIR")
     ap.add_argument("--lod", type=int, default=0)
+    ap.add_argument("--fix-only", action="store_true", help="only the post-fixes of the baked models: Cybercab sunroof + boot lid, wheel alignment")
     ap.add_argument("--paint-only", action="store_true", help="only re-colour the Roadster red in the already baked .ttm (fast)")
     ap.add_argument("--interior-only", action="store_true", help="only (re)generate the procedural interiors of the already baked cars (fast)")
     a = ap.parse_args()
+    if a.fix_only:
+        for name in MODELS:
+            if not a.only or name in a.only:
+                post_fix(name)
+        return 0
     if a.paint_only:
         for name in RED_PAINT:
             paint_red(name)

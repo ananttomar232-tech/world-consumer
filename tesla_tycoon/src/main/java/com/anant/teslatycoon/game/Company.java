@@ -16,7 +16,7 @@ public final class Company {
     public static final double SABOTAGE_FACTOR = 0.60;
     public static final double BILLBOARD_BONUS = 0.06;      // per placed billboard
     public static final double DRIVE_BONUS = 1.0;           // +100% while the owner drives a company car
-    public static final double TIP_SECONDS = 15.0;          // a customer pays this many seconds of income at reception
+    public static final double TIP_SECONDS = 26.0;          // a customer pays this many seconds of income at reception
     public static final double DELIVERY_SECONDS = 8.0;      // the delivery truck's stock bonus
     public static final double FARE_SECONDS = 0.7;          // one robotaxi ride
     public static final int BILLBOARDS_NEEDED = 3;
@@ -29,6 +29,10 @@ public final class Company {
     public double carry;
     public int level = 1;
     public final Set<Upgrade> owned = EnumSet.noneOf(Upgrade.class);
+    /** Bought on a pedestal, still an item in the player's hand: not built / deployed yet. */
+    public final Set<Upgrade> pending = EnumSet.noneOf(Upgrade.class);
+    public double speed = 1.0;            // /money speed: multiplies the passive income
+    public boolean hudHidden;             // /money toggle
     public int billboardsPlaced;
     public int billboardMask;              // bit i set: billboard i shows the ad
     public long totalEarned;
@@ -92,7 +96,7 @@ public final class Company {
         if (climaxWon) {
             r *= 1.25;
         }
-        return r;
+        return r * speed;
     }
 
     /** What the HUD shows as +$/sec and what accrues every tick: the passive income, doubled while the owner drives. */
@@ -109,6 +113,9 @@ public final class Company {
     public String blockedReason(Upgrade u) {
         if (u.kind != Upgrade.Kind.EXTRA && owns(u)) {
             return "owned";
+        }
+        if (pending.contains(u)) {
+            return "bought - place it";
         }
         if (level < u.minLevel) {
             return "needs showroom level " + u.minLevel;
@@ -145,6 +152,13 @@ public final class Company {
             list.add(NbtString.of(u.id));
         }
         n.put("Owned", list);
+        NbtList pend = new NbtList();
+        for (Upgrade u : pending) {
+            pend.add(NbtString.of(u.id));
+        }
+        n.put("Pending", pend);
+        n.putDouble("Speed", speed);
+        n.putBoolean("HudHidden", hudHidden);
         n.putInt("Billboards", billboardsPlaced);
         n.putInt("BbMask", billboardMask);
         n.putBoolean("Gate", gateClosed);
@@ -176,6 +190,14 @@ public final class Company {
                 c.owned.add(u);
             }
         }
+        for (NbtElement e : n.getList("Pending", NbtElement.STRING_TYPE)) {
+            Upgrade u = Upgrade.byId(e.asString());
+            if (u != null) {
+                c.pending.add(u);
+            }
+        }
+        c.speed = n.contains("Speed") ? n.getDouble("Speed") : 1.0;
+        c.hudHidden = n.getBoolean("HudHidden");
         c.billboardsPlaced = n.getInt("Billboards");
         c.billboardMask = n.contains("BbMask") ? n.getInt("BbMask") : (1 << c.billboardsPlaced) - 1;
         c.gateClosed = n.getBoolean("Gate");

@@ -14,6 +14,7 @@ public final class ClientState {
     public static boolean powerOut;
     public static int empCooldown;
     public static boolean driving;
+    public static boolean hudHidden;
     /** 0 = quiet, 1 = the alarm is on and Gotiya rams the gate, 2 = the Monster Truck attack. */
     public static int alarm;
 

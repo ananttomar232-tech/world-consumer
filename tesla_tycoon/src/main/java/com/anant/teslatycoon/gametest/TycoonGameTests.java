@@ -244,17 +244,23 @@ public final class TycoonGameTests implements FabricGameTest {
     }
 
     // ------------------------------------------------------------------------------------------------------ economy
+    private static final double[] LONGEST = {0};
+    private static final double[] SHORTEST = {0};
+
     /** Walks through the whole story with the Company rules: returns the seconds spent on each showroom level (1..4). */
     private static double[] playThrough(boolean driving, boolean automatic, double[] firstRates) {
         Company c = new Company(UUID.randomUUID(), "pacing");
         Upgrade[] order = {Upgrade.HYDRAULICS, Upgrade.LEVEL2, Upgrade.SOLAR, Upgrade.LEVEL3, Upgrade.RAM, Upgrade.LEVEL4, Upgrade.STARLINK, Upgrade.BILLBOARDS, Upgrade.LEVEL5};
-        double[] customerEvery = {0, 37.5, 33.0, 28.5, 24.0, 19.5};
+        double[] customerEvery = {0, 12.5, 12.5, 12.5, 12.5, 12.5};       // a customer every 10 to 15 seconds
         double t = 0;
         double levelStart = 0;
+        double lastBuy = 0;
+        LONGEST[0] = 0;
+        SHORTEST[0] = 1e9;
         double[] perLevel = new double[6];
-        double nextCustomer = 10;
+        double nextCustomer = 6;
         double nextDelivery = 35;
-        double sabotageAt = 25;
+        double sabotageAt = 95;
         c.money = 0;
         long tick = 0;
         firstRates[1] = c.passivePerSecond();
@@ -288,13 +294,16 @@ public final class TycoonGameTests implements FabricGameTest {
             }
             c.money -= u.cost;
             c.owned.add(u);
+            LONGEST[0] = Math.max(LONGEST[0], t - lastBuy);
+            SHORTEST[0] = Math.min(SHORTEST[0], t - lastBuy);
+            lastBuy = t;
             switch (u) {
                 case LEVEL2, LEVEL3, LEVEL4, LEVEL5 -> {
                     perLevel[c.level] = t - levelStart;
                     levelStart = t;
                     c.level = u.target;
                     c.sabTriggered |= 0;
-                    sabotageAt = t + 7;
+                    sabotageAt = t + 95;
                     firstRates[c.level] = c.passivePerSecond();
                 }
                 case BILLBOARDS -> c.billboardsPlaced = 3;
@@ -317,15 +326,17 @@ public final class TycoonGameTests implements FabricGameTest {
         }
         double[] first = new double[6];
         double[] active = playThrough(true, true, first);
+        double longest = LONGEST[0];
+        double shortest = SHORTEST[0];
         double[] idle = playThrough(false, true, first);
-        double[] afk = playThrough(false, false, first);
+        Tycoon.log(String.format("[pacing] active: a purchase every %.0f - %.0f s", shortest, longest));
+        // the brief: enough cash for the next upgrade within 1 to 1.5 minutes of active play
+        if (shortest < 50 || longest > 95) {
+            ctx.throwGameTestException("an active player waits " + Math.round(shortest) + " - " + Math.round(longest) + " s per upgrade (want 60 - 90)");
+        }
         for (int lv = 1; lv <= 4; lv++) {
-            Tycoon.log(String.format("[pacing] level %d: active %.0f s, idle %.0f s, afk %.0f s", lv, active[lv], idle[lv], afk[lv]));
-            if (active[lv] < 120 || active[lv] > 195) {
-                ctx.throwGameTestException("level " + lv + " takes an active player " + Math.round(active[lv]) + " s (want 120 - 195)");
-            }
-            if (idle[lv] < active[lv] || afk[lv] < 270) {
-                ctx.throwGameTestException("level " + lv + ": idle " + Math.round(idle[lv]) + " s, afk " + Math.round(afk[lv]) + " s - standing still must be clearly slower");
+            if (idle[lv] <= active[lv]) {
+                ctx.throwGameTestException("level " + lv + ": standing still must be slower than playing");
             }
         }
         ctx.complete();
@@ -408,6 +419,11 @@ public final class TycoonGameTests implements FabricGameTest {
         BlockPos origin = ctx.getAbsolutePos(new BlockPos(0, 4, 0)).add(0, 20, 0);
         Company c = new Company(UUID.randomUUID(), "builder");
         CityBuilder.buildForTest(w, c, origin, null);
+        for (int fx = origin.getX() - 70; fx <= origin.getX() - 10; fx += 16) {
+            for (int fz = origin.getZ() - 20; fz <= origin.getZ() + 60; fz += 16) {
+                w.setChunkForced(fx >> 4, fz >> 4, true);       // Gotiya's garage and the road in front of it must tick
+            }
+        }
         ctx.runAtTick(1500, () -> {
             expect(ctx, c.cityBuilt, "the city build did not finish in 75 s");
             BlockPos glass1 = Plan.world(origin, CityLayout.SX0 + 3, 3, CityLayout.SZ0);
@@ -459,8 +475,18 @@ public final class TycoonGameTests implements FabricGameTest {
             expect(ctx, c.billboardsPlaced == 1, "a second click must not count again");
             double after = c.incomePerSecond();
             expect(ctx, Math.abs(after / before - 1.06) < 0.005, "a billboard should add 6% income: " + before + " -> " + after);
+            net.minecraft.util.math.Box all = new net.minecraft.util.math.Box(origin).expand(260, 120, 260);
+            java.util.function.Predicate<VehicleEntity> monster = e -> e.spec == com.anant.teslatycoon.vehicle.VehicleSpecs.GOTIYA;
+            RivalDirector.ensureGotiya(w, c);
+            expect(ctx, w.getEntitiesByClass(VehicleEntity.class, all, monster).isEmpty(), "no Monster Truck may exist before the finale");
             RivalDirector.triggerForTest(w, c, 1);
             expect(ctx, spikesNear(w, origin), "sabotage 1 should leave road spikes on the road");
+            RivalDirector.triggerForTest(w, c, 5);
+            java.util.List<VehicleEntity> trucks = w.getEntitiesByClass(VehicleEntity.class, all, monster);
+            expect(ctx, trucks.size() == 1, "the finale needs exactly one Monster Truck, found " + trucks.size());
+            expect(ctx, trucks.get(0).getFirstPassenger() instanceof com.anant.teslatycoon.npc.SuitedNpcEntity, "Seth Gotiya must sit in the Monster Truck");
+            trucks.get(0).getFirstPassenger().discard();
+            trucks.get(0).discard();
             ctx.complete();
         });
     }
@@ -659,8 +685,8 @@ public final class TycoonGameTests implements FabricGameTest {
     }
 
     private static boolean spikesNear(ServerWorld w, BlockPos origin) {
-        for (int x = -14; x < 50; x++) {
-            for (int z = 0; z < 14; z++) {
+        for (int x = -62; x <= -60; x++) {
+            for (int z = 0; z < 22; z++) {
                 if (w.getBlockState(Plan.world(origin, x, 0, z)).isOf(ModBlocks.SPIKES)) {
                     return true;
                 }

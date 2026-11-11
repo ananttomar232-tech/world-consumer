@@ -26,6 +26,9 @@ public final class ModEntities {
     public static final EntityType<SuitedNpcEntity> SUITED = FabricEntityTypeBuilder.<SuitedNpcEntity>create(SpawnGroup.MISC, SuitedNpcEntity::new)
             .dimensions(EntityDimensions.fixed(0.6f, 1.95f)).trackRangeBlocks(80).trackedUpdateRate(2).build();
 
+    public static final EntityType<com.anant.teslatycoon.shop.PedestalEntity> PEDESTAL = FabricEntityTypeBuilder.<com.anant.teslatycoon.shop.PedestalEntity>create(SpawnGroup.MISC, com.anant.teslatycoon.shop.PedestalEntity::new)
+            .dimensions(EntityDimensions.fixed(1.1f, 2.0f)).trackRangeBlocks(48).trackedUpdateRate(40).build();
+
     private ModEntities() {}
 
     public static EntityType<VehicleEntity> vehicle(VehicleSpec spec) {
@@ -36,6 +39,7 @@ public final class ModEntities {
         Registry.register(Registries.ENTITY_TYPE, TeslaTycoon.id("signboard"), SIGNBOARD);
         Registry.register(Registries.ENTITY_TYPE, TeslaTycoon.id("wall_poster"), POSTER);
         Registry.register(Registries.ENTITY_TYPE, TeslaTycoon.id("suited_villager"), SUITED);
+        Registry.register(Registries.ENTITY_TYPE, TeslaTycoon.id("pedestal"), PEDESTAL);
         FabricDefaultAttributeRegistry.register(SUITED, SuitedNpcEntity.attributes());
         for (VehicleSpec spec : VehicleSpecs.ALL) {
             EntityType<VehicleEntity> type = FabricEntityTypeBuilder.<VehicleEntity>create(SpawnGroup.MISC, VehicleEntity::new)

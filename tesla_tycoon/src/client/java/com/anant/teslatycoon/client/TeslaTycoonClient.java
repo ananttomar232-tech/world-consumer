@@ -15,7 +15,6 @@ import com.anant.teslatycoon.vehicle.VehicleEntity;
 import com.anant.teslatycoon.vehicle.VehicleSpec;
 import com.anant.teslatycoon.vehicle.VehicleSpecs;
 import com.anant.teslatycoon.client.hud.TycoonHud;
-import com.anant.teslatycoon.client.screen.ShopScreen;
 import com.anant.teslatycoon.net.ModNetwork;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -42,6 +41,36 @@ public final class TeslaTycoonClient implements ClientModInitializer {
         EntityRendererRegistry.register(ModEntities.SIGNBOARD, SignboardRenderer::new);
         EntityRendererRegistry.register(ModEntities.POSTER, PosterRenderer::new);
         EntityRendererRegistry.register(ModEntities.SUITED, SuitedNpcRenderer::new);
+        EntityRendererRegistry.register(ModEntities.PEDESTAL, com.anant.teslatycoon.client.render.PedestalRenderer::new);
+        // a showroom-level upgrade in the hand is the car itself, in 3D
+        java.util.Map<net.minecraft.item.Item, String> carItems = new java.util.HashMap<>();
+        for (com.anant.teslatycoon.game.Upgrade u : com.anant.teslatycoon.game.Upgrade.values()) {
+            if (u.kind == com.anant.teslatycoon.game.Upgrade.Kind.LEVEL) {
+                carItems.put(com.anant.teslatycoon.registry.ModItems.UPGRADES.get(u), VehicleSpecs.LEVELS.get(u.target - 1).model);
+            }
+        }
+        for (VehicleSpec spec : VehicleSpecs.ALL) {
+            carItems.put(com.anant.teslatycoon.registry.ModItems.SPAWNERS.get(spec), spec.model);
+        }
+        for (java.util.Map.Entry<net.minecraft.item.Item, String> ci : carItems.entrySet()) {
+            final String model = ci.getValue();
+            net.fabricmc.fabric.api.client.rendering.v1.BuiltinItemRendererRegistry.INSTANCE.register(ci.getKey(),
+                    (stack, mode, matrices, vcp, light, overlay) -> {
+                        com.anant.teslatycoon.client.model.TtmModel m = TtmModels.get(model);
+                        if (m == null) {
+                            return;
+                        }
+                        if (vcp instanceof net.minecraft.client.render.VertexConsumerProvider.Immediate im) {
+                            im.draw();
+                        }
+                        matrices.push();
+                        matrices.translate(0.5, 0.3, 0.5);
+                        float s = 0.95f / Math.max(1f, m.meta.length);
+                        matrices.scale(s, s, s);
+                        com.anant.teslatycoon.client.render.VehicleRenderer.drawStatic(m, matrices, light, 1);
+                        matrices.pop();
+                    });
+        }
         ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(new SimpleSynchronousResourceReloadListener() {
             @Override
             public Identifier getFabricId() {
@@ -76,11 +105,6 @@ public final class TeslaTycoonClient implements ClientModInitializer {
                     ClientPlayNetworking.send(ModNetwork.EMP, new PacketByteBuf(io.netty.buffer.Unpooled.buffer(0)));
                 }
             }
-            while (ClientBridgeImpl.SHOP.wasPressed()) {
-                if (client.player != null && ClientState.present) {
-                    client.setScreen(new ShopScreen());
-                }
-            }
         });
         HudRenderCallback.EVENT.register(TycoonHud::render);
         ClientPlayNetworking.registerGlobalReceiver(ModNetwork.STATE, (client, handler, buf, sender) -> {
@@ -95,15 +119,21 @@ public final class TeslaTycoonClient implements ClientModInitializer {
             boolean city = buf.readBoolean();
             int smashed = buf.readVarInt();
             int emp = buf.readVarInt();
+            int pend = buf.readInt();
+            boolean hudHidden = buf.readBoolean();
             boolean driving = buf.readBoolean();
             int alarm = buf.readVarInt();
             client.execute(() -> {
                 ClientState.apply(money, income, level, mask, billboards, sab, hp, power, city, smashed, emp);
                 ClientState.driving = driving;
                 ClientState.alarm = alarm;
-                if (client.currentScreen instanceof ShopScreen s) {
-                    s.refresh();
+                ClientState.MIRROR.pending.clear();
+                for (com.anant.teslatycoon.game.Upgrade u : com.anant.teslatycoon.game.Upgrade.values()) {
+                    if ((pend & (1 << u.ordinal())) != 0) {
+                        ClientState.MIRROR.pending.add(u);
+                    }
                 }
+                ClientState.hudHidden = hudHidden;
             });
         });
         ClientPlayNetworking.registerGlobalReceiver(ModNetwork.DEBUG_DRIVE, (client, handler, buf, sender) -> {
@@ -115,6 +145,5 @@ public final class TeslaTycoonClient implements ClientModInitializer {
             boolean r = buf.readBoolean();
             ClientBridgeImpl.forced = on ? new float[]{t, st, j ? 1f : 0f, d ? 1f : 0f, r ? 1f : 0f} : null;
         });
-        ClientPlayNetworking.registerGlobalReceiver(ModNetwork.OPEN_SHOP, (client, handler, buf, sender) -> client.execute(() -> client.setScreen(new ShopScreen())));
     }
 }

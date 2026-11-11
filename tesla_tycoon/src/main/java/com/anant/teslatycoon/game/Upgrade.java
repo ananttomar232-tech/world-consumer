@@ -8,16 +8,16 @@ import java.util.List;
  * minutes per showroom level, while an idle one needs about 4.
  */
 public enum Upgrade {
-    HYDRAULICS("hydraulics", 250, Kind.COUNTER, 1, 1),
+    HYDRAULICS("hydraulics", 1_200, Kind.COUNTER, 1, 1),
     LEVEL2("level2", 1_500, Kind.LEVEL, 2, 1),
-    SOLAR("solar", 1_500, Kind.COUNTER, 2, 2),
+    SOLAR("solar", 8_000, Kind.COUNTER, 2, 2),
     LEVEL3("level3", 10_000, Kind.LEVEL, 3, 2),
-    RAM("ram", 5_000, Kind.COUNTER, 3, 3),
+    RAM("ram", 35_000, Kind.COUNTER, 3, 3),
     LEVEL4("level4", 50_000, Kind.LEVEL, 4, 3),
-    STARLINK("starlink", 25_000, Kind.COUNTER, 4, 4),
-    BILLBOARDS("billboards", 15_000, Kind.COUNTER, 4, 4),
+    STARLINK("starlink", 180_000, Kind.COUNTER, 4, 4),
+    BILLBOARDS("billboards", 180_000, Kind.COUNTER, 4, 4),
     LEVEL5("level5", 250_000, Kind.LEVEL, 5, 4),
-    POSTERS("posters", 150, Kind.EXTRA, 0, 1);
+    POSTERS("posters", 500, Kind.EXTRA, 0, 1);
 
     public enum Kind { LEVEL, COUNTER, EXTRA }
 

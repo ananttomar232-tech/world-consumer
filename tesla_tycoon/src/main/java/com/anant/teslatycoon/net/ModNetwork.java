@@ -59,6 +59,12 @@ public final class ModNetwork {
         b.writeBoolean(c.cityBuilt);
         b.writeVarInt(c.ramSmashed);
         b.writeVarInt(empCooldownTicks);
+        int pend = 0;
+        for (Upgrade u : c.pending) {
+            pend |= 1 << u.ordinal();
+        }
+        b.writeInt(pend);
+        b.writeBoolean(c.hudHidden);
         b.writeBoolean(c.driving);
         b.writeVarInt(com.anant.teslatycoon.rival.RivalDirector.alarmStage(c));
         ServerPlayNetworking.send(p, STATE, b);
@@ -75,7 +81,4 @@ public final class ModNetwork {
         ServerPlayNetworking.send(p, DEBUG_DRIVE, b);
     }
 
-    public static void sendOpenShop(ServerPlayerEntity p) {
-        ServerPlayNetworking.send(p, OPEN_SHOP, PacketByteBufs.create());
-    }
 }

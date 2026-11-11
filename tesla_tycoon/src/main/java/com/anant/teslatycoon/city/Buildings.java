@@ -311,18 +311,25 @@ public final class Buildings {
                 p.neon(x, 6, z, NeonColor.WHITE);
             }
         }
-        // the counter with the shop terminal, and shelves of "stock"
-        p.fill(-18, 1, -14, -10, 1, -14, BLACK);
-        p.set(-14, 1, -14, ModBlocks.SHOP_TERMINAL.getDefaultState().with(HorizontalFacingBlock.FACING, Direction.SOUTH));
-        p.neonFill(-18, 1, -13, -10, 1, -13, NeonColor.CYAN);
-        p.fill(PX0 + 1, 1, PZ0 + 1, PX0 + 1, 3, PZ0 + 8, BLACK);
-        p.fill(PX1 - 1, 1, PZ0 + 1, PX1 - 1, 3, PZ0 + 8, BLACK);
-        p.neonFill(PX0 + 2, 3, PZ0 + 1, PX0 + 2, 3, PZ0 + 8, NeonColor.MAGENTA);
-        p.neonFill(PX1 - 2, 3, PZ0 + 1, PX1 - 2, 3, PZ0 + 8, NeonColor.MAGENTA);
+        // the display pedestals (one per upgrade, see PEDESTALS): a quartz pillar on a glowing tile; the floating model is an entity
+        p.clear(PX0 + 1, 1, PZ0 + 1, PX1 - 1, 5, PZ1 - 1);
+        for (int[] d : PEDESTALS) {
+            p.neon(d[0], 0, d[1], NeonColor.CYAN);
+            p.set(d[0], 1, d[1], Blocks.QUARTZ_PILLAR.getDefaultState());
+        }
+        p.neonFill(PX0 + 1, 6, PZ0 + 1, PX0 + 1, 6, PZ1 - 1, NeonColor.MAGENTA);
+        p.neonFill(PX1 - 1, 6, PZ0 + 1, PX1 - 1, 6, PZ1 - 1, NeonColor.MAGENTA);
         // sign board on the roof edge (entity in front)
         p.fill(-20, 8, PZ1 - 1, -8, 10, PZ1 - 1, BLACK);
         return p;
     }
+
+    /** Where the pedestal of each upgrade stands in the depot ({x, z}, in the order of Upgrade.values()): a U from the door inwards. */
+    public static final int[][] PEDESTALS = {
+            {-21, -9}, {-21, -13}, {-21, -17}, {-21, -21},
+            {-17, -24}, {-14, -24}, {-11, -24},
+            {-7, -21}, {-7, -17}, {-7, -13}
+    };
 
     /** Extras that appear in the shop and next to the showroom once the counter-items are bought. */
     public static Plan upgrades(Company c) {

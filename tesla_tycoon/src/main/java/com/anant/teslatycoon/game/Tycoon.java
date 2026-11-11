@@ -75,7 +75,7 @@ public final class Tycoon {
         Company c = st.find(p.getUuid());
         if (c == null || !c.cityBuilt) {
             p.sendMessage(Text.literal("[Tesla Tycoon] ").formatted(Formatting.AQUA, Formatting.BOLD)
-                    .append(Text.literal("Type /tycoon start to build the Anant Tesla Showroom city around you.").formatted(Formatting.WHITE)), false);
+                    .append(Text.literal("Type /tycoon start to build the Anant Tesla Showroom city around you.").formatted(Formatting.WHITE)), true);
         } else {
             ModNetwork.sendState(p, c, RivalDirector.empCooldown(p));
         }
@@ -161,36 +161,105 @@ public final class Tycoon {
         state().markDirty();
     }
 
+    private static void bar(ServerPlayerEntity p, String msg, Formatting f) {
+        p.sendMessage(Text.literal(msg).formatted(f), true);
+    }
+
+    private static boolean has(ServerPlayerEntity p, Upgrade u) {
+        return p.getInventory().containsAny(st -> st.isOf(com.anant.teslatycoon.registry.ModItems.UPGRADES.get(u)));
+    }
+
+    /** A pedestal was right-clicked: take the money and hand over the physical item (nothing is built yet). */
     public static void buy(ServerPlayerEntity p, Upgrade u) {
         Company c = companyOf(p);
         if (c == null || !c.cityBuilt) {
             return;
         }
+        String name = Text.translatable(u.nameKey()).getString();
+        if (c.pending.contains(u)) {
+            if (!has(p, u)) {
+                p.getInventory().offerOrDrop(new net.minecraft.item.ItemStack(com.anant.teslatycoon.registry.ModItems.UPGRADES.get(u)));
+                bar(p, "Here it is again: " + name + ". Right-click to place it.", Formatting.AQUA);
+            } else {
+                bar(p, "You already carry " + name + ": right-click with it " + where(u) + ".", Formatting.AQUA);
+            }
+            return;
+        }
         String why = c.blockedReason(u);
         if (why != null) {
-            p.sendMessage(Text.literal("Cannot buy " + Text.translatable(u.nameKey()).getString() + ": " + why).formatted(Formatting.RED), true);
+            bar(p, name + ": " + why, Formatting.RED);
             p.playSound(SoundEvents.ENTITY_VILLAGER_NO, SoundCategory.PLAYERS, 1.0f, 1.0f);
             return;
         }
         c.money -= u.cost;
+        if (u.kind == Upgrade.Kind.EXTRA) {
+            ShowroomDirector.giveStarterPosters(p, 4);
+        } else {
+            c.pending.add(u);
+            net.minecraft.item.ItemStack stack = new net.minecraft.item.ItemStack(com.anant.teslatycoon.registry.ModItems.UPGRADES.get(u));
+            if (p.getMainHandStack().isEmpty()) {
+                p.setStackInHand(net.minecraft.util.Hand.MAIN_HAND, stack);
+            } else {
+                p.getInventory().offerOrDrop(stack);
+            }
+            bar(p, name + " is in your hand: right-click with it " + where(u) + ".", Formatting.GREEN);
+        }
+        p.getWorld().playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.PLAYERS, 1.0f, 0.9f);
+        sync(p, c);
+    }
+
+    private static String where(Upgrade u) {
+        return u.kind == Upgrade.Kind.LEVEL ? "at the showroom" : "at the showroom or on the street";
+    }
+
+    /** The physical item is used: the floor is built / the countermeasure deployed, and the item is consumed. */
+    public static void deploy(ServerPlayerEntity p, Upgrade u, net.minecraft.item.ItemStack stack) {
+        Company c = companyOf(p);
+        if (c == null || !c.cityBuilt || u.kind == Upgrade.Kind.EXTRA) {
+            return;
+        }
+        if (c.owns(u)) {
+            stack.decrement(1);
+            return;
+        }
+        boolean free = p.getAbilities().creativeMode && !c.pending.contains(u);
+        if (!c.pending.contains(u) && !free) {
+            bar(p, "Buy it on its pedestal in the Upgrade Depot first.", Formatting.RED);
+            return;
+        }
         ServerWorld w = worldOf(c);
-        switch (u.kind) {
-            case LEVEL -> {
-                c.level = u.target;
-                CityBuilder.upgradeShowroom(w, c, p);
-            }
-            case COUNTER -> {
-                c.owned.add(u);
-                CityBuilder.onCounterBought(w, c, p, u);
-            }
-            case EXTRA -> ShowroomDirector.giveStarterPosters(p, 4);
-        }
+        double lx = p.getX() - c.origin.getX();
+        double lz = p.getZ() - c.origin.getZ();
         if (u.kind == Upgrade.Kind.LEVEL) {
-            c.owned.add(u);
+            boolean atShowroom = lx > com.anant.teslatycoon.city.CityLayout.SX0 - 14 && lx < com.anant.teslatycoon.city.CityLayout.SX1 + 6
+                    && lz > com.anant.teslatycoon.city.CityLayout.SZ0 - 8 && lz < 22;
+            if (!atShowroom) {
+                bar(p, "Carry it to the Anant Tesla Showroom and right-click there.", Formatting.YELLOW);
+                return;
+            }
+            if (u.target != c.level + 1 || CityBuilder.busyUrgent()) {
+                bar(p, "The builders are busy, try again in a moment.", Formatting.YELLOW);
+                return;
+            }
+        } else if (Math.abs(lx + 12) > 220 || Math.abs(lz) > 210) {
+            bar(p, "Deploy it in the city.", Formatting.YELLOW);
+            return;
         }
+        c.pending.remove(u);
+        stack.decrement(1);
+        c.owned.add(u);
+        if (u.kind == Upgrade.Kind.LEVEL) {
+            c.level = u.target;
+            CityBuilder.upgradeShowroom(w, c, p);
+            ShowroomDirector.onLevelUp(c);
+        } else {
+            CityBuilder.onCounterBought(w, c, p, u);
+            p.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket(5, 40, 15));
+            p.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.SubtitleS2CPacket(Text.translatable(u.nameKey()).formatted(Formatting.GOLD)));
+            p.networkHandler.sendPacket(new net.minecraft.network.packet.s2c.play.TitleS2CPacket(Text.literal("DEPLOYED").formatted(Formatting.GREEN, Formatting.BOLD)));
+        }
+        w.spawnParticles(net.minecraft.particle.ParticleTypes.END_ROD, p.getX(), p.getY() + 1.2, p.getZ(), 40, 1.2, 0.8, 1.2, 0.08);
         p.getWorld().playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 1.0f, 1.2f);
-        p.sendMessage(Text.literal("Purchased: ").formatted(Formatting.GREEN)
-                .append(Text.translatable(u.nameKey()).formatted(Formatting.GOLD, Formatting.BOLD)), false);
         RivalDirector.onPurchase(w, c, p, u);
         sync(p, c);
     }

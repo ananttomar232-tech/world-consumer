@@ -1,11 +1,31 @@
-# Tesla Tycoon for Fabric 1.20.1  -  v2.0.0
+# Tesla Tycoon for Fabric 1.20.1  -  v3.0.0
 
 Build **Anant Tesla Showroom** in a real metropolis, out-sell **Seth Gotiya's Petrol Motors** across the Grand Boulevard, survive his
 sabotage and win the finale in pure **Survival**: alarm, gate, rooftop launch pad, the red Flying SpaceX Roadster, the EMP. The six cars
 are your uploaded 3D models, the showroom banner, billboards and wall posters are your uploaded images (shipped unchanged).
 
 * Minecraft **1.20.1**, Fabric Loader 0.15+, **Fabric API** (0.92.x), Java 17+
-* Jar: `dist/tesla_tycoon-2.0.0.jar` (drop it in `mods/`). In a world type **`/tycoon start`**.
+* Jar: `dist/tesla_tycoon-3.0.0.jar` (drop it in `mods/`). In a world type **`/tycoon start`**.
+
+## What is new in 3.0.0
+* **Physical Upgrade Depot, no GUI.** The 2D shop screen and the B key are gone. In the depot next to the showroom every upgrade floats
+  and turns over its own pedestal (the real car model for a showroom level, a 3D item for a countermeasure) with a tag such as
+  `[Tesla Model 3] - $1,500`. **Right-click the pedestal**: the cash is taken and the item is in your hand. Carry it to the showroom
+  (levels) or anywhere in the city (countermeasures) and **right-click to build / deploy it**. Lost the item? Right-click the pedestal again.
+* **Admin commands**: `/money add <n>`, `/money set <n>`, `/money speed <multiplier>`, `/money toggle` (cash HUD on / off).
+* **Seth Gotiya is a person now.** One sabotage every 1.5 - 2 minutes at the earliest. He **walks out of his dealership** and lays a
+  full-width belt of road spikes by hand, stacks the concrete roadblocks block by block, and now and then **sneaks behind a showroom
+  pillar to spy on you - and runs when you come close**. He types like a player: `<Seth_Gotiya> message` in plain white. Nothing else is
+  ever written to chat (purchases, hints and warnings are on the action bar; level-ups are screen titles).
+* **Showroom**: a customer every 10 - 15 seconds (cash ding at reception, test drive, return); the Tesla Semi delivers on every new level.
+  Start at **$0**; an active player can afford the next upgrade every **60 - 90 seconds** (game test).
+* **Vehicles**: left-click (punch) a car to pop it into your inventory (it is a 3D item; right-click to park it again). Wheels sit flush
+  inside the fenders and turn about the exact centre of their own mesh; from the driver's eyes the front wheels are not drawn, so they can
+  never cut into the cockpit. The Cybercab has a dark tinted sunroof and a closed boot. The author's 3D text (and the studio backdrop)
+  is stripped from the Cybertruck.
+* **Finale**: the world is peaceful until **you** start it: buy and place Level 5, then step on the lobby launch pad. Only then does the
+  alarm sound - and **Seth Gotiya himself sits at the wheel** of the Monster Truck. There is exactly **one** Monster Truck in the world
+  (duplicates are removed every 2 seconds); before the finale there is none at all.
 
 ## What is new in 2.0.0
 * **A real city**: 391 x 371 blocks. Four N-S avenues and six E-W streets (15 wide, with lane lines, centre lines, edge lines, zebra
@@ -42,7 +62,7 @@ are your uploaded 3D models, the showroom banner, billboards and wall posters ar
 2. Customers (suited villagers) walk in **by themselves**, pay at reception, look at the exhibit and test-drive it. A transport truck
    unloads Tesla crates in the back alley every ~90 s. Income arrives automatically; **driving a company car doubles it**.
 3. **Right-click the rotating exhibit** to test-drive that model yourself (it appears in the glass test-drive bay).
-4. Press **B** (or use the **Depot Terminal** in the Upgrade Depot next door) to buy upgrades and counter-items.
+4. Walk into the **Upgrade Depot** next door, right-click a pedestal to buy, then place the item (see above).
 5. The screen stays clean: only the cash bar. Press **Right Shift** to show / hide the **guide** (what to buy next, Gotiya's alerts,
    the key hints of the car you sit in).
 
@@ -58,7 +78,6 @@ are your uploaded 3D models, the showroom banner, billboards and wall posters ar
 | **V** | | | **Beast Ram Mode** on/off (after the Ram module) |
 | **R** | | **EMP shockwave** | |
 | **Shift** | get out (not possible while flying) | | |
-| **B** | open the Upgrade Depot | | |
 | **Right Shift** | show / hide the on-screen guide (next purchase, Gotiya's alert, key hints) | | |
 
 `stepHeight` is **1.2** on every vehicle: 1-block curbs, slabs and stair-like inclines are driven over without stopping; a short decaying
@@ -153,40 +172,34 @@ stays below the roof lining, the arms reach the wheel and the legs reach the flo
 
 ## Build from source
 ```
-python3 build_tesla_tycoon.py            # JDK 17+; gradle build -> dist/tesla_tycoon-2.0.0.jar
+python3 build_tesla_tycoon.py            # JDK 17+; gradle build -> dist/tesla_tycoon-3.0.0.jar
 python3 build_tesla_tycoon.py --rebake   # also re-bake models/resources (pip install numpy pillow meshoptimizer)
 cd tesla_tycoon && ./gradlew build runGametest
 ```
 The project is an ordinary Fabric/Loom workspace: open `tesla_tycoon/` in IntelliJ.
 
 ## Verification that was actually run
-* **16 GameTests** (`./gradlew runGametest`, about 30 s, all green): acceleration steps never exceed the spec, cars do not turn while
-  standing still, braking/reverse, a 1-block curb is climbed (with the 1.6 x 1.4 hit box) and the camera offset engages and decays, the
-  Roadster lifts off, hovers and lands, AI cars drive a route and park, **the economy test plays the whole story three ways (active, idle,
-  AFK): $5 / $35 / $150 / $800 per second, level prices 1.5k / 10k / 50k / 250k, 2 to 3.3 minutes per level when active and clearly longer
-  when standing still**, upgrade rules, the Hinglish chat, the city plan, geometry tests (the plot is 391 x 371, 80+ buildings and none on a
-  road or in the showroom compound, the three robotaxi loops stay on the roads and stop at the 10 stations, the billboards are 120+ blocks
-  apart and 110+ from the showroom, the lift opens every slab and the gate leaves a door a 4.7-wide truck cannot use), an **integration test
-  that builds the district, switches the neon off and on, adds floors, checks the exhibit of every floor and installs a billboard (+6%, never
-  counted twice)**, and the two drive tests: Gotiya's Monster Truck must get out of his garage and reach the showroom front, the delivery
-  truck must reach the loading dock.
-* **Headless client tours** (`tools/smoke_client.py <tour>`: the real Fabric client under Xvfb + software OpenGL, a screenshot per step,
-  every screenshot looked at):
-  * `city`: the cash bar, the Grand Boulevard with lanes, zebra crossings, median trees and lamps, the skyline behind the showroom, a robotaxi
-    station, a highway billboard in front of the towers, Gotiya's station across the boulevard, the Upgrade Depot next door, the lobby.
-  * `finale` (Survival, nothing in creative): level 5 -> alarm (siren, red frame and banner, gate closes) -> the Monster Truck rams the gate
-    -> the lobby launch pad shoots the player to the roof -> the red Roadster on the helipad -> the gate shatters and the attack starts ->
-    mount, thrusters, EMP -> victory -> `#retryscene` puts the player back on the roof with a fresh Roadster. The server log shows the
-    sequence (`alarm sounds`, `rams the gate`, `battle starts`, `hits the showroom front`, `EMP disabled the monster truck - victory`).
-  * `robotaxi`: the level-4 cash bar (`$473,086`, `+$944/sec`), a Cybercab stopped at the sidewalk station and `Robotaxi fare: +$661`.
-  * `seatback`: the seated player seen from behind through the rear glass of every car: upright on the cushion, torso and head visible
-    (the seat back and rear bench are not drawn while somebody sits in the car).
-  * `hud`, `story`, `occupants`, `firstperson`, `seat`, `shop`, `guide`, `vehicles` and the debug tours `truck` / `delivery` from 1.0.0.
-  A real bug was found this way: a server freeze at the first chunk load (the neon fix-up asked the world for a block of the chunk that was
-  being promoted); `jcmd Thread.print` of the stuck client showed the server thread waiting for itself. No game test can see it.
-* Not verified here: how it feels on a real GPU with a real keyboard, audio (the sandbox has no sound device), the white cape (the test
-  player has the default skin, no cape: the seat back that used to hide it is not drawn any more), the Cybercab GPS jam of sabotage 4
-  (covered by the rules test only), and compatibility with shader packs (Iris) - custom core shaders are not supported by most shader packs.
+* **16 GameTests** (`gradle runGametest`, all green): vehicle physics (smooth acceleration, no turning while standing still, brakes and
+  reverse, 1-block curb with the 1.6 x 1.4 hit box, Roadster lift-off / hover / landing), AI cars drive and park, **the economy plays the
+  story three ways (active, idle, AFK) and checks that an active player can afford the next purchase every 50 - 95 s**, upgrade rules,
+  the Hinglish chat, the city plan and geometry, an integration test that builds the district (neon off/on, floors, exhibits, billboard
+  +6 %), **no Monster Truck exists before the finale, sabotage 1 leaves the full-width spike belt, the finale spawns exactly one Monster
+  Truck with Seth Gotiya in the driver's seat**, and the drive tests (Monster Truck garage -> showroom front, delivery truck -> dock).
+* **Headless client tours** (`tools/smoke_client.py <tour>`: the real Fabric client under Xvfb + software OpenGL, every screenshot looked at):
+  * `depot` (Survival): the Upgrade Depot with the floating models and price tags (`[Tesla Model 3] - $1,500`, `OWNED`, `PLACE IT`),
+    buying puts the item in the hotbar (the 3D car model is drawn as the item), placing Level 2 builds the floor; the Cybercab's sunroof
+    and closed boot; the Roadster cockpit while steering left and right (no wheel inside the cabin).
+  * `gotiya`: a quiet start ($0, no alarm, no Monster Truck); Gotiya spying at the showroom and running away (`arre arre... main toh bas
+    rasta dekh raha tha!! bhaago`); walking out and laying the spike belt row by row; stacking the concrete roadblocks with his name tag
+    above him; level 5 stays quiet until the launch pad is used; then the alarm, the gate ram, the rooftop and the battle. Chat contains
+    only `<Seth_Gotiya> ...` lines.
+  * `emp`: level 5 -> launch pad -> alarm -> truck rams the gate -> roof -> Roadster -> thrusters -> EMP -> victory (server log:
+    `alarm sounds`, `rams the gate (1)`, `(2)`, `battle starts`, `hits the showroom front`, `EMP disabled the monster truck - victory`).
+    This tour found a real bug: a hovering Roadster drifts, and the EMP (62-block sphere) then missed the truck; it now reaches 120 blocks
+    sideways and any height.
+  * `city`, `hud`, `robotaxi`, `seatback`, `story`, `occupants`, `firstperson` from earlier versions.
+* Not verified here: a real GPU / keyboard / sound card, the white cape (the test player has no cape), and shader packs (Iris does not
+  support custom core shaders).
 
 ## Credits
 See `CREDITS.txt` (5 CC-BY-4.0 models, the Sketchfab-licensed Monster Truck - **do not extract and re-upload it**).

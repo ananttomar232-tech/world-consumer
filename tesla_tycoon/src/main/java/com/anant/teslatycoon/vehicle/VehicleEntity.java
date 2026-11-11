@@ -260,6 +260,24 @@ public class VehicleEntity extends Entity {
         return false;
     }
 
+    /** Left-click (a punch): a parked or driven car pops straight back into the player's inventory as its item. */
+    @Override
+    public boolean handleAttack(Entity attacker) {
+        if (!getWorld().isClient && attacker instanceof ServerPlayerEntity sp && getMode() == MODE_DRIVEN) {
+            net.minecraft.item.Item item = com.anant.teslatycoon.registry.ModItems.SPAWNERS.get(spec);
+            if (item != null) {
+                removeAllPassengers();
+                sp.getInventory().offerOrDrop(new net.minecraft.item.ItemStack(item));
+                getWorld().playSound(null, getX(), getY(), getZ(), net.minecraft.sound.SoundEvents.ENTITY_ITEM_PICKUP, net.minecraft.sound.SoundCategory.PLAYERS, 1.0f, 0.8f);
+                if (getWorld() instanceof net.minecraft.server.world.ServerWorld sw) {
+                    sw.spawnParticles(ParticleTypes.POOF, getX(), getY() + 0.8, getZ(), 18, 0.8, 0.4, 0.8, 0.02);
+                }
+                discard();
+            }
+        }
+        return true;
+    }
+
     @Override
     protected boolean canAddPassenger(Entity passenger) {
         return getPassengerList().isEmpty() && getMode() != MODE_DISPLAY;

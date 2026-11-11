@@ -29,6 +29,9 @@ public final class VehicleSpawnerItem extends Item {
         float yaw = ctx.getPlayer() != null ? ctx.getPlayer().getYaw() + 180f : 0f;
         v.refreshPositionAndAngles(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, yaw, 0f);
         v.setMode(VehicleEntity.MODE_DRIVEN);
+        if (ctx.getPlayer() != null) {
+            v.setOwner(ctx.getPlayer().getUuid());
+        }
         world.spawnEntity(v);
         if (ctx.getPlayer() == null || !ctx.getPlayer().getAbilities().creativeMode) {
             ctx.getStack().decrement(1);

@@ -72,7 +72,7 @@ public final class Billboards {
             case PACK_USED_UP -> player.sendMessage(Text.literal("Your marketing pack is used up (" + Company.MAX_BILLBOARDS + " billboards).").formatted(Formatting.YELLOW), true);
             case INSTALLED -> {
                 player.sendMessage(Text.literal("Billboard live! ").formatted(Formatting.AQUA, Formatting.BOLD)
-                        .append(Text.literal("(" + c.billboardsPlaced + "/" + Company.BILLBOARDS_NEEDED + " needed to steal Gotiya's customers, +6% income each)").formatted(Formatting.WHITE)), false);
+                        .append(Text.literal("(" + c.billboardsPlaced + "/" + Company.BILLBOARDS_NEEDED + " needed to steal Gotiya's customers, +6% income each)").formatted(Formatting.WHITE)), true);
                 RivalDirector.onBillboard(sw, c, player);
                 Tycoon.sync(player, c);
             }

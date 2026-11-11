@@ -40,6 +40,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
@@ -51,7 +52,13 @@ public final class RivalDirector {
     public static final int EMP_COOLDOWN = 160;
 
     private static final class State {
-        long nextTaunt = 900;
+        long nextTaunt = 1300;
+        // the man himself: errands (placing spikes / roadblocks by hand), spying behind the showroom pillars
+        Errand errand;
+        int spy;                        // 0 at home, 1 sneaking over, 2 watching, 3 running away
+        long spySince;
+        long nextSpy = 1100;
+        long lastSabotage = -100000;
         long pendingAt = -1;
         int pendingLevel;
         UUID gotiya;
@@ -99,6 +106,31 @@ public final class RivalDirector {
             this.pos = pos;
             this.state = state;
             this.restoreAt = restoreAt;
+        }
+    }
+
+    /** A row of blocks Gotiya puts down by hand once he has walked past its trigger point. */
+    private static final class Row {
+        final double tx;
+        final double tz;
+        final List<BlockPos> cells = new ArrayList<>();
+        int state;                      // 0 not reached yet, 1 he is standing at it, 2 placed
+
+        Row(double tx, double tz) {
+            this.tx = tx;
+            this.tz = tz;
+        }
+    }
+
+    private static final class Errand {
+        final int sabotage;
+        final Block block;
+        final List<Row> rows = new ArrayList<>();
+        long started;
+
+        Errand(int sabotage, Block block) {
+            this.sabotage = sabotage;
+            this.block = block;
         }
     }
 
@@ -158,8 +190,8 @@ public final class RivalDirector {
         if (s == null) {
             return;
         }
-        s.getPlayerManager().broadcast(Text.literal("[Seth Gotiya]: ").formatted(Formatting.GOLD, Formatting.BOLD)
-                .append(Text.literal(msg).formatted(Formatting.YELLOW)), false);
+        // exactly what a player's line looks like in vanilla chat: <name> message, white
+        s.getPlayerManager().broadcast(Text.literal("<Seth_Gotiya> " + msg), false);
     }
 
     /** Anything a player types gets a dynamic Hinglish answer (#retryscene is handled before this is called). */
@@ -182,14 +214,201 @@ public final class RivalDirector {
             g.faceTowards(180f);
             s.gotiya = g.getUuid();
         }
+        // no Monster Truck exists before the finale: the only one is the truck he drives out of his garage when the alarm sounds
         Entity t = s.showTruck == null ? null : w.getEntity(s.showTruck);
-        if (t == null || !t.isAlive()) {
-            VehicleEntity truck = new VehicleEntity(ModEntities.vehicle(VehicleSpecs.GOTIYA), w);
-            truck.setMode(VehicleEntity.MODE_DISPLAY);
-            Vec3d pos = CityBuilder.vec(c, -26.0, 1.0, 40.0 + GOT_DZ);
-            truck.refreshPositionAndAngles(pos.x, pos.y, pos.z, 200f, 0f);
-            w.spawnEntity(truck);
-            s.showTruck = truck.getUuid();
+        if (t != null) {
+            t.discard();
+        }
+        s.showTruck = null;
+    }
+
+    /** Singleton: whatever happened (reloads, commands), only the one Monster Truck the story is using may exist. */
+    private static void oneTruck(ServerWorld w, Company c, State s) {
+        UUID keep = (s.alarm || s.climax) ? s.truck : s.showTruck;
+        Box box = new Box(c.origin.getX() + X0, c.origin.getY() - 4, c.origin.getZ() + Z0, c.origin.getX() + X1, c.origin.getY() + 160, c.origin.getZ() + Z1);
+        for (VehicleEntity v : w.getEntitiesByClass(VehicleEntity.class, box, e -> e.spec == VehicleSpecs.GOTIYA)) {
+            if (!v.getUuid().equals(keep)) {
+                v.discard();
+            }
+        }
+    }
+
+    private static Vec3d home(Company c) {
+        return CityBuilder.vec(c, -40.5, 1.0, 20.5 + GOT_DZ);
+    }
+
+    /** Walks him home along the given points, then he stands in front of his dealership again. */
+    private static void walkHome(Company c, State s, SuitedNpcEntity g, List<Vec3d> via, double speed) {
+        List<Vec3d> path = new ArrayList<>(via);
+        path.add(home(c));
+        g.walk(path, speed, () -> g.faceTowards(180f));
+    }
+
+    // ------------------------------------------------------------------------------------------------------ sabotage by hand
+    private static void addRows(Company c, Errand e, int x0, int x1, int zFrom, int zTo, double walkX) {
+        int step = zFrom <= zTo ? 1 : -1;
+        for (int z = zFrom; z != zTo + step; z += step) {
+            Row r = new Row(c.origin.getX() + walkX, c.origin.getZ() + z + 0.5);
+            for (int x = x0; x <= x1; x++) {
+                for (int y = 0; y < (e.block == ModBlocks.BARRIER ? 2 : 1); y++) {
+                    r.cells.add(CityBuilder.pos(c, x, y, z));
+                }
+            }
+            e.rows.add(r);
+        }
+    }
+
+    /** Sabotage 1: he crosses the whole boulevard west of the showroom and lays a full-width belt of spikes behind him. */
+    private static void spikesErrand(ServerWorld w, Company c, State s) {
+        Errand e = new Errand(1, ModBlocks.SPIKES);
+        addRows(c, e, -62, -60, 21, 0, -58.5);
+        s.errand = e;
+        e.started = c.cityTick;
+        SuitedNpcEntity g = gotiyaNpc(w, s);
+        if (g == null) {
+            return;
+        }
+        List<Vec3d> out = List.of(CityBuilder.vec(c, -58.5, 1, 24), CityBuilder.vec(c, -58.5, 0, 21.4), CityBuilder.vec(c, -58.5, 0, 13.1), CityBuilder.vec(c, -58.5, 1, 12.4),
+                CityBuilder.vec(c, -58.5, 1, 9.6), CityBuilder.vec(c, -58.5, 0, 8.9), CityBuilder.vec(c, -58.5, 0, 0.3), CityBuilder.vec(c, -58.5, 1, -1.6));
+        List<Vec3d> back = new ArrayList<>(out);
+        java.util.Collections.reverse(back);
+        g.walk(out, 0.15, () -> walkHome(c, s, g, back, 0.2));
+    }
+
+    /** Sabotage 3: two concrete roadblocks across the eastbound lanes, stacked block by block as he walks. */
+    private static void barricadeErrand(ServerWorld w, Company c, State s) {
+        Errand e = new Errand(3, ModBlocks.BARRIER);
+        addRows(c, e, -12, -11, 21, 13, -9.5);
+        addRows(c, e, 20, 21, 13, 21, 22.5);
+        s.errand = e;
+        e.started = c.cityTick;
+        SuitedNpcEntity g = gotiyaNpc(w, s);
+        if (g == null) {
+            return;
+        }
+        List<Vec3d> out = List.of(CityBuilder.vec(c, -9.5, 1, 24), CityBuilder.vec(c, -9.5, 0, 21.4), CityBuilder.vec(c, -9.5, 0, 13.1), CityBuilder.vec(c, -9.5, 1, 11.5),
+                CityBuilder.vec(c, 22.5, 1, 11.5), CityBuilder.vec(c, 22.5, 0, 13.1), CityBuilder.vec(c, 22.5, 0, 21.4), CityBuilder.vec(c, 22.5, 1, 24));
+        g.walk(out, 0.15, () -> walkHome(c, s, g, List.of(CityBuilder.vec(c, -30, 1, 24)), 0.2));
+    }
+
+    private static void placeRow(ServerWorld w, State s, Errand e, Row r, SuitedNpcEntity g) {
+        r.state = 2;
+        boolean any = false;
+        for (BlockPos b : r.cells) {
+            if (w.getBlockState(b).isAir()) {
+                w.setBlockState(b, e.block.getDefaultState(), Block.NOTIFY_ALL);
+                (e.block == ModBlocks.SPIKES ? s.spikes : s.barriers).add(b);
+                any = true;
+            }
+        }
+        if (any && g != null) {
+            g.swingHand(net.minecraft.util.Hand.MAIN_HAND, true);
+            w.playSound(null, g.getX(), g.getY(), g.getZ(), e.block == ModBlocks.SPIKES ? SoundEvents.BLOCK_CHAIN_PLACE : SoundEvents.BLOCK_STONE_PLACE, SoundCategory.BLOCKS, 1.2f, 0.8f);
+        }
+    }
+
+    private static void errandTick(ServerWorld w, Company c, State s) {
+        Errand e = s.errand;
+        SuitedNpcEntity g = gotiyaNpc(w, s);
+        boolean lost = g == null || c.cityTick - e.started > 20 * 120;
+        boolean open = false;
+        for (Row r : e.rows) {
+            if (r.state == 2) {
+                continue;
+            }
+            if (lost) {
+                placeRow(w, s, e, r, null);
+                continue;
+            }
+            double d = Math.hypot(g.getX() - r.tx, g.getZ() - r.tz);
+            if (r.state == 0 && d < 0.9) {
+                r.state = 1;
+            } else if (r.state == 1 && d > 1.6) {
+                placeRow(w, s, e, r, g);            // behind him, so he never walls himself in
+            }
+            open |= r.state != 2;
+        }
+        if (!lost && !g.isWalking()) {
+            for (Row r : e.rows) {
+                if (r.state != 2) {
+                    placeRow(w, s, e, r, g);
+                }
+            }
+            open = false;
+        }
+        if (lost && g != null) {
+            Vec3d h = home(c);
+            g.walk(List.of(), 0.2, null);
+            g.refreshPositionAndAngles(h.x, h.y, h.z, 180f, 0f);
+        }
+        if (!open && (lost || !g.isWalking())) {
+            s.errand = null;
+            s.nextSpy = c.cityTick + 900 + w.random.nextInt(600);
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------------------ spying
+    private static final double[][] SPY_SPOTS = {{-61.6, -4.4}, {-26.4, -4.4}};
+
+    private static void spyTick(ServerWorld w, Company c, ServerPlayerEntity p, State s) {
+        SuitedNpcEntity g = gotiyaNpc(w, s);
+        long now = c.cityTick;
+        if (g == null || g.hasVehicle()) {
+            s.spy = 0;
+            return;
+        }
+        List<Vec3d> cross = List.of(CityBuilder.vec(c, -40.5, 1, 22.5), CityBuilder.vec(c, -40.5, 0, 21.2), CityBuilder.vec(c, -40.5, 0, 0.4), CityBuilder.vec(c, -40.5, 1, -1.6));
+        switch (s.spy) {
+            case 0 -> {
+                if (now >= s.nextSpy && c.activeSabotage() != 5 && !c.gateClosed) {
+                    double[] spot = SPY_SPOTS[w.random.nextInt(SPY_SPOTS.length)];
+                    List<Vec3d> path = new ArrayList<>(cross);
+                    path.add(CityBuilder.vec(c, spot[0], 1, -1.6));
+                    path.add(CityBuilder.vec(c, spot[0], 1, spot[1]));
+                    g.walk(path, 0.14, null);
+                    s.spy = 1;
+                    s.spySince = now;
+                }
+            }
+            case 1 -> {
+                if (!g.isWalking()) {
+                    s.spy = 2;
+                    s.spySince = now;
+                }
+                if (p.squaredDistanceTo(g) < 36) {
+                    flee(c, s, g, cross, true);
+                }
+            }
+            case 2 -> {
+                double dx = p.getX() - g.getX();
+                double dz = p.getZ() - g.getZ();
+                g.faceTowards((float) (MathHelper.atan2(-dx, dz) * 180.0 / Math.PI));
+                if (dx * dx + dz * dz < 64) {
+                    flee(c, s, g, cross, true);
+                } else if (now - s.spySince > 20 * 35) {
+                    flee(c, s, g, cross, false);
+                }
+            }
+            default -> {
+                if (!g.isWalking()) {
+                    s.spy = 0;
+                    s.nextSpy = now + 1800 + w.random.nextInt(1200);
+                }
+            }
+        }
+    }
+
+    private static void flee(Company c, State s, SuitedNpcEntity g, List<Vec3d> cross, boolean caught) {
+        List<Vec3d> back = new ArrayList<>();
+        back.add(new Vec3d(g.getX(), g.getY(), c.origin.getZ() - 1.6));
+        List<Vec3d> rev = new ArrayList<>(cross);
+        java.util.Collections.reverse(rev);
+        back.addAll(rev);
+        walkHome(c, s, g, back, caught ? 0.36 : 0.16);
+        s.spy = 3;
+        if (caught) {
+            say(GotiyaChat.caughtSpying());
+            s.nextTaunt = Math.max(s.nextTaunt, c.cityTick + 600);
         }
     }
 
@@ -211,14 +430,27 @@ public final class RivalDirector {
         }
         if (now >= s.nextTaunt && !s.climax) {
             say(now % 3 == 0 ? GotiyaChat.taunt(p.getGameProfile().getName(), c.level, c.money) : GotiyaChat.idle());
-            s.nextTaunt = now + 800 + w.random.nextInt(600);
+            s.nextTaunt = now + 1500 + w.random.nextInt(900);
         }
-        if (c.level == 1 && (c.sabTriggered & 2) == 0 && now >= 25 * 20) {
-            trigger(w, c, p, 1);
+        if (now % 40 == 3) {
+            oneTruck(w, c, s);
         }
-        if (s.pendingAt >= 0 && now >= s.pendingAt && !(s.pendingLevel == 5 && CityBuilder.busyUrgent())) {
+        // a sabotage only every 1.5 to 2 minutes, and only when he is at home (not spying, not already out on the road)
+        if (c.level == 1 && (c.sabTriggered & 2) == 0 && s.pendingAt < 0 && now >= 20 * 95) {
+            s.pendingAt = now;
+            s.pendingLevel = 1;
+        }
+        if (s.pendingAt >= 0 && now >= s.pendingAt && now - s.lastSabotage >= 20 * 90 && s.errand == null && s.spy == 0 && s.pendingLevel == c.level) {
             s.pendingAt = -1;
+            s.lastSabotage = now;
             trigger(w, c, p, s.pendingLevel);
+        } else if (s.pendingAt >= 0 && s.pendingLevel != c.level) {
+            s.pendingAt = -1;
+        }
+        if (s.errand != null) {
+            errandTick(w, c, s);
+        } else if (!s.alarm && !s.climax) {
+            spyTick(w, c, p, s);
         }
         int active = c.activeSabotage();
         if (active != s.seen) {
@@ -228,7 +460,7 @@ public final class RivalDirector {
             s.seen = active;
             Tycoon.sync(p, c);
         }
-        if (active == 1 && now % 200 == 5 && s.spikes.stream().noneMatch(b -> w.getBlockState(b).isOf(ModBlocks.SPIKES))) {
+        if (active == 1 && s.errand == null && now % 200 == 5 && s.spikes.stream().noneMatch(b -> w.getBlockState(b).isOf(ModBlocks.SPIKES))) {
             placeSpikes(w, c, s);
         }
         if (active == 3) {
@@ -300,20 +532,28 @@ public final class RivalDirector {
         }
         say(GotiyaChat.sabotageLine(k));
         switch (k) {
-            case 1 -> placeSpikes(w, c, s);
+            case 1 -> {
+                if (p != null && gotiyaNpc(w, s) != null) {
+                    spikesErrand(w, c, s);
+                } else {
+                    placeSpikes(w, c, s);
+                }
+            }
             case 2 -> {
                 c.powerOut = true;
                 CityBuilder.setPower(w, c, false);
                 lightning(w, CityBuilder.vec(c, -44, FLOOR_H * c.level + 2, -20));
             }
-            case 3 -> placeBarricades(w, c, s);
-            case 4 -> {
-            }
-            case 5 -> {
-                if (p != null) {
-                    startAlarm(w, c, p, s, false);
+            case 3 -> {
+                if (p != null && gotiyaNpc(w, s) != null) {
+                    barricadeErrand(w, c, s);
+                } else {
+                    placeBarricades(w, c, s);
                 }
             }
+            case 4 -> {
+            }
+            case 5 -> startAlarm(w, c, p, s, false);
             default -> {
             }
         }
@@ -338,10 +578,10 @@ public final class RivalDirector {
 
     private static void placeSpikes(ServerWorld w, Company c, State s) {
         s.spikes.clear();
-        int[][] patches = {{-56, 0}, {-14, 5}, {20, 13}, {-3, 18}, {53, -24}, {-62, -43}};
+        int[][] patches = {{-62, 0}};                        // (the same full-width belt he lays by hand)
         for (int[] pt : patches) {
             for (int dx = 0; dx < 3; dx++) {
-                for (int dz = 0; dz < 4; dz++) {
+                for (int dz = 0; dz < 22; dz++) {
                     BlockPos b = CityBuilder.pos(c, pt[0] + dx, 0, pt[1] + dz);
                     if (w.getBlockState(b).isAir()) {
                         w.setBlockState(b, ModBlocks.SPIKES.getDefaultState(), Block.NOTIFY_ALL);
@@ -354,7 +594,7 @@ public final class RivalDirector {
 
     private static void placeBarricades(ServerWorld w, Company c, State s) {
         s.barriers.clear();
-        int[][] walls = {{-4, 0, 2, 9}, {30, 13, 2, 9}, {52, -22, 7, 2}};     // x, z, width(x), depth(z)
+        int[][] walls = {{-12, 13, 2, 9}, {20, 13, 2, 9}};     // x, z, width(x), depth(z): the same two he stacks by hand
         for (int[] wl : walls) {
             for (int dx = 0; dx < wl[2]; dx++) {
                 for (int dz = 0; dz < wl[3]; dz++) {
@@ -403,20 +643,21 @@ public final class RivalDirector {
         State s = state(c);
         switch (u) {
             case LEVEL2, LEVEL3, LEVEL4 -> {
-                s.pendingAt = c.cityTick + 20 * 6;
+                s.pendingAt = Math.max(c.cityTick + 20 * 20, s.lastSabotage + 20 * (90 + w.random.nextInt(31)));
                 s.pendingLevel = u.target;
                 say("Level " + u.target + "?! Itni jaldi? Ruk ja {p}... ab dekh mera agla daav!".replace("{p}", p.getGameProfile().getName()));
             }
             case LEVEL5 -> {
-                s.pendingAt = c.cityTick + 20 * 5;
-                s.pendingLevel = 5;
-                say("FLYING ROADSTER?! Mere engine ko takkar dega udhne wali gaadi se?! Ruk, main Monster Truck nikalta hoon!");
+                // nothing happens until the player steps on the launch pad: that is what starts the finale
+                spawnRoadster(w, c);
+                say("FLYING ROADSTER?! Chhat pe chadh ke dikha {p}... mera Monster Truck garam ho raha hai!".replace("{p}", p.getGameProfile().getName()));
+                p.sendMessage(Text.literal("The red Flying Roadster is on the roof. Step on the glowing launch pad in the lobby when you are ready.").formatted(Formatting.AQUA), true);
             }
-            case HYDRAULICS -> p.sendMessage(Text.literal("Jump Hydraulics + Armor Tires fitted: press SPACE to hop, and spikes get crushed.").formatted(Formatting.AQUA), false);
-            case SOLAR -> p.sendMessage(Text.literal("Tesla Solar Roof + MegaPack online: the neon is back!").formatted(Formatting.AQUA), false);
-            case RAM -> p.sendMessage(Text.literal("Beast Ram Mode unlocked. Drive the Cybertruck, press V, and smash 2 roadblocks.").formatted(Formatting.AQUA), false);
-            case STARLINK -> p.sendMessage(Text.literal("Starlink dish installed. Finish the GPS counter: Billboard pack + " + Company.BILLBOARDS_NEEDED + " billboards put up around the city.").formatted(Formatting.AQUA), false);
-            case BILLBOARDS -> p.sendMessage(Text.literal("Marketing pack ready: drive out to the billboards on the highway turns around the city and right-click them.").formatted(Formatting.AQUA), false);
+            case HYDRAULICS -> p.sendMessage(Text.literal("Jump Hydraulics + Armor Tires fitted: press SPACE to hop, and spikes get crushed.").formatted(Formatting.AQUA), true);
+            case SOLAR -> p.sendMessage(Text.literal("Tesla Solar Roof + MegaPack online: the neon is back!").formatted(Formatting.AQUA), true);
+            case RAM -> p.sendMessage(Text.literal("Beast Ram Mode unlocked. Drive the Cybertruck, press V, and smash 2 roadblocks.").formatted(Formatting.AQUA), true);
+            case STARLINK -> p.sendMessage(Text.literal("Starlink dish installed. Finish the GPS counter: Billboard pack + " + Company.BILLBOARDS_NEEDED + " billboards put up around the city.").formatted(Formatting.AQUA), true);
+            case BILLBOARDS -> p.sendMessage(Text.literal("Marketing pack ready: drive out to the billboards on the highway turns around the city and right-click them.").formatted(Formatting.AQUA), true);
             default -> {
             }
         }
@@ -575,18 +816,36 @@ public final class RivalDirector {
             w.playSound(null, g.x, g.y, g.z, SoundEvents.BLOCK_ANVIL_LAND, SoundCategory.BLOCKS, 3f, 0.6f);
         });
         spawnRoadster(w, c);
+        s.errand = null;
+        s.spy = 0;
         VehicleEntity truck = spawnChargeTruck(w, c);
         s.truck = truck.getUuid();
+        ensureGotiya(w, c);                         // (removes the parked show truck: only one Monster Truck exists)
+        seatGotiya(w, c, s, truck);
         s.lastTruckPos = null;
         s.stuckSecs = 0;
         w.playSound(null, truck.getX(), truck.getY(), truck.getZ(), SoundEvents.ENTITY_RAVAGER_ROAR, SoundCategory.HOSTILE, 3f, 0.5f);
         if (p != null) {
             p.networkHandler.sendPacket(new TitleFadeS2CPacket(5, 70, 20));
-            p.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal("Gotiya is ramming the gate - take the lobby launch pad up to the roof!").formatted(Formatting.YELLOW)));
+            p.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal("Gotiya is ramming the gate - get to the Roadster on the roof!").formatted(Formatting.YELLOW)));
             p.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("SECURITY ALARM").formatted(Formatting.RED, Formatting.BOLD)));
             p.sendMessage(Text.literal("ALARM! ").formatted(Formatting.RED, Formatting.BOLD)
-                    .append(Text.literal("Step on the glowing launch pad in the showroom lobby: it shoots you up to the rooftop helipad where the red Flying Roadster is fuelled and waiting.").formatted(Formatting.WHITE)), false);
+                    .append(Text.literal("Step on the glowing launch pad in the showroom lobby: it shoots you up to the rooftop helipad where the red Flying Roadster is fuelled and waiting.").formatted(Formatting.WHITE)), true);
             Tycoon.sync(p, c);
+        }
+    }
+
+    /** Seth Gotiya himself sits at the wheel of the Monster Truck for the whole finale. */
+    private static void seatGotiya(ServerWorld w, Company c, State s, VehicleEntity truck) {
+        SuitedNpcEntity g = gotiyaNpc(w, s);
+        if (g == null) {
+            ensureGotiya(w, c);
+            g = gotiyaNpc(w, s);
+        }
+        if (g != null && g.getVehicle() != truck) {
+            g.walk(List.of(), 0.2, null);
+            g.stopRiding();
+            g.startRiding(truck, true);
         }
     }
 
@@ -613,6 +872,9 @@ public final class RivalDirector {
         } else if (now % period == 12) {
             w.playSound(null, centre.x, centre.y, centre.z, net.minecraft.sound.SoundEvents.BLOCK_NOTE_BLOCK_BIT.value(), SoundCategory.HOSTILE, 5f, 0.95f);
         }
+        if (now % 20 == 9 && s.truck != null && w.getEntity(s.truck) instanceof VehicleEntity tr && tr.isAlive() && !tr.hasFlag(VehicleEntity.F_DISABLED)) {
+            seatGotiya(w, c, s, tr);
+        }
         Iterator<Dent> it = s.dents.iterator();
         while (it.hasNext()) {
             Dent d = it.next();
@@ -631,13 +893,14 @@ public final class RivalDirector {
         // the rooftop: the real attack starts a moment after the player gets there
         if (s.battleAt < 0 && onRoof(c, p)) {
             s.onRoof = true;
-            s.battleAt = now + 70;
+            s.battleAt = now + 20 * 15;
             say("Oye! Chhat pe chadh gaya? Ab dekh {p}, gate toota ki toota!".replace("{p}", p.getGameProfile().getName()));
             p.networkHandler.sendPacket(new TitleFadeS2CPacket(5, 40, 15));
             p.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal("Mount the Roadster: right-click it, SPACE = thrusters").formatted(Formatting.YELLOW)));
             p.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("ROOFTOP HELIPAD").formatted(Formatting.AQUA, Formatting.BOLD)));
         }
-        if (s.battleAt >= 0 && now >= s.battleAt) {
+        boolean inRoadster = p.getVehicle() instanceof VehicleEntity pv && pv.spec == VehicleSpecs.ROADSTER;
+        if ((s.battleAt >= 0 && now >= s.battleAt) || (inRoadster && now - s.alarmStart > 20 * 6)) {
             startBattle(w, c, p, s, false);
             return;
         }
@@ -777,6 +1040,8 @@ public final class RivalDirector {
             truck.setAi(chargeRoute(c));
             s.truck = truck.getUuid();
         }
+        ensureGotiya(w, c);
+        seatGotiya(w, c, s, truck);
         s.phaseSince = c.cityTick;
         s.lastTruckPos = null;
         s.stuckSecs = 0;
@@ -832,6 +1097,9 @@ public final class RivalDirector {
             s.liftCharge = 0;
             s.lifting = true;
             s.liftTicks = 0;
+            if (!s.alarm && !s.climax && !c.climaxWon && s.victoryAt < 0) {
+                trigger(w, c, p, 5);                // the launch: this, and nothing earlier, calls Gotiya's Monster Truck
+            }
             w.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ENTITY_FIREWORK_ROCKET_LAUNCH, SoundCategory.PLAYERS, 2f, 0.6f);
             w.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.BLOCK_PISTON_EXTEND, SoundCategory.PLAYERS, 2f, 0.5f);
         }
@@ -919,6 +1187,10 @@ public final class RivalDirector {
                 s.climax = false;
                 s.alarm = false;
                 endFinale(w, c);
+                SuitedNpcEntity gg = gotiyaNpc(w, s);
+                if (gg != null) {
+                    walkHome(c, s, gg, List.of(CityBuilder.vec(c, -40.5, 1, 22.5)), 0.16);
+                }
                 if (te != null) {
                     w.spawnParticles(ParticleTypes.POOF, te.getX(), te.getY() + 1, te.getZ(), 40, 1.5, 1, 1.5, 0.05);
                     te.discard();
@@ -931,6 +1203,7 @@ public final class RivalDirector {
             if (s.defeated) {
                 return;
             }
+            Tycoon.log("[rival] the monster truck is gone (" + te + ")");
             s.climax = false;
             return;
         }
@@ -1029,6 +1302,11 @@ public final class RivalDirector {
         Tycoon.log("[rival] the EMP disabled the monster truck - victory");
         s.victoryAt = c.cityTick + 20 * 12;
         c.climaxWon = true;
+        SuitedNpcEntity g = gotiyaNpc(w, s);
+        if (g != null) {
+            g.stopRiding();
+            g.refreshPositionAndAngles(truck.getX() + 3.2, truck.getY(), truck.getZ(), 0f, 0f);
+        }
         s.cryUntil = c.cityTick + 20 * 20;
         p.networkHandler.sendPacket(new TitleFadeS2CPacket(10, 90, 30));
         p.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal("The EMP killed Gotiya's Monster Truck! Anant Tesla Showroom is #1!").formatted(Formatting.GOLD)));
@@ -1074,13 +1352,13 @@ public final class RivalDirector {
             later(step, () -> ring(w, at, 3.0 + st * 4.2));
         }
         boolean hit = false;
-        for (VehicleEntity t : w.getEntitiesByClass(VehicleEntity.class, new Box(at, at).expand(62), e -> e.spec == VehicleSpecs.GOTIYA && e.getMode() == VehicleEntity.MODE_AI)) {
+        for (VehicleEntity t : w.getEntitiesByClass(VehicleEntity.class, new Box(at, at).expand(120, 400, 120), e -> e.spec == VehicleSpecs.GOTIYA && e.getMode() == VehicleEntity.MODE_AI)) {
             t.setFlag(VehicleEntity.F_DISABLED, true);
             t.stopHard();
             w.spawnParticles(ParticleTypes.ELECTRIC_SPARK, t.getX(), t.getY() + 2, t.getZ(), 80, 2.5, 2, 2.5, 0.3);
             hit = true;
         }
-        p.sendMessage(Text.literal(hit ? "EMP HIT! The Monster Truck is fried!" : "EMP fizzled - fly closer to Gotiya's truck (within 60 blocks).").formatted(hit ? Formatting.GREEN : Formatting.YELLOW), true);
+        p.sendMessage(Text.literal(hit ? "EMP HIT! The Monster Truck is fried!" : "EMP fizzled - fly back over the showroom, Gotiya's truck is too far away.").formatted(hit ? Formatting.GREEN : Formatting.YELLOW), true);
     }
 
     private static void ring(ServerWorld w, Vec3d at, double r) {
@@ -1104,7 +1382,7 @@ public final class RivalDirector {
     public static void retryScene(ServerPlayerEntity p, boolean full) {
         Company c = Tycoon.companyOf(p);
         if (c == null || !c.cityBuilt) {
-            p.sendMessage(Text.literal("Build your city first: /tycoon start").formatted(Formatting.RED), false);
+            p.sendMessage(Text.literal("Build your city first: /tycoon start").formatted(Formatting.RED), true);
             return;
         }
         if (CityBuilder.busy()) {
@@ -1113,7 +1391,7 @@ public final class RivalDirector {
         }
         ServerWorld w = Tycoon.worldOf(c);
         State s = state(c);
-        p.sendMessage(Text.literal("#retryscene: repairing the showroom and restarting the scene...").formatted(Formatting.AQUA, Formatting.BOLD), false);
+        p.sendMessage(Text.literal("#retryscene: repairing the showroom and restarting the scene...").formatted(Formatting.AQUA, Formatting.BOLD), true);
         p.stopRiding();
         s.pendingAt = -1;
         killClimaxEntities(w, c, s);

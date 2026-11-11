@@ -206,4 +206,17 @@ public final class GotiyaChat {
         }
         return w.length() > 18 ? w.substring(0, 18) : w;
     }
+
+    private static final String[] CAUGHT = {
+            "arre arre... main toh bas rasta dekh raha tha!! bhaago",
+            "kuch nahi dekha maine. kuch nahi. bye",
+            "oye peeche mat aa!! main ja raha hoon",
+            "bas window shopping kar raha tha yaar, itna gussa kyun",
+            "tera showroom dekhne nahi aaya tha... chashma dhundh raha tha apna"};
+    private static int caught;
+
+    /** He was spying behind a showroom pillar and the player walked up to him. */
+    public static String caughtSpying() {
+        return CAUGHT[caught++ % CAUGHT.length];
+    }
 }

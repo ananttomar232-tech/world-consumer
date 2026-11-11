@@ -134,6 +134,16 @@ def block_textures():
 
 
 # ----------------------------------------------------------------------------------------------------------- block models
+CAR_ITEM = {"parent": "builtin/entity", "gui_light": "front", "display": {
+    "gui": {"rotation": [20, 215, 0], "translation": [0, 1, 0], "scale": [0.9, 0.9, 0.9]},
+    "ground": {"rotation": [0, 0, 0], "translation": [0, 2, 0], "scale": [0.5, 0.5, 0.5]},
+    "fixed": {"rotation": [0, 90, 0], "translation": [0, 0, 0], "scale": [0.9, 0.9, 0.9]},
+    "thirdperson_righthand": {"rotation": [0, 180, 0], "translation": [0, 2, 1], "scale": [0.55, 0.55, 0.55]},
+    "thirdperson_lefthand": {"rotation": [0, 180, 0], "translation": [0, 2, 1], "scale": [0.55, 0.55, 0.55]},
+    "firstperson_righthand": {"rotation": [0, 200, 0], "translation": [2, 2, 0], "scale": [0.6, 0.6, 0.6]},
+    "firstperson_lefthand": {"rotation": [0, 200, 0], "translation": [2, 2, 0], "scale": [0.6, 0.6, 0.6]}}}
+
+
 def block_models():
     cube_all = ["asphalt", "concrete_barrier", "billboard_panel", "delivery_crate", "megapack"]
     for n in cube_all:
@@ -189,7 +199,14 @@ def block_models():
     # item models
     w(os.path.join(A, "models/item/wall_poster.json"), {"parent": "minecraft:item/generated", "textures": {"layer0": "%s:item/wall_poster" % NS}})
     for v in ("tesla_classic", "tesla_model3", "tesla_cybertruck", "tesla_cybercab", "tesla_roadster", "gotiya_monster_truck", "delivery_truck"):
-        w(os.path.join(A, "models/item/%s_spawner.json" % v), {"parent": "minecraft:item/generated", "textures": {"layer0": "minecraft:item/minecart"}})
+        w(os.path.join(A, "models/item/%s_spawner.json" % v), CAR_ITEM)
+    # the physical upgrades handed out by the depot pedestals: the car itself (drawn in 3D by the client) or a 3D block model
+    for lv in ("level2", "level3", "level4", "level5"):
+        w(os.path.join(A, "models/item/upgrade_%s.json" % lv), CAR_ITEM)
+    for uid, parent in (("hydraulics", "minecraft:block/piston_inventory"), ("solar", "minecraft:block/daylight_detector"), ("ram", "minecraft:block/anvil"),
+                        ("starlink", "%s:block/starlink_dish" % NS), ("billboards", "%s:block/billboard_panel" % NS)):
+        w(os.path.join(A, "models/item/upgrade_%s.json" % uid), {"parent": parent})
+    w(os.path.join(A, "models/item/upgrade_posters.json"), {"parent": "minecraft:item/generated", "textures": {"layer0": "%s:item/wall_poster" % NS}})
     w(os.path.join(D, "recipes/wall_poster.json"), {"type": "minecraft:crafting_shaped", "pattern": ["PPP", "PDP", "PPP"],
         "key": {"P": {"item": "minecraft:paper"}, "D": {"item": "minecraft:cyan_dye"}}, "result": {"item": "%s:wall_poster" % NS, "count": 1}})
 
@@ -347,7 +364,7 @@ def lang():
              "gotiya_monster_truck": "Seth Gotiya's Rival Diesel Monster Truck", "delivery_truck": "Tesla Delivery Truck"}
     for k, v in names.items():
         L["entity.tesla_tycoon.%s" % k] = v
-        L["item.tesla_tycoon.%s_spawner" % k] = v + " (park it)"
+        L["item.tesla_tycoon.%s_spawner" % k] = v
     L["entity.tesla_tycoon.gotiya_truck"] = names["gotiya_monster_truck"]
     L["entity.tesla_tycoon.signboard"] = "Signboard"
     L["entity.tesla_tycoon.wall_poster"] = "Luxury Wall Poster"
@@ -355,28 +372,28 @@ def lang():
     L["key.categories.tesla_tycoon"] = "Tesla Tycoon"
     L["key.tesla_tycoon.ram"] = "Beast Ram Mode (Cybertruck)"
     L["key.tesla_tycoon.emp"] = "Fire EMP Shockwave (Roadster)"
-    L["key.tesla_tycoon.shop"] = "Open the Upgrade Depot"
     L["key.tesla_tycoon.guide"] = "Show / hide the guide"
     up = {
         "hydraulics": ("Jump Hydraulics + Armor Tires", "Counter to Gotiya's road spikes. SPACE makes any car hop, and armored tires crush the spikes instead of puncturing."),
-        "level2": ("Showroom Level 2: Tesla Model 3", "Adds a glass floor. The Model 3 (Autopilot Sedan) takes the ground floor; the Classic Compact moves up."),
+        "level2": ("Tesla Model 3", "Adds a glass floor. The Model 3 (Autopilot Sedan) takes the ground floor; the Classic Compact moves up."),
         "solar": ("Tesla Solar Roof + MegaPack", "Counter to the blackout: brings the neon back and adds solar panels and MegaPacks."),
-        "level3": ("Showroom Level 3: Armored Cybertruck", "Adds a glass floor and unlocks the Armored Cybertruck."),
+        "level3": ("Armored Cybertruck", "Adds a glass floor and unlocks the Armored Cybertruck."),
         "ram": ("Beast Ram Mode Module", "Counter to Gotiya's roadblocks: press V in the Cybertruck, then smash 2 concrete roadblocks."),
-        "level4": ("Showroom Level 4: Cybercab Robotaxi Network", "Adds a glass floor, the Robotaxi Terminal and 4 autonomous Cybercabs that loop the whole city and carry passengers between the sidewalk stations."),
+        "level4": ("Cybercab Robotaxi", "Adds a glass floor, the Robotaxi Terminal and 4 autonomous Cybercabs that loop the whole city and carry passengers between the sidewalk stations."),
         "starlink": ("Starlink Satellite Dish", "Part 1 of the GPS counter: a dish on the roof."),
         "billboards": ("Billboard Marketing Pack", "Part 2 of the GPS counter: right-click empty billboards on the highway turns around the city to run the Anant Tesla ad (+6% income each, 3 needed)."),
-        "level5": ("Showroom Level 5: Flying Roadster", "The finale: unlocks the Flying SpaceX Roadster on the rooftop helipad, the lobby launch pad and the EMP shockwave (R)."),
+        "level5": ("Flying Roadster", "The finale: unlocks the Flying SpaceX Roadster on the rooftop helipad, the lobby launch pad and the EMP shockwave (R)."),
         "posters": ("Luxury Wall Poster x4", "Four wall posters to decorate the showroom walls and glass pillars."),
     }
     for k, (n, dsc) in up.items():
         L["upgrade.tesla_tycoon.%s" % k] = n
         L["upgrade.tesla_tycoon.%s.desc" % k] = dsc
+        L["item.tesla_tycoon.upgrade_%s" % k] = n
     L["screen.tesla_tycoon.shop"] = "UPGRADE DEPOT"
     L["screen.tesla_tycoon.shop_sub"] = "Buy counters to Seth Gotiya's sabotage, upgrade the showroom floor by floor"
     L["hud.tesla_tycoon.level"] = "Showroom Lv.%s - %s"
     L["hud.tesla_tycoon.next"] = "Next: %s - $%s"
-    L["hud.tesla_tycoon.shop_hint"] = "Press B (or use the Depot Terminal) to buy!"
+    L["hud.tesla_tycoon.shop_hint"] = "Buy it on its pedestal in the Upgrade Depot, then place it"
     L["hud.tesla_tycoon.guide_title"] = "GUIDE  -  press Right Shift to hide"
     L["hud.tesla_tycoon.blackout"] = "BLACKOUT: neon is down"
     L["hud.tesla_tycoon.showroom_hp"] = "Showroom %s%%"
@@ -386,8 +403,8 @@ def lang():
     L["hud.tesla_tycoon.ram_on"] = "[V] BEAST RAM MODE: ON"
     L["hud.tesla_tycoon.ram_off"] = "[V] Beast Ram Mode: off"
     L["hud.tesla_tycoon.hop"] = "SPACE: hydraulic hop"
-    s = {1: ("GOTIYA'S ROAD SPIKES on the road!", "Buy Jump Hydraulics + Armor Tires (B)"),
-         2: ("GOTIYA CUT THE POWER! Neon is dead", "Buy the Tesla Solar Roof + MegaPack (B)"),
+    s = {1: ("GOTIYA'S ROAD SPIKES on the road!", "Buy Jump Hydraulics + Armor Tires at the Upgrade Depot"),
+         2: ("GOTIYA CUT THE POWER! Neon is dead", "Buy the Tesla Solar Roof + MegaPack at the Upgrade Depot"),
          3: ("GOTIYA'S CONCRETE ROADBLOCKS!", "Buy Beast Ram Mode, then smash 2 roadblocks with the Cybertruck (V)"),
          4: ("GOTIYA JAMMED THE CYBERCAB GPS!", "Buy the Starlink dish + Billboard pack, then put up 3 billboards"),
          5: ("MONSTER TRUCK ATTACK ON THE SHOWROOM!", "Fly the Roadster: SPACE thrusters, then R = EMP on the truck")}
@@ -396,7 +413,7 @@ def lang():
         L["hud.tesla_tycoon.counter.%d" % k] = b
     L["hud.tesla_tycoon.alarm.gate"] = "SECURITY ALARM - GOTIYA IS RAMMING THE GATE!"
     L["hud.tesla_tycoon.alarm.attack"] = "MONSTER TRUCK ATTACK - FLY THE ROADSTER, PRESS R"
-    L["hud.tesla_tycoon.alarm.hint1"] = "Step on the glowing launch pad in the lobby: it takes you to the roof."
+    L["hud.tesla_tycoon.alarm.hint1"] = "Right-click the red Roadster on the helipad."
     L["hud.tesla_tycoon.alarm.hint2"] = "Right-click the red Roadster, SPACE = thrusters, R = EMP the truck."
     w(os.path.join(A, "lang/en_us.json"), L)
 

@@ -21,7 +21,7 @@ import org.joml.Matrix4f;
 
 /** Draws the baked vehicles: body, spinning and steering wheels, steering wheel, translucent glass, roadster nozzles and flames. */
 public final class VehicleRenderer extends EntityRenderer<VehicleEntity> {
-    private static final float LOCK = 0.52f;     // radians of front wheel lock (about 30 degrees)
+    private static final float LOCK = 0.42f;     // radians of front wheel lock (about 30 degrees)
 
     public VehicleRenderer(EntityRendererFactory.Context ctx) {
         super(ctx);
@@ -36,6 +36,41 @@ public final class VehicleRenderer extends EntityRenderer<VehicleEntity> {
     public boolean shouldRender(VehicleEntity e, Frustum frustum, double x, double y, double z) {
         double pad = e.spec.meta.length * 0.55;
         return frustum.isVisible(e.getBoundingBox().expand(pad, 0.5, pad));
+    }
+
+    /** Clear glass at 36%, the tinted sunroof (part glass_tint) almost opaque. */
+    private static void drawGlass(TtmModel model, int lod) {
+        if (lod >= 2) {
+            return;
+        }
+        VehicleGfx.pass(1, 0.36f);
+        for (TtmModel.Part part : model.parts) {
+            if (part.glass && !part.name.equals("glass_tint") && part.buffers[lod] != null) {
+                VehicleGfx.draw(part.buffers[lod], null, null);
+            }
+        }
+        for (TtmModel.Part part : model.parts) {
+            if (part.glass && part.name.equals("glass_tint") && part.buffers[lod] != null) {
+                VehicleGfx.pass(1, 0.9f);
+                VehicleGfx.draw(part.buffers[lod], null, null);
+            }
+        }
+    }
+
+    /** The whole car as a still object in the current matrix space (depot pedestals, the item in the hand). */
+    public static void drawStatic(TtmModel model, MatrixStack matrices, int light, int lod) {
+        if (!VehicleGfx.ready()) {
+            return;
+        }
+        VehicleGfx.begin(matrices, light, 1f, 1f, 1f, 1f, model.textured ? model.texture : null);
+        VehicleGfx.pass(0, 1f);
+        for (TtmModel.Part part : model.parts) {
+            if (!part.glass && part.buffers[lod] != null) {
+                VehicleGfx.draw(part.buffers[lod], null, null);
+            }
+        }
+        drawGlass(model, lod);
+        VehicleGfx.end();
     }
 
     @Override
@@ -88,12 +123,17 @@ public final class VehicleRenderer extends EntityRenderer<VehicleEntity> {
         VehicleGfx.begin(matrices, light, tint, tint, tint, 1f, model.textured ? model.texture : null);
         VehicleGfx.pass(0, 1f);
         boolean seated = e.hasPassengers();
+        // from the driver's own eyes the turning front wheels would cut through the footwell and the dashboard: they are not drawn
+        boolean cockpit = mine && MinecraftClient.getInstance().options.getPerspective().isFirstPerson();
         for (TtmModel.Part part : model.parts) {
             if (part.glass || part.buffers[lod] == null) {
                 continue;
             }
             if (seated && (part.name.equals("interior_back") || part.name.equals("interior_rear"))) {
                 continue;               // the seat back and the rear bench would hide the seated figure's torso and cape from behind
+            }
+            if (part.wheel >= 0 && cockpit) {
+                continue;
             }
             if (part.wheel >= 0) {
                 ModelMeta.Wheel w = meta.wheels[part.wheel];
@@ -117,12 +157,7 @@ public final class VehicleRenderer extends EntityRenderer<VehicleEntity> {
                 VehicleGfx.draw(ProcMesh.nozzle(), new Matrix4f().translate(t[0], t[1], t[2]), null);
             }
         }
-        VehicleGfx.pass(1, 0.36f);
-        for (TtmModel.Part part : model.parts) {
-            if (part.glass && lod < 2 && part.buffers[lod] != null) {
-                VehicleGfx.draw(part.buffers[lod], null, null);
-            }
-        }
+        drawGlass(model, lod);
         if (meta.thrusters != null && meta.thrusters.length > 0 && (thrust || (e.isFlying() && !mine))) {
             VehicleGfx.pass(2, 1f);
             float flick = 1f + 0.22f * MathHelper.sin(time * 2.9f) + 0.12f * MathHelper.sin(time * 5.3f);

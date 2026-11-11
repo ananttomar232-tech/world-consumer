@@ -61,7 +61,7 @@ public final class ShowroomDirector {
         final List<Customer> customers = new ArrayList<>();
         final List<UUID> displays = new ArrayList<>();
         UUID playerCar;
-        long nextCustomer = 200;
+        long nextCustomer = 120;
         long nextTruck = 700;
         Truck truck;
         long lastPayment;
@@ -153,6 +153,35 @@ public final class ShowroomDirector {
         return n;
     }
 
+    /** One floating display per upgrade over the pedestals of the Upgrade Depot. */
+    public static void ensurePedestals(ServerWorld w, Company c) {
+        Box box = new Box(c.origin.getX() + PX0, c.origin.getY(), c.origin.getZ() + PZ0, c.origin.getX() + PX1 + 1, c.origin.getY() + 6, c.origin.getZ() + PZ1 + 1);
+        List<com.anant.teslatycoon.shop.PedestalEntity> have = w.getEntitiesByClass(com.anant.teslatycoon.shop.PedestalEntity.class, box, e -> true);
+        Upgrade[] all = Upgrade.values();
+        if (have.size() == all.length) {
+            return;
+        }
+        for (Entity e : have) {
+            e.discard();
+        }
+        for (int i = 0; i < all.length && i < com.anant.teslatycoon.city.Buildings.PEDESTALS.length; i++) {
+            int[] d = com.anant.teslatycoon.city.Buildings.PEDESTALS[i];
+            com.anant.teslatycoon.shop.PedestalEntity e = new com.anant.teslatycoon.shop.PedestalEntity(ModEntities.PEDESTAL, w);
+            e.setUpgrade(all[i]);
+            Vec3d v = CityBuilder.vec(c, d[0] + 0.5, 2.0, d[1] + 0.5);
+            e.refreshPositionAndAngles(v.x, v.y, v.z, 0f, 0f);
+            w.spawnEntity(e);
+        }
+    }
+
+    /** A new level: the Tesla Semi brings the new stock straight away. */
+    public static void onLevelUp(Company c) {
+        Session s = session(c);
+        if (s.truck == null) {
+            s.nextTruck = Math.min(s.nextTruck, c.cityTick + 160);
+        }
+    }
+
     public static void ensureStaff(ServerWorld w, Company c) {
         Session s = session(c);
         if (!alive(w, s.manager)) {
@@ -162,7 +191,7 @@ public final class ShowroomDirector {
             s.manager = m.getUuid();
         }
         if (!alive(w, s.clerk)) {
-            SuitedNpcEntity m = spawnNpc(w, CityBuilder.vec(c, -14.0, 1.0, -16.3), 0f, SuitedNpcEntity.CLERK, 5, "Upgrade Depot Clerk");
+            SuitedNpcEntity m = spawnNpc(w, CityBuilder.vec(c, -14.0, 1.0, -15.0), 0f, SuitedNpcEntity.CLERK, 5, "Upgrade Depot Clerk");
             m.faceTowards(0f);
             s.clerk = m.getUuid();
         }
@@ -233,17 +262,18 @@ public final class ShowroomDirector {
         boolean near = dx * dx + dz * dz < 190 * 190 && owner.getWorld() == w;
         if (c.cityTick % 100 == 17 && near) {
             ensureStaff(w, c);
+            ensurePedestals(w, c);
             ensureDisplays(w, c, s);
         }
         if (!near) {
             return;
         }
         // new customers
-        long interval = Math.max(300, 780 - 90L * c.level);
-        int maxCustomers = c.level >= 3 ? 3 : 2;
+        long interval = 200;                                   // a new customer every 10 to 15 seconds
+        int maxCustomers = 7;
         if (c.cityTick >= s.nextCustomer && s.customers.size() < maxCustomers && !c.powerOut && com.anant.teslatycoon.rival.RivalDirector.alarmStage(c) == 0) {
             spawnCustomer(w, c, s);
-            s.nextCustomer = c.cityTick + interval + w.random.nextInt(120);
+            s.nextCustomer = c.cityTick + interval + w.random.nextInt(101);
         }
         tickCustomers(w, c, s, owner);
         tickTruck(w, c, s, owner);

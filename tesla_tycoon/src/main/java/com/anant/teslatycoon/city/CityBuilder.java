@@ -295,12 +295,12 @@ public final class CityBuilder {
     public static void start(ServerPlayerEntity p) {
         Company existing = Tycoon.state().find(p.getUuid());
         if (existing != null && existing.cityBuilt) {
-            p.sendMessage(Text.literal("Your city already exists. Teleporting you to the showroom.").formatted(Formatting.AQUA), false);
+            p.sendMessage(Text.literal("Your city already exists. Teleporting you to the showroom.").formatted(Formatting.AQUA), true);
             teleportHome(p, existing);
             return;
         }
         if (busy()) {
-            p.sendMessage(Text.literal("A city is being built right now, try again in a few seconds.").formatted(Formatting.YELLOW), false);
+            p.sendMessage(Text.literal("A city is being built right now, try again in a few seconds.").formatted(Formatting.YELLOW), true);
             return;
         }
         ServerWorld world = p.getServerWorld();
@@ -309,7 +309,8 @@ public final class CityBuilder {
         c.dimension = world.getRegistryKey().getValue().toString();
         c.level = 1;
         c.owned.clear();
-        c.money = 50;
+        c.money = 0;
+        c.pending.clear();
         c.carry = 0;
         c.sabTriggered = 0;
         c.climaxWon = false;
@@ -325,7 +326,7 @@ public final class CityBuilder {
         // the neon city looks best after dark; the daylight cycle stays untouched, only the time is set
         world.setTimeOfDay(13400);
         p.sendMessage(Text.literal("[Tesla Tycoon] ").formatted(Formatting.AQUA, Formatting.BOLD)
-                .append(Text.literal("Building Anant Tesla City... the showroom district first, then the skyscrapers (time set to night so the neon shines)").formatted(Formatting.WHITE)), false);
+                .append(Text.literal("Building Anant Tesla City... the showroom district first, then the skyscrapers (time set to night so the neon shines)").formatted(Formatting.WHITE)), true);
         ServerBossBar bar = new ServerBossBar(Text.literal("Building Anant Tesla City"), BossBar.Color.BLUE, BossBar.Style.PROGRESS);
         bar.addPlayer(p);
         c.cityComplete = false;
@@ -341,7 +342,7 @@ public final class CityBuilder {
             ShowroomDirector.reset(c);
             teleportHome(p, c);
             p.sendMessage(Text.literal("Welcome to Anant Tesla Showroom! ").formatted(Formatting.GOLD, Formatting.BOLD)
-                    .append(Text.literal("Customers walk in by themselves. Right-click the shining car to test drive it. Press B for the Upgrade Depot, RIGHT SHIFT to show the guide.").formatted(Formatting.WHITE)), false);
+                    .append(Text.literal("Customers walk in by themselves. Right-click the shining car to test drive it. Buy upgrades on the pedestals of the Upgrade Depot next door. RIGHT SHIFT shows the guide.").formatted(Formatting.WHITE)), true);
             ShowroomDirector.giveStarterPosters(p, 2);
             Tycoon.sync(p, c);
             p.networkHandler.sendPacket(new TitleFadeS2CPacket(10, 60, 20));
@@ -354,7 +355,7 @@ public final class CityBuilder {
             c.cityComplete = true;
             // the billboards live far out: their signs are created once their chunks exist
             spawnBillboardSigns(world, c);
-            p.sendMessage(Text.literal("The metropolis is complete: the highway ring, 24 intersections and the skyline are ready to drive through.").formatted(Formatting.AQUA), false);
+            p.sendMessage(Text.literal("The metropolis is complete: the highway ring, 24 intersections and the skyline are ready to drive through.").formatted(Formatting.AQUA), true);
             Tycoon.log("[city] metropolis complete");
         }, bar, share, 1f));
     }
@@ -707,7 +708,7 @@ public final class CityBuilder {
         Box box = new Box(c.origin.getX() + X0 - 6, c.origin.getY() - 4, c.origin.getZ() + Z0 - 6,
                 c.origin.getX() + X1 + 6, c.origin.getY() + 80, c.origin.getZ() + Z1 + 6);
         List<Entity> old = new ArrayList<>(w.getEntitiesByClass(Entity.class, box,
-                e -> e instanceof SignboardEntity || (e instanceof PosterEntity && e.getCommandTags().contains("tt_auto")) || e instanceof SuitedNpcEntity
+                e -> e instanceof SignboardEntity || e instanceof com.anant.teslatycoon.shop.PedestalEntity || (e instanceof PosterEntity && e.getCommandTags().contains("tt_auto")) || e instanceof SuitedNpcEntity
                         || e instanceof VehicleEntity));
         for (Entity e : old) {
             e.discard();
@@ -722,6 +723,7 @@ public final class CityBuilder {
         ShowroomDirector.reset(c);
         ShowroomDirector.layoutDisplays(w, c);
         ShowroomDirector.ensureStaff(w, c);
+        ShowroomDirector.ensurePedestals(w, c);
         RivalDirector.ensureGotiya(w, c);
         com.anant.teslatycoon.npc.RobotaxiDirector.reset(c);
     }

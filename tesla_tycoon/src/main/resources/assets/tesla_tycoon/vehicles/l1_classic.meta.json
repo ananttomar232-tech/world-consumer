@@ -15,16 +15,16 @@
  "height": 1.536,
  "wheelbase": 2.7306,
  "track": 1.466,
- "wheelRadius": 0.3503,
+ "wheelRadius": 0.335,
  "wheels": [
   {
    "name": "FL",
    "pivot": [
-    0.733,
-    0.3503,
-    1.3653
+    0.7067,
+    0.3421,
+    1.3626
    ],
-   "radius": 0.3503,
+   "radius": 0.335,
    "hw": 0.1416,
    "front": true,
    "left": true
@@ -32,11 +32,11 @@
   {
    "name": "FR",
    "pivot": [
-    -0.733,
-    0.3503,
-    1.3653
+    -0.7062,
+    0.3506,
+    1.359
    ],
-   "radius": 0.3503,
+   "radius": 0.3369,
    "hw": 0.1416,
    "front": true,
    "left": false
@@ -44,11 +44,11 @@
   {
    "name": "RL",
    "pivot": [
-    0.733,
-    0.3479,
-    -1.3653
+    0.7019,
+    0.3563,
+    -1.3636
    ],
-   "radius": 0.3503,
+   "radius": 0.3385,
    "hw": 0.1416,
    "front": false,
    "left": true
@@ -56,11 +56,11 @@
   {
    "name": "RR",
    "pivot": [
-    -0.733,
-    0.3479,
-    -1.3653
+    -0.7034,
+    0.3491,
+    -1.3578
    ],
-   "radius": 0.3503,
+   "radius": 0.3399,
    "hw": 0.1416,
    "front": false,
    "left": false

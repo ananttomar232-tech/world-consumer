@@ -93,7 +93,7 @@ public final class TycoonHud {
 
     public static void render(DrawContext ctx, float tickDelta) {
         MinecraftClient mc = MinecraftClient.getInstance();
-        if (!ClientState.present || mc.player == null || mc.options.hudHidden) {
+        if (!ClientState.present || mc.player == null || mc.options.hudHidden || ClientState.hudHidden) {
             return;
         }
         TextRenderer tr = mc.textRenderer;
