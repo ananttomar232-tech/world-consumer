@@ -29,6 +29,9 @@ public final class ModEntities {
     public static final EntityType<com.anant.teslatycoon.shop.PedestalEntity> PEDESTAL = FabricEntityTypeBuilder.<com.anant.teslatycoon.shop.PedestalEntity>create(SpawnGroup.MISC, com.anant.teslatycoon.shop.PedestalEntity::new)
             .dimensions(EntityDimensions.fixed(1.1f, 2.0f)).trackRangeBlocks(48).trackedUpdateRate(40).build();
 
+    public static final EntityType<com.anant.teslatycoon.cinema.CameraEntity> CAMERA = FabricEntityTypeBuilder.<com.anant.teslatycoon.cinema.CameraEntity>create(SpawnGroup.MISC, com.anant.teslatycoon.cinema.CameraEntity::new)
+            .dimensions(EntityDimensions.fixed(0.2f, 0.2f)).trackRangeBlocks(256).trackedUpdateRate(1).forceTrackedVelocityUpdates(false).build();
+
     private ModEntities() {}
 
     public static EntityType<VehicleEntity> vehicle(VehicleSpec spec) {
@@ -40,6 +43,7 @@ public final class ModEntities {
         Registry.register(Registries.ENTITY_TYPE, TeslaTycoon.id("wall_poster"), POSTER);
         Registry.register(Registries.ENTITY_TYPE, TeslaTycoon.id("suited_villager"), SUITED);
         Registry.register(Registries.ENTITY_TYPE, TeslaTycoon.id("pedestal"), PEDESTAL);
+        Registry.register(Registries.ENTITY_TYPE, TeslaTycoon.id("cinema_camera"), CAMERA);
         FabricDefaultAttributeRegistry.register(SUITED, SuitedNpcEntity.attributes());
         for (VehicleSpec spec : VehicleSpecs.ALL) {
             EntityType<VehicleEntity> type = FabricEntityTypeBuilder.<VehicleEntity>create(SpawnGroup.MISC, VehicleEntity::new)

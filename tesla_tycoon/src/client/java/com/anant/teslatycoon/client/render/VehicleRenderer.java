@@ -86,7 +86,7 @@ public final class VehicleRenderer extends EntityRenderer<VehicleEntity> {
         int mode = e.getMode();
         float time = e.age + tickDelta;
         float yaw = e.lerpedYaw(tickDelta);
-        if (mode == VehicleEntity.MODE_DISPLAY) {
+        if (mode == VehicleEntity.MODE_DISPLAY && !e.hasFlag(VehicleEntity.F_STILL)) {
             yaw += time * 0.9f;
         }
         float pop = MathHelper.clamp((e.spawnAge + tickDelta) / 16f, 0f, 1f);

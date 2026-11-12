@@ -20,7 +20,7 @@ import zipfile
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PROJECT = os.path.join(ROOT, "tesla_tycoon")
-VERSION = "3.0.0"
+VERSION = "4.0.0"
 
 
 def run(cmd, cwd=None, env=None):

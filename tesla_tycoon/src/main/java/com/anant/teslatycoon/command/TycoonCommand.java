@@ -52,6 +52,15 @@ public final class TycoonCommand {
     }
 
     public static void register(CommandDispatcher<ServerCommandSource> d) {
+        // the last task, fully automated: the cutscene that ends Gotiya Petrol Motors
+        d.register(CommandManager.literal("destroy").executes(ctx -> {
+            ServerPlayerEntity p = ctx.getSource().getPlayerOrThrow();
+            String why = com.anant.teslatycoon.cinema.DestroyCinematic.start(p);
+            if (why != null) {
+                p.sendMessage(Text.literal(why).formatted(Formatting.YELLOW), true);
+            }
+            return why == null ? 1 : 0;
+        }));
         d.register(CommandManager.literal("money").requires(s -> s.hasPermissionLevel(2))
                 .then(CommandManager.literal("add").then(CommandManager.argument("amount", LongArgumentType.longArg()).executes(ctx ->
                         money(ctx.getSource(), (p, c) -> {
@@ -202,6 +211,22 @@ public final class TycoonCommand {
                                 .then(CommandManager.argument("steer", FloatArgumentType.floatArg(-1, 1))
                                         .executes(ctx -> drive(ctx, ""))
                                         .then(CommandManager.argument("flags", StringArgumentType.word()).executes(ctx -> drive(ctx, StringArgumentType.getString(ctx, "flags")))))))
+                .then(CommandManager.literal("chat").requires(s -> s.hasPermissionLevel(2)).then(CommandManager.argument("text", StringArgumentType.greedyString()).executes(ctx -> {
+                    // (tests: what the player would type in chat)
+                    ServerPlayerEntity p = ctx.getSource().getPlayerOrThrow();
+                    String text = StringArgumentType.getString(ctx, "text");
+                    p.server.getPlayerManager().broadcast(Text.literal("<" + p.getGameProfile().getName() + "> " + text), false);
+                    RivalDirector.onPlayerChat(p, text);
+                    return 1;
+                })))
+                .then(CommandManager.literal("partner").requires(s -> s.hasPermissionLevel(2)).executes(ctx -> {
+                    ServerPlayerEntity p = ctx.getSource().getPlayerOrThrow();
+                    Company c = need(ctx.getSource(), p);
+                    if (c != null) {
+                        RivalDirector.makePartner(Tycoon.worldOf(c), c, p);
+                    }
+                    return 1;
+                }))
                 .then(CommandManager.literal("sabotage").requires(s -> s.hasPermissionLevel(2)).executes(ctx -> {
                     ServerPlayerEntity p = ctx.getSource().getPlayerOrThrow();
                     Company c = need(ctx.getSource(), p);

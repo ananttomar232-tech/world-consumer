@@ -352,6 +352,13 @@ public final class Buildings {
 
     // ============================================================================================================ Gotiya's petrol motors
     public static Plan petrol() {
+        Plan p = petrolBase();
+        p.ops.addAll(rivalShowroom(1, false, false).ops);
+        return p;
+    }
+
+    /** The plot as it was before v4: workshop shell, sign board, canopy, pumps, forecourt, fence. */
+    private static Plan petrolBase() {
         Plan p = new Plan();
         BlockState red = Blocks.RED_CONCRETE.getDefaultState();
         BlockState orange = Blocks.ORANGE_CONCRETE.getDefaultState();
@@ -401,7 +408,6 @@ public final class Buildings {
             }
             p.fill(x, 1, GZ0, x, 4, GZ0, Blocks.OAK_FENCE.getDefaultState());
         }
-        p.ops.addAll(rivalShowroom(1, false, false).ops);
         return p;
     }
 
@@ -425,6 +431,9 @@ public final class Buildings {
             return p;
         }
         NeonColor neon = partner ? NeonColor.CYAN : NeonColor.RED;
+        // the whole plot again from scratch (this also turns a ruin back into a dealership)
+        p.clear(GX0, 1, GZ0 + 1, GX1, 12, GZ1);
+        p.ops.addAll(petrolBase().ops);
         // the walls and roof again (a ruin can be rebuilt by the partnership)
         p.fill(GX0, 1, wz, GX1, 7, wz, red);
         p.fill(GX0, 1, GZ1, GX1, 7, GZ1, red);
@@ -435,12 +444,15 @@ public final class Buildings {
         // polished floor, black frames under the cars
         p.fill(GX0 + 1, 0, wz + 1, GX1 - 1, 0, GZ1 - 1, Blocks.SMOOTH_QUARTZ.getDefaultState());
         p.fill(-44, 0, wz + 1, -35, 0, GZ1 - 1, Blocks.POLISHED_BLACKSTONE.getDefaultState());       // the truck lane
-        int cars = rivalCars(level);
+        int cars = partner ? RIVAL_SPOTS.length : rivalCars(level);
         for (int i = 0; i < RIVAL_SPOTS.length; i++) {
             int cx = (int) Math.floor(RIVAL_SPOTS[i][0]);
             int cz = (int) Math.floor(RIVAL_SPOTS[i][1]);
+            if (i >= cars) {
+                continue;
+            }
             p.fill(cx - 2, 0, cz - 3, cx + 2, 0, cz + 3, BLACK);
-            if (i < cars && level >= 2) {
+            if (level >= 2 || partner) {
                 p.neonFill(cx - 2, 0, cz - 3, cx + 2, 0, cz - 3, neon);                            // a glowing edge in front of each car
                 p.neonFill(cx - 2, 0, cz + 3, cx + 2, 0, cz + 3, neon);
             }
@@ -488,7 +500,7 @@ public final class Buildings {
 
     /** How many petrol cars he has on show at the player's level (he upgrades as the player does). */
     public static int rivalCars(int level) {
-        return Math.max(1, Math.min(RIVAL_SPOTS.length, level));
+        return Math.max(2, Math.min(RIVAL_SPOTS.length, level + 1));
     }
 
     /** After /destroy: broken walls, the roof caved in, rubble, smoke from the wreck. Deterministic (the same ruin every time). */

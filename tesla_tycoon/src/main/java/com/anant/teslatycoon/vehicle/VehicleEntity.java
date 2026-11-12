@@ -50,6 +50,7 @@ public class VehicleEntity extends Entity {
     public static final int F_JAMMED = 32;      // Cybercab GPS jammed
     public static final int F_ARMOR = 64;       // armour tires
     public static final int F_HYDRAULICS = 128; // jump hydraulics
+    public static final int F_STILL = 256;      // a display that does not turn on its pad (Gotiya's spots, cutscene props)
 
     private static final TrackedData<Byte> MODE = DataTracker.registerData(VehicleEntity.class, TrackedDataHandlerRegistry.BYTE);
     private static final TrackedData<Integer> FLAGS = DataTracker.registerData(VehicleEntity.class, TrackedDataHandlerRegistry.INTEGER);
@@ -408,6 +409,9 @@ public class VehicleEntity extends Entity {
         spawnAge++;
         if (getMode() == MODE_DISPLAY) {
             setVelocity(Vec3d.ZERO);
+            if (w.isClient) {
+                updateLerp();                          // a prop moved by a script (the cutscene's flying Roadster) glides smoothly
+            }
             return;
         }
         prevWheelSpin = wheelSpin;

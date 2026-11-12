@@ -382,6 +382,23 @@ public final class TycoonGameTests implements FabricGameTest {
         }
         expect(ctx, GotiyaChat.reply("tesla", "Anant", 5, 1, "x", 0).toLowerCase().matches(".*(tesla|bijli|battery|charg|cybertruck|engine|autopilot|gaadi).*"), "tesla keyword answer is not about electric cars");
         expect(ctx, !GotiyaChat.idle().isBlank(), "idle taunt");
+        // he understands what he is told, and kindness can win him over
+        expect(ctx, GotiyaChat.classify("how do i remove the spikes?").equals("help"), "help intent");
+        expect(ctx, GotiyaChat.classify("kaise ho seth ji").equals("how"), "how-are-you intent");
+        expect(ctx, GotiyaChat.classify("I am sorry, let's be friends").equals("empathy"), "empathy intent");
+        expect(ctx, GotiyaChat.classify("lamborghini kitne ki hai").equals("cars"), "cars intent");
+        GotiyaChat.Ctx beaten = new GotiyaChat.Ctx("Anant", 10, 5, "Roadster", 0, false, true, 0);
+        GotiyaChat.Reply r1 = GotiyaChat.respond("I am really sorry about your shop, I want us to work together as partners", beaten);
+        expect(ctx, r1.join() && r1.line().key().equals("empathy_join"), "after his defeat one heartfelt message should win him over, got " + r1.line().key());
+        GotiyaChat.Ctx early = new GotiyaChat.Ctx("Anant", 10, 2, "Model 3", 2, false, false, 0);
+        expect(ctx, !GotiyaChat.respond("sorry", early).join(), "one 'sorry' in the middle of the war must not end it");
+        GotiyaChat.Reply hint = GotiyaChat.respond("help, what should i do?", early);
+        expect(ctx, hint.line().key().equals("hint_2") && hint.text().toLowerCase().contains("solar"), "a call for help during the blackout must name the Solar Roof");
+        for (String key : new String[]{"greet", "tesla", "petrol", "money", "insult", "empathy_soft", "empathy_join", "partner", "hint_0", "hint_1", "hint_3", "hint_4", "hint_5",
+                "sab_1", "sab_3", "cry_1", "visit", "rival_up", "rival_sale", "destroyed", "c_1", "c_2", "c_3", "c_4", "cinematic", "caught", "truck"}) {
+            expect(ctx, com.anant.teslatycoon.rival.GotiyaLines.count(key) > 0, "no voiced line for " + key);
+            expect(ctx, com.anant.teslatycoon.registry.ModSounds.voice(com.anant.teslatycoon.rival.GotiyaLines.pick(key).id()) != null, "no voice clip registered for " + key);
+        }
         for (int k = 1; k <= 5; k++) {
             expect(ctx, !GotiyaChat.sabotageLine(k).isBlank() && !GotiyaChat.cryLine(k).isBlank(), "lines for sabotage " + k);
         }
@@ -481,6 +498,16 @@ public final class TycoonGameTests implements FabricGameTest {
             expect(ctx, w.getEntitiesByClass(VehicleEntity.class, all, monster).isEmpty(), "no Monster Truck may exist before the finale");
             RivalDirector.triggerForTest(w, c, 1);
             expect(ctx, spikesNear(w, origin), "sabotage 1 should leave road spikes on the road");
+            expect(ctx, w.getBlockState(Plan.world(origin, -2, 0, 3)).isOf(ModBlocks.SPIKES) && w.getBlockState(Plan.world(origin, -2, 0, 18)).isOf(ModBlocks.SPIKES),
+                    "the spikes must be on BOTH sides of the showroom, right across the road (east belt missing)");
+            RivalDirector.clearObstaclesForTest(w, c);
+            expect(ctx, !spikesNear(w, origin) && !w.getBlockState(Plan.world(origin, -2, 0, 3)).isOf(ModBlocks.SPIKES), "beaten spikes must be removed");
+            RivalDirector.triggerForTest(w, c, 3);
+            expect(ctx, w.getBlockState(Plan.world(origin, -70, 0, 2)).isOf(ModBlocks.BARRIER) && w.getBlockState(Plan.world(origin, -70, 0, 19)).isOf(ModBlocks.BARRIER)
+                    && w.getBlockState(Plan.world(origin, -12, 1, 2)).isOf(ModBlocks.BARRIER) && w.getBlockState(Plan.world(origin, -12, 1, 19)).isOf(ModBlocks.BARRIER),
+                    "the roadblocks must close the whole road on both sides of the showroom");
+            RivalDirector.clearObstaclesForTest(w, c);
+            expect(ctx, !w.getBlockState(Plan.world(origin, -70, 0, 2)).isOf(ModBlocks.BARRIER), "beaten roadblocks must be removed");
             RivalDirector.triggerForTest(w, c, 5);
             java.util.List<VehicleEntity> trucks = w.getEntitiesByClass(VehicleEntity.class, all, monster);
             expect(ctx, trucks.size() == 1, "the finale needs exactly one Monster Truck, found " + trucks.size());

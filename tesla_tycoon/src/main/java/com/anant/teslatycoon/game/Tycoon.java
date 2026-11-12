@@ -105,6 +105,7 @@ public final class Tycoon {
         }
         CityBuilder.tick(s);
         RivalDirector.serverTick(s);
+        com.anant.teslatycoon.cinema.DestroyCinematic.tick(s);
         int t = s.getTicks();
         for (ServerPlayerEntity p : s.getPlayerManager().getPlayerList()) {
             Company c = st.find(p.getUuid());

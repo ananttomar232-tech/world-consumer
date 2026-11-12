@@ -42,6 +42,7 @@ public final class TeslaTycoonClient implements ClientModInitializer {
         EntityRendererRegistry.register(ModEntities.POSTER, PosterRenderer::new);
         EntityRendererRegistry.register(ModEntities.SUITED, SuitedNpcRenderer::new);
         EntityRendererRegistry.register(ModEntities.PEDESTAL, com.anant.teslatycoon.client.render.PedestalRenderer::new);
+        EntityRendererRegistry.register(ModEntities.CAMERA, net.minecraft.client.render.entity.EmptyEntityRenderer::new);
         // a showroom-level upgrade in the hand is the car itself, in 3D
         java.util.Map<net.minecraft.item.Item, String> carItems = new java.util.HashMap<>();
         for (com.anant.teslatycoon.game.Upgrade u : com.anant.teslatycoon.game.Upgrade.values()) {

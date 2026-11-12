@@ -159,7 +159,7 @@ public final class RivalDirector {
         return STATES.computeIfAbsent(c.owner, k -> new State());
     }
 
-    private static void later(int ticks, Runnable r) {
+    public static void later(int ticks, Runnable r) {
         MinecraftServer s = Tycoon.server;
         if (s != null) {
             TASKS.add(new Task(s.getTicks() + ticks, r));
@@ -458,6 +458,7 @@ public final class RivalDirector {
                     path.add(CityBuilder.vec(c, spot[0], 1, -1.6));
                     path.add(CityBuilder.vec(c, spot[0], 1, spot[1]));
                     g.walk(path, 0.14, null);
+                    Tycoon.log("[rival] Gotiya sneaks over to spy");
                     s.spy = 1;
                     s.spySince = now;
                 }
@@ -511,7 +512,8 @@ public final class RivalDirector {
      * customer, or walk round his own showroom checking his cars. (Showing a car to a customer of his comes first: RivalShowroom.) */
     private static void chooseActivity(ServerWorld w, Company c, ServerPlayerEntity p, State s, SuitedNpcEntity g) {
         long now = c.cityTick;
-        if (s.act != 0 || s.spy != 0 || s.errand != null || now < s.nextAct || g.isWalking() || g.hasVehicle()) {
+        if (s.act != 0 || s.spy != 0 || s.errand != null || now < s.nextAct || g.isWalking() || g.hasVehicle() || now < s.cryUntil
+                || com.anant.teslatycoon.cinema.DestroyCinematic.running(c.owner)) {
             return;
         }
         int r = w.random.nextInt(100);
@@ -555,6 +557,7 @@ public final class RivalDirector {
         path.addAll(back);
         path.add(home(c));
         s.act = 2;
+        Tycoon.log("[rival] Gotiya walks over to look round the Tesla showroom");
         ServerWorld w = (ServerWorld) g.getWorld();
         g.walk(path, 0.12, () -> activityDone(w, c, s, g));
     }
@@ -565,6 +568,7 @@ public final class RivalDirector {
                 CityBuilder.vec(c, -52.5, 1, 44.5), CityBuilder.vec(c, -52.5, 1, 52.0), CityBuilder.vec(c, -27.5, 1, 52.0), CityBuilder.vec(c, -27.5, 1, 44.5),
                 CityBuilder.vec(c, -40.5, 1, 44.5), CityBuilder.vec(c, -40.5, 1, 40.0), CityBuilder.vec(c, -40.5, 1, 31.5), home(c));
         s.act = 3;
+        Tycoon.log("[rival] Gotiya walks round his own showroom");
         ServerWorld w = (ServerWorld) g.getWorld();
         g.walk(path, 0.12, () -> activityDone(w, c, s, g));
     }
@@ -584,6 +588,7 @@ public final class RivalDirector {
             return false;
         }
         s.act = 4;
+        Tycoon.log("[rival] Gotiya goes to show a car to his customer");
         float yaw = (float) (MathHelper.atan2(-(customer.x - at.x), customer.z - at.z) * 180.0 / Math.PI);
         g.walk(List.of(CityBuilder.vec(c, -40.5, 1, 31.5), CityBuilder.vec(c, -40.5, 1, 40.0), CityBuilder.vec(c, -40.5, 1, 44.5),
                 new Vec3d(at.x, at.y, c.origin.getZ() + 44.5), at), 0.15, () -> g.faceTowards(yaw));
@@ -618,6 +623,37 @@ public final class RivalDirector {
             LAST_SALE_LINE.put(c.owner, c.cityTick);
             sayKey(w, c, p, "rival_sale");
         }
+    }
+
+    // ------------------------------------------------------------------------------------------------------ the /destroy cutscene
+    /** Everything of the running story stops (alarm, battle, errands, obstacles, blackout) before the cutscene takes over. */
+    public static void stopStoryForCutscene(ServerWorld w, Company c) {
+        State s = state(c);
+        killClimaxEntities(w, c, s);
+        s.alarm = false;
+        s.climax = false;
+        s.defeated = false;
+        s.victoryAt = -1;
+        s.errand = null;
+        s.spy = 0;
+        s.act = 0;
+        s.pendingAt = -1;
+        if (c.gateClosed) {
+            CityBuilder.setGate(w, c, false, null);
+        }
+        clearObstacles(w, c, s);
+        if (c.powerOut) {
+            c.powerOut = false;
+            CityBuilder.setPower(w, c, true);
+        }
+        Entity t = s.showTruck == null ? null : w.getEntity(s.showTruck);
+        if (t != null) {
+            t.discard();
+        }
+    }
+
+    public static void setCrying(Company c, int ticks) {
+        state(c).cryUntil = c.cityTick + ticks;
     }
 
     // ------------------------------------------------------------------------------------------------------ partnership
@@ -691,7 +727,7 @@ public final class RivalDirector {
             s.pendingAt = now;
             s.pendingLevel = 1;
         }
-        if (c.gotiyaPartner) {
+        if (c.gotiyaPartner || c.rivalDestroyed) {
             s.pendingAt = -1;
         }
         boolean free = s.errand == null && s.spy == 0 && (s.act == 0 || s.act == 3) && (g == null || !g.isWalking() || s.act == 3);
@@ -712,14 +748,14 @@ public final class RivalDirector {
             }
         }
         // the last task: once Level 5 stands he comes for the showroom by himself (the launch pad can start it sooner)
-        if (c.level >= 5 && !c.climaxWon && !c.gotiyaPartner && (c.sabTriggered & (1 << 5)) == 0 && s.pendingAt < 0 && !s.alarm && !s.climax) {
+        if (c.level >= 5 && !c.climaxWon && !c.gotiyaPartner && !c.rivalDestroyed && (c.sabTriggered & (1 << 5)) == 0 && s.pendingAt < 0 && !s.alarm && !s.climax) {
             s.pendingAt = now + 20 * 45;
             s.pendingLevel = 5;
             sayKey(w, c, p, "taunt");
         }
         int active = c.activeSabotage();
         if (active != s.seen) {
-            if (s.seen != 0 && active == 0) {
+            if (s.seen != 0 && active == 0 && !c.rivalDestroyed && !c.gotiyaPartner) {
                 onResolved(w, c, p, s, s.seen);
             }
             s.seen = active;
@@ -854,6 +890,11 @@ public final class RivalDirector {
             });
             Tycoon.sync(p, c);
         }
+    }
+
+    /** Test entry: whatever he put on the road is removed (what a beaten sabotage does). */
+    public static void clearObstaclesForTest(ServerWorld w, Company c) {
+        clearObstacles(w, c, state(c));
     }
 
     /** Test entry: runs sabotage {@code k} for a company without a player. */

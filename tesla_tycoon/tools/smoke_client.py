@@ -20,7 +20,8 @@ RUN = os.path.join(ROOT, "run")
 SAVE = "ttsmoke"
 GRADLE = os.environ.get("GRADLE", "/opt/gradle/bin/gradle" if os.path.exists("/opt/gradle/bin/gradle") else os.path.join(ROOT, "gradlew"))
 
-VEHICLES = ["tesla_classic", "tesla_model3", "tesla_cybertruck", "tesla_cybercab", "tesla_roadster", "gotiya_monster_truck"]
+VEHICLES = ["tesla_classic", "tesla_model3", "tesla_cybertruck", "tesla_cybercab", "tesla_roadster", "gotiya_monster_truck",
+            "gotiya_hatch", "gotiya_mustang", "gotiya_lambo"]
 KILL_ALL = ["kill @e[type=tesla_tycoon:%s]" % v for v in VEHICLES] + ["kill @e[type=minecraft:villager]"]
 BASE = ["time set noon", "gamerule doDaylightCycle false", "gamerule doMobSpawning false", "weather clear", "gamemode creative @p",
         "effect give @p minecraft:night_vision infinite 0 true"]
@@ -140,6 +141,60 @@ def tour_emp():
             ("10_emp", [P + "tycoon emp"], 3),
             ("11_victory", [], 8),
             ("12_gotiya_out", [P + "tycoon drive off", cam(-56, -57, 12, -44, -59, -3)], 8)]
+
+
+def tour_v4():
+    """v4: Gotiya's showroom (lights, petrol cars), the Tesla-logo staff, customers from both sides, the spikes on both sides of the
+    showroom, his voiced chat answers and the customers' complaints, the cockpit of all eight cars, /destroy, empathy -> partner."""
+    P = "execute as @p run "
+    steps = [("00_setup", BASE + KILL_ALL + ["tp @p 0 -60 0 0 0"], 4),
+             ("01_start", [P + "tycoon start"], 45),
+             ("02_gotiya_front", [cam(-40, -57.0, 20, -40, -58.0, 44)], 10),
+             ("03_gotiya_inside_west", [cam(-41, -58.6, 44.5, -56, -59.5, 49)], 6),
+             ("04_gotiya_inside_east", [cam(-39, -58.6, 44.5, -24, -59.5, 49)], 6),
+             ("05_clerk_face", [cam(-14, -59.4, -12.5, -14, -58.6, -15)], 5),
+             ("06_manager_face", [cam(-53.5, -58.4, -11.2, -53.5, -58.0, -14.1)], 5),
+             ("07_customers", [cam(-45.5, -57.5, 4, -45.5, -59.0, -4)], 12),
+             ("08_chat_hello", [P + "tycoon chat namaste seth ji, kaise ho?", cam(-40, -57.5, 16, -40.5, -58.5, 28.5)], 6),
+             ("09_chat_help", [P + "tycoon chat what should i do to win?"], 6),
+             ("10_sabotage", [P + "money set 0", P + "tycoon sabotage", cam(-50, -56.5, 18, -59, -60.5, 8)], 12),
+             ("11_spikes_west", [cam(-54, -55.5, -4, -61, -61, 10)], 14),
+             ("12_spikes_east", [cam(6, -55.5, -4, -2, -61, 10)], 18),
+             ("13_complaint", [cam(-45.5, -57.5, 4, -45.5, -59.0, -4)], 10),
+             ("14_level3", [P + "money add 900000", P + "tycoon level 3", cam(-40, -55.5, 18, -40, -58, 44)], 40),
+             ("15_gotiya_upgraded", [cam(-40, -58.6, 44.5, -56, -59.5, 49)], 8)]
+    for v in ["tesla_classic", "tesla_model3", "tesla_cybertruck", "tesla_cybercab", "tesla_roadster", "gotiya_hatch", "gotiya_mustang", "gotiya_lambo"]:
+        steps.append(("16_cockpit_%s" % v, KILL_ALL[:-1] + ["summon tesla_tycoon:%s -30 -61 16 {Rotation:[90.0f,0.0f]}" % v, "tp @p -30 -61 16 90 14",
+                                                   "ride @p mount @e[type=tesla_tycoon:%s,x=-30,y=-61,z=16,distance=..3,limit=1]" % v], 5))
+    steps += [("17_off", ["kill @e[type=tesla_tycoon:gotiya_lambo,x=-30,y=-61,z=16,distance=..3]", "tp @p -45 -60 10 0 0"], 3),
+              ("18_destroy", [P + "destroy"], 4.5),
+              ("19_destroy_flight", [], 3.5),
+              ("20_destroy_emp", [], 3.5),
+              ("21_destroy_boom", [], 3.0),
+              ("22_destroy_boom2", [], 3.0),
+              ("23_destroy_orbit", [], 3.5),
+              ("24_destroy_gotiya", [], 3.5),
+              ("25_after", [], 4),
+              ("26_ruin", [cam(-40, -55.0, 18, -40, -59, 42)], 6),
+              ("27_empathy", [P + "tycoon chat I am really sorry about your shop seth ji, let us work together as partners", cam(-40, -57.5, 16, -40.5, -58.5, 28.5)], 14),
+              ("28_partner_rebuilt", [cam(-40, -55.5, 18, -40, -58, 44)], 25)]
+    return steps
+
+
+def tour_v4b():
+    """v4: his showroom at level 1 (two cars), what he does on his own for three minutes, /destroy, then the partnership rebuild."""
+    P = "execute as @p run "
+    steps = [("00_setup", BASE + KILL_ALL + ["tp @p 0 -60 0 0 0"], 4),
+             ("01_start", [P + "tycoon start"], 45),
+             ("02_inside", [cam(-41, -58.6, 44.5, -56, -59.5, 49)], 8)]
+    for i in range(3, 12):
+        steps.append(("%02d_watch" % i, [cam(-40, -45, 12, -42, -60, 22)], 18))
+    steps += [("12_destroy", [P + "destroy"], 23),
+              ("13_ruin", [cam(-40, -55.0, 18, -40, -59, 42)], 5),
+              ("14_partner", [P + "tycoon partner"], 25),
+              ("15_rebuilt", [cam(-40, -55.0, 18, -40, -59, 42)], 5),
+              ("16_rebuilt_inside", [cam(-40, -58.6, 44.5, -24, -59.5, 49)], 5)]
+    return steps
 
 
 def tour_city():
@@ -335,7 +390,7 @@ def tour_firstperson():
     return steps
 
 
-TOURS = {"depot": tour_depot, "gotiya": tour_gotiya, "emp": tour_emp, "vehicles": tour_vehicles, "seat": tour_seat, "seatback": tour_seatback, "city": tour_city, "hud": tour_hud, "robotaxi": tour_robotaxi, "story": tour_story, "finale": tour_finale, "truck": tour_truck, "shop": tour_shop, "delivery": tour_delivery, "guide": tour_guide, "occupants": tour_occupants, "firstperson": tour_firstperson}
+TOURS = {"v4": tour_v4, "v4b": tour_v4b, "depot": tour_depot, "gotiya": tour_gotiya, "emp": tour_emp, "vehicles": tour_vehicles, "seat": tour_seat, "seatback": tour_seatback, "city": tour_city, "hud": tour_hud, "robotaxi": tour_robotaxi, "story": tour_story, "finale": tour_finale, "truck": tour_truck, "shop": tour_shop, "delivery": tour_delivery, "guide": tour_guide, "occupants": tour_occupants, "firstperson": tour_firstperson}
 
 
 def have(tool):

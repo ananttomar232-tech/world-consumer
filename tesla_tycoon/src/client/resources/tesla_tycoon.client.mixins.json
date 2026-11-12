@@ -6,7 +6,8 @@
   "client": [
     "CameraMixin",
     "BipedEntityModelMixin",
-    "PlayerEntityRendererMixin"
+    "PlayerEntityRendererMixin",
+    "ChatHudMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -1,11 +1,51 @@
-# Tesla Tycoon for Fabric 1.20.1  -  v3.0.0
+# Tesla Tycoon for Fabric 1.20.1  -  v4.0.0
 
 Build **Anant Tesla Showroom** in a real metropolis, out-sell **Seth Gotiya's Petrol Motors** across the Grand Boulevard, survive his
 sabotage and win the finale in pure **Survival**: alarm, gate, rooftop launch pad, the red Flying SpaceX Roadster, the EMP. The six cars
 are your uploaded 3D models, the showroom banner, billboards and wall posters are your uploaded images (shipped unchanged).
 
 * Minecraft **1.20.1**, Fabric Loader 0.15+, **Fabric API** (0.92.x), Java 17+
-* Jar: `dist/tesla_tycoon-3.0.0.jar` (drop it in `mods/`). In a world type **`/tycoon start`**.
+* Jar: `dist/tesla_tycoon-4.0.0.jar` (drop it in `mods/`). In a world type **`/tycoon start`**.
+
+## What is new in 4.0.0
+* **Gotiya's own showroom** across the boulevard: glass front, polished floor, ceiling lights, red neon and lit display spots with
+  his **petrol cars** - your three uploads, the **Ford Mustang Shelby GT500**, the **Lamborghini Aventador** and the **Minecraft
+  hatchback** (also drivable: `/give @s tesla_tycoon:gotiya_lambo_spawner` etc.). **He upgrades whenever you do**: more cars, more
+  lights, gold trim, neon pillars, roof spotlights, a red carpet, a neon roof. Rich customers of his own walk in and stand at a car;
+  Gotiya walks over and **shows it to them** (some buy - he boasts about it).
+* **Every car has its own cockpit**, with a matching steering wheel:
+  * Classic (Level 1): a jugaad cabin with a phone on a clip-on holder for a screen, one round dial, a marigold garland, a little
+    golden idol, the lemon-and-chilli charm and a **fluffy red wheel cover**.
+  * Model 3: the wide touch screen and wood dash, round wheel.
+  * Cybertruck: a stainless slab, a huge 18.5" screen and a **squircle yoke**.
+  * Cybercab: **no wheel and no pedals**, just a 21" lounge screen.
+  * Roadster: a digital cluster behind a **butterfly yoke**.
+  * Hatchback: a wooden fascia, two analog dials, a cassette radio and a manual gear stick.
+  * Mustang: a twin-cowl dash, three gauges, toggle switches and a white shift knob.
+  * Lamborghini: a hexagonal rev cluster, a carbon dash, the red start-button cover and a flat-bottomed wheel.
+* **Seth Gotiya is busy all day**: every 15 to 35 s at home he sneaks over to spy (and runs when caught), walks through your
+  showroom like a customer (and comments if you are near), walks round his own showroom, or shows a car to a customer.
+* **He talks - out loud.** 164 lines with **recorded Hindi voice clips** (Piper TTS, no voice-chat mod needed: the voice comes from
+  where he stands; far away you hear it quietly). **He answers every chat line**: greetings, questions about him, Tesla vs petrol,
+  money, his cars, jokes, food, family, cricket, insults... and **"help / what should I do?" gets a real hint** for the trouble of the
+  moment. Chat lines stay on screen 30 s instead of 10.
+* **Sabotage, fixed**: the spike belts and the concrete walls now cut the road **on both sides of the showroom**, across the whole
+  width. **Your customers complain** in chat (with a voice) when there is trouble, and Gotiya rubs it in. If you cannot afford the
+  counter, **Tesla Insurance pays the difference**. The moment the task is done, **everything he put on the road disappears** (also old
+  leftovers after a reload). AI cars squeeze past a roadblock instead of waiting forever.
+* **Beast Ram works out of the box**: armed by default (V turns it off), smashes at lower speed and a wider path, and a bought-but-unused
+  Ram is fitted automatically when you sit in the Cybertruck.
+* **Customers every 5 to 8 seconds**, from both ends of the street (each one pays half as much - the pacing stays the same).
+* **The Tesla staff's face is the Tesla logo** (the shopkeeper in the depot and the manager at reception).
+* **The last task**: once Level 5 is placed, Gotiya comes for the showroom by himself after 45 s (the launch pad starts it sooner).
+  Your own summoned Monster Trucks are no longer deleted (only the story's truck is kept single).
+* **`/destroy`** - the last task on autopilot, as a cutscene: the red Roadster lifts off the roof, flies over the boulevard, its EMP kills
+  his Monster Truck, Gotiya jumps out, and a chain of explosions takes down his dealership and his petrol cars. It ends on him crying
+  in the rubble.
+* **Empathy**: be kind to him in chat ("sorry", "let's be friends", "we can work together", "don't cry"...). After his defeat one
+  heartfelt message is enough; during the war it takes several. Then **Seth Gotiya joins your business**: no more sabotage, his
+  dealership is rebuilt as the joint EV + petrol showroom (cyan neon, a Cybertruck among his cars), +30% income, and he works the
+  floor as your partner.
 
 ## What is new in 3.0.0
 * **Physical Upgrade Depot, no GUI.** The 2D shop screen and the B key are gone. In the depot next to the showroom every upgrade floats
@@ -124,8 +164,9 @@ Hinglish comeback (it reacts to what you wrote: Tesla talk, money, insults, gree
 cries when you counter him.
 
 ## Commands
-`/tycoon start | home | shop | balance | posters | retry` (everyone) and, for operators, `rebuild`, `money <n>`, `level <1-5>`, `sabotage`,
-`buy <id>`, `car <id>`, `emp`, `drive ...` (scripted controls, only honoured with `-Dtesla_tycoon.debugdrive=true`).
+`/destroy` (the cutscene), `/tycoon start | home | balance | posters | retry` (everyone) and, for operators, `/money add|set|speed|toggle`,
+`/tycoon rebuild`, `level <1-5>`, `sabotage`, `buy <id>`, `deploy <id>`, `car <id>`, `emp`, `partner`, `chat <text>` (as if typed in chat),
+`drive ...` (scripted controls, only honoured with `-Dtesla_tycoon.debugdrive=true`).
 
 ## How the 3D models were used
 `tools/bake_models.py` reads the six ZIPs **byte-for-byte** (they live in `assets/tesla_tycoon/models/`) and converts them to compact `.ttm`
@@ -185,6 +226,12 @@ The project is an ordinary Fabric/Loom workspace: open `tesla_tycoon/` in Intell
   the Hinglish chat, the city plan and geometry, an integration test that builds the district (neon off/on, floors, exhibits, billboard
   +6 %), **no Monster Truck exists before the finale, sabotage 1 leaves the full-width spike belt, the finale spawns exactly one Monster
   Truck with Seth Gotiya in the driver's seat**, and the drive tests (Monster Truck garage -> showroom front, delivery truck -> dock).
+* **v4 checks**: the game tests now also check that the spikes and the walls close the road on both sides and are removed when beaten,
+  that Gotiya recognises help / how-are-you / empathy / car questions, that one heartfelt message after his defeat wins him over (one
+  "sorry" mid-war does not), that a call for help during the blackout names the Solar Roof, and that every line key has a registered
+  voice clip. Tours `v4` and `v4b`: his showroom inside and out, the Tesla-logo staff, chat answers + insurance + a customer's complaint +
+  his comeback, the cockpit of all eight cars, the whole `/destroy` cutscene, empathy -> partner -> the rebuilt joint showroom; the
+  server log shows him spying and showing cars to his customers.
 * **Headless client tours** (`tools/smoke_client.py <tour>`: the real Fabric client under Xvfb + software OpenGL, every screenshot looked at):
   * `depot` (Survival): the Upgrade Depot with the floating models and price tags (`[Tesla Model 3] - $1,500`, `OWNED`, `PLACE IT`),
     buying puts the item in the hotbar (the 3D car model is drawn as the item), placing Level 2 builds the floor; the Cybercab's sunroof

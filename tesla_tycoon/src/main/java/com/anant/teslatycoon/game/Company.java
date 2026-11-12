@@ -71,7 +71,7 @@ public final class Company {
 
     /** The sabotage (1..5) that is hurting the business right now, or 0. */
     public int activeSabotage() {
-        if (gotiyaPartner || (sabTriggered & (1 << level)) == 0) {
+        if (gotiyaPartner || rivalDestroyed || (sabTriggered & (1 << level)) == 0) {
             return 0;
         }
         return switch (level) {

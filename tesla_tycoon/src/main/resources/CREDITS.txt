@@ -30,8 +30,18 @@ Rival  Seth Gotiya's Diesel Monster Truck
   use worldwide, on all types of media, commercially or not, in derivative works. The licence does NOT allow re-publishing the
   model as a standalone asset: this mod only ships it converted inside the jar, as a game vehicle. Do not extract and re-upload it.
 
+Seth Gotiya's petrol / diesel cars (v4), supplied by the author as "car for minecraft" (Blockbench glTF), "2021 Ford Mustang
+Shelby GT500" (Blockbench OBJ) and "Lamborghini Aventador" (OBJ): converted the same way (re-oriented, scaled, wheels and glass
+split, their own simple cabins replaced by the generated interiors). The originals are kept unchanged in assets/tesla_tycoon/models/.
+
 Changes made (CC-BY-4.0 section 3(a)(1)(B)): the glTF meshes were converted to a game-ready format - node transforms baked,
 re-oriented and scaled to blocks, wheels / glass / lights separated into parts, triangle counts reduced (Levels 1, 4 and 5),
 the Level 5 emissive texture baked into vertex colours - and the wheel, steering, glass and light behaviour is added by the mod.
 The delivery truck (back-alley scene) is generated from boxes and is not based on any third-party model.
 The three banner / billboard / poster images are shipped unchanged as supplied by the author.
+
+Voices (assets/tesla_tycoon/sounds/voice/*.ogg)
+  Spoken with the Piper text-to-speech voices "hi_IN-pratham-medium" (Seth Gotiya) and "hi_IN-priyamvada-medium" (the customers),
+  https://huggingface.co/rhasspy/piper-voices - both licensed CC BY-NC-SA 4.0 (http://creativecommons.org/licenses/by-nc-sa/4.0/),
+  trained on the AI4Bharat IndicNLP corpus by PravalX. Non-commercial use only. The lines are written for this mod
+  (tools/gotiya_lines.py); Gotiya's clips are pitched down a little.
