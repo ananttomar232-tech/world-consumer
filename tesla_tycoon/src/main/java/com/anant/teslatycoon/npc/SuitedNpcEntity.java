@@ -31,7 +31,8 @@ public final class SuitedNpcEntity extends PathAwareEntity {
     private static final TrackedData<Boolean> SITTING = DataTracker.registerData(SuitedNpcEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
     private static final TrackedData<Boolean> CRYING = DataTracker.registerData(SuitedNpcEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
 
-    public static final int LOOKS = 6;
+    public static final int LOOKS = 7;
+    public static final int TESLA_FACE = 6;      // the Tesla staff: the face is the Tesla logo
 
     private final List<Vec3d> path = new ArrayList<>();
     private int pathIndex;

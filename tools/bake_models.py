@@ -93,6 +93,23 @@ def g_default(mat, path):
     return "paint"
 
 
+def g_p1(mat, path):
+    # "car for minecraft" (Blockbench, Indonesian part names): its own blocky interior is replaced by the generated one
+    if "/Interior" in path:
+        return None
+    if "Glass" in path or "Kaca" in path:
+        return "glass"
+    if "Lampu" in path or "Led" in path:
+        return "light"
+    return "paint"
+
+
+def g_p3(mat, path):
+    if "Glass" in path or "Glass" in (mat or ""):
+        return "glass"
+    return "paint"
+
+
 MODELS = {
     "l1_classic": dict(
         zip="l1_classic.zip", title="Tesla Classic Compact", length=4.5,
@@ -142,6 +159,33 @@ MODELS = {
         thrusters=[(0.55, 0.52, -2.62), (-0.55, 0.52, -2.62)], tail_lights=[], head_lights=[], textured=False,
         bake_vertex_colors=True, map_emissive=170, red_is_light=True,
         glass_by_color=dict(max_lum=40, max_sat=30, min_y=0.36, max_abs_x=0.84)),
+    # ---- Seth Gotiya's petrol / diesel cars (v4)
+    "p1_hatch": dict(
+        zip="p1_hatch.zip", title="Gotiya Diesel Hatchback", length=4.6, source="gltf",
+        wheels=[("FL", (1.25, 0.495, 1.94), 0.495, 0.13), ("FR", (-1.25, 0.495, 1.94), 0.495, 0.13),
+                ("RL", (1.25, 0.495, -1.81), 0.495, 0.13), ("RR", (-1.25, 0.495, -1.81), 0.495, 0.13)],
+        ground=0.0, group=g_p1, flip=True, wheel_box=True,
+        budgets={g: (None, None, None) for g in ("paint", "trim", "interior", "glass", "light", "wheel")},
+        seat=(0.38, 0.0, 0.0), seat_hip=0.5, steer=(0.38, 0.86, 0.6, 22.0),
+        thrusters=[], tail_lights=[], head_lights=[], textured=True),
+    "p2_mustang": dict(
+        zip="p2_mustang.zip", title="Ford Mustang Shelby GT500", length=4.8, source="obj",
+        wheels=[("FL", (0.531, 0.156, 1.844), 0.156, 0.094), ("FR", (-0.531, 0.156, 1.844), 0.156, 0.094),
+                ("RL", (0.531, 0.156, 0.031), 0.156, 0.094), ("RR", (-0.531, 0.156, 0.031), 0.156, 0.094)],
+        ground=0.0, group=g_default, wheel_box=True, drop_box=(-0.80, 0.22, -1.05, 0.80, 1.12, 1.35),
+        budgets={g: (None, None, None) for g in ("paint", "trim", "interior", "glass", "light", "wheel")},
+        seat=(0.38, 0.0, 0.0), seat_hip=0.5, steer=(0.38, 0.86, 0.6, 22.0),
+        thrusters=[], tail_lights=[], head_lights=[], textured=True),
+    "p3_lambo": dict(
+        zip="p3_lambo.zip", title="Lamborghini Aventador", length=4.8, source="obj",
+        wheels=[("FL", (65.9, 34.6, 99.4), 34.6, 15.3), ("FR", (-104.97, 34.6, 99.4), 34.6, 15.3),
+                ("RL", (65.9, 36.4, -175.5), 36.4, 16.1), ("RR", (-104.97, 36.4, -175.5), 36.4, 16.1)],
+        wheel_by_name={"Wheel_FL": 0, "Wheel_FR": 1, "Wheel_RL": 2, "Wheel_RR": 3},
+        ground=0.0, group=g_p3, drop_box=(-0.60, 0.19, -0.55, 0.60, 0.98, 1.0),
+        budgets={"paint": (14000, 4000, 1100), "trim": (1, 1, 1), "interior": (1, 1, 1), "glass": (400, 160, 60),
+                 "light": (1, 1, 1), "wheel": (900, 300, 90)},
+        seat=(0.36, 0.0, 0.0), seat_hip=0.40, steer=(0.36, 0.72, 0.6, 18.0),
+        thrusters=[], tail_lights=[], head_lights=[], textured=True),
     "rival_truck": dict(
         zip="rival_truck.zip", title="Seth Gotiya's Diesel Monster Truck", length=5.6,
         wheels=[("FL", (0.4625, -0.4625, 0.3905), 0.37, 0.29), ("FR", (-0.4625, -0.4625, 0.3905), 0.37, 0.29),
@@ -271,11 +315,49 @@ def part_attrs(v, textured):
 
 
 # ----------------------------------------------------------------------------------------------------------------------
+def open_source(d, kind):
+    """The extracted upload -> a Gltf / ObjScene.  Nested ZIPs are unpacked; a glTF may be called anything and may embed its
+    textures as data URIs (Blockbench), which are written out as files first."""
+    import base64
+    changed = True
+    while changed:
+        changed = False
+        for root, _, files in os.walk(d):
+            for f in files:
+                if f.lower().endswith(".zip") and not os.path.exists(os.path.join(root, f + ".x")):
+                    zipfile.ZipFile(os.path.join(root, f)).extractall(root)
+                    open(os.path.join(root, f + ".x"), "w").close()
+                    changed = True
+    found = []
+    for root, _, files in os.walk(d):
+        for f in files:
+            if (kind == "obj" and f.lower().endswith(".obj")) or (kind == "gltf" and f.lower().endswith(".gltf")):
+                found.append(os.path.join(root, f))
+    if not found:
+        raise SystemExit("no %s file in the upload" % kind)
+    path = sorted(found)[0]
+    if kind == "obj":
+        return T.ObjScene(path)
+    root = os.path.dirname(path)
+    js = json.load(open(path, encoding="utf-8"))
+    for i, im in enumerate(js.get("images", [])):
+        uri = im.get("uri", "")
+        if uri.startswith("data:"):
+            fn = "embedded_%d.png" % i
+            with open(os.path.join(root, fn), "wb") as fh:
+                fh.write(base64.b64decode(uri.split(",", 1)[1]))
+            im["uri"] = fn
+    with open(os.path.join(root, "scene.gltf"), "w", encoding="utf-8") as fh:
+        json.dump(js, fh)
+    return T.Gltf(root)
+
+
 def load_vertices(name, cfg, tmp):
     z = zipfile.ZipFile(os.path.join(SRC_DIR, cfg["zip"]))
     d = os.path.join(tmp, name)
     z.extractall(d)
-    g = T.Gltf(d)
+    g = open_source(d, cfg.get("source", "gltf"))
+    d = g.dir
     tex_img = None
     out = []
     for p in g.primitives():
@@ -333,6 +415,11 @@ def load_vertices(name, cfg, tmp):
         v["mat"][:, 1] = rough
         v["mat"][:, 2] = emis
         v["mat"][:, 3] = flag
+        if cfg.get("flip"):                                       # the upload faces -z: turn it round (180 degrees about y)
+            v["pos"][:, 0] *= -1
+            v["pos"][:, 2] *= -1
+            v["nrm"][:, 0] *= -1
+            v["nrm"][:, 2] *= -1
         out.append({"v": v, "idx": p["idx"], "group": group, "path": p["path"], "mat": m["name"], "node": p["node"]})
     return g, out, tex_img
 
@@ -536,6 +623,7 @@ def apply_cabin_to_header(header, cab):
     header["occ"] = round(cab.k, 4)
     header["floor"] = round(cab.floor, 4)
     header["roof"] = round(cab.roof, 4)
+    header["wheelStyle"] = {"tesla": 0, "classic": 1, "muscle": 2, "supercar": 3, "jugaad": 4, "cyber": 5, "roadster": 6, "cab": 9}.get(cab.style, 0)
 
 
 def rewrite_ttm(header, blob, drop=()):
@@ -615,6 +703,14 @@ def bake_model(name, cfg, preview_dir=None):
             c = (np.array(c) - origin) * scale
             wheel_defs.append({"name": wn, "pivot": [round(float(x), 4) for x in c], "radius": round(R * scale, 4),
                                "hw": round(hw * scale, 4), "front": wn[0] == "F", "left": wn[1] == "L"})
+        # ---- 2b. the upload's own (simple) cabin furniture is cut out: the generated interior takes its place
+        db = cfg.get("drop_box")
+        if db is not None:
+            P0 = V["pos"][I]
+            lo_b, hi_b = np.array(db[:3]), np.array(db[3:])
+            inside = ((P0 >= lo_b) & (P0 <= hi_b)).all(2).all(1) & (tri_group != "glass")
+            print("   cabin furniture removed: %d triangles" % int(inside.sum()))
+            I, tri_group, tri_prim = I[~inside], tri_group[~inside], tri_prim[~inside]
         # ---- 3. wheel assignment: by node name, else by the cylinder test (all three vertices inside)
         tri_wheel = np.full(len(I), -1, dtype=np.int8)
         P = V["pos"][I]                                     # (T,3,3)
@@ -628,7 +724,10 @@ def bake_model(name, cfg, preview_dir=None):
             for wi, w in enumerate(wheel_defs):
                 c = np.array(w["pivot"])
                 dy, dz = P[:, :, 1] - c[1], P[:, :, 2] - c[2]
-                inside = (np.abs(P[:, :, 0] - c[0]) <= w["hw"]).all(1) & ((dy * dy + dz * dz) <= (w["radius"] * 1.06) ** 2).all(1)
+                if cfg.get("wheel_box"):                       # blocky (Blockbench) wheels are boxes
+                    inside = (np.abs(P[:, :, 0] - c[0]) <= w["hw"] * 1.05).all(1) & (np.abs(dy) <= w["radius"] * 1.05).all(1) & (np.abs(dz) <= w["radius"] * 1.05).all(1)
+                else:
+                    inside = (np.abs(P[:, :, 0] - c[0]) <= w["hw"]).all(1) & ((dy * dy + dz * dz) <= (w["radius"] * 1.06) ** 2).all(1)
                 inside &= tri_wheel < 0
                 inside &= tri_group != "glass"
                 tri_wheel[inside] = wi
@@ -731,7 +830,14 @@ def bake_model(name, cfg, preview_dir=None):
         if tex_path:
             os.makedirs(OUT_TEX, exist_ok=True)
             tex_rel = "tesla_tycoon:textures/vehicle/%s.png" % name
-            shutil.copyfile(tex_path, os.path.join(OUT_TEX, name + ".png"))
+            if tex_path.lower().endswith(".png"):
+                shutil.copyfile(tex_path, os.path.join(OUT_TEX, name + ".png"))
+            else:
+                from PIL import Image
+                im = Image.open(tex_path).convert("RGB")
+                if max(im.size) > 1024:
+                    im = im.resize((im.size[0] // 2, im.size[1] // 2), Image.LANCZOS)
+                im.save(os.path.join(OUT_TEX, name + ".png"))
         wb = (wheel_defs[0]["pivot"][2] - wheel_defs[2]["pivot"][2])
         header = {
             "name": name, "title": cfg["title"], "units": "blocks",

@@ -57,7 +57,12 @@ public final class RivalDirector {
         Errand errand;
         int spy;                        // 0 at home, 1 sneaking over, 2 watching, 3 running away
         long spySince;
-        long nextSpy = 1100;
+        long nextSpy = Long.MAX_VALUE;  // set to "now" by the activity chooser
+        int act;                        // 0 at home, 2 visiting the player's showroom, 3 walking round his own, 4 showing a car
+        long nextAct = 700;
+        long lastVisitLine;
+        long voiceUntil;                // server tick until which his last clip is still playing
+        long lastComplaintReply;
         long lastSabotage = -100000;
         long pendingAt = -1;
         int pendingLevel;
@@ -194,15 +199,93 @@ public final class RivalDirector {
         s.getPlayerManager().broadcast(Text.literal("<Seth_Gotiya> " + msg), false);
     }
 
-    /** Anything a player types gets a dynamic Hinglish answer (#retryscene is handled before this is called). */
+    private static GotiyaChat.Ctx ctx(Company c, ServerPlayerEntity p) {
+        String car = Text.translatable("entity.tesla_tycoon." + VehicleSpecs.LEVELS.get(c.level - 1).lang).getString();
+        return new GotiyaChat.Ctx(p == null ? (c.ownerName == null ? "Anant" : c.ownerName) : p.getGameProfile().getName(), c.money, c.level, car,
+                c.activeSabotage(), c.gotiyaPartner, c.climaxWon || c.rivalDestroyed, c.gotiyaTrust);
+    }
+
+    /** He says one of his lines of this key out loud: the chat line (placeholders filled) and the voice clip from where he stands. */
+    public static void sayKey(ServerWorld w, Company c, ServerPlayerEntity p, String key) {
+        GotiyaLines.Line line = GotiyaLines.pick(key);
+        speak(w, c, p, line, GotiyaChat.fill(line.text(), ctx(c, p), "yeh"));
+    }
+
+    /** A line without a company context (touching his cars). */
+    public static void sayVoiced(GotiyaLines.Line line) {
+        MinecraftServer srv = Tycoon.server;
+        if (srv == null) {
+            return;
+        }
+        ServerPlayerEntity p = srv.getPlayerManager().getPlayerList().isEmpty() ? null : srv.getPlayerManager().getPlayerList().get(0);
+        Company c = p == null ? null : Tycoon.companyOf(p);
+        if (c == null) {
+            say(line.text().replace("{p}", p == null ? "" : p.getGameProfile().getName()));
+            return;
+        }
+        speak(Tycoon.worldOf(c), c, p, line, GotiyaChat.fill(line.text(), ctx(c, p), "yeh"));
+    }
+
+    /** Chat + voice. The clip plays at his position (heard like a voice nearby); a far-away player hears it quietly "on the phone". */
+    public static void speak(ServerWorld w, Company c, ServerPlayerEntity p, GotiyaLines.Line line, String text) {
+        say(text);
+        State s = state(c);
+        long now = w.getServer().getTicks();
+        net.minecraft.sound.SoundEvent clip = com.anant.teslatycoon.registry.ModSounds.voice(line.id());
+        if (clip == null || now < s.voiceUntil) {
+            return;                                                    // never two of his clips over each other
+        }
+        s.voiceUntil = now + 20L * Math.max(2, text.length() / 14);
+        SuitedNpcEntity g = gotiyaNpc(w, s);
+        if (g != null) {
+            w.playSound(null, g.getX(), g.getY() + 1.6, g.getZ(), clip, SoundCategory.VOICE, 2.4f, 1.0f);
+            g.swingHand(net.minecraft.util.Hand.MAIN_HAND, true);
+            if (p != null && p.squaredDistanceTo(g) < 30 * 30 && !g.isWalking()) {
+                double dx = p.getX() - g.getX();
+                double dz = p.getZ() - g.getZ();
+                g.setHeadYaw((float) (MathHelper.atan2(-dx, dz) * 180.0 / Math.PI));
+            }
+        }
+        if (p != null && (g == null || p.squaredDistanceTo(g) > 34 * 34)) {
+            p.playSound(clip, SoundCategory.VOICE, 0.75f, 1.0f);
+        }
+    }
+
+    /** One of the player's customers complains (chat + her voice), and Gotiya sometimes rubs it in. */
+    public static void customerSays(ServerWorld w, Company c, ServerPlayerEntity p, SuitedNpcEntity npc, String name, String key) {
+        GotiyaLines.Line line = GotiyaLines.pick(key);
+        MinecraftServer srv = w.getServer();
+        srv.getPlayerManager().broadcast(Text.literal("<" + name + "> " + line.text()), false);
+        net.minecraft.sound.SoundEvent clip = com.anant.teslatycoon.registry.ModSounds.voice(line.id());
+        if (clip != null) {
+            w.playSound(null, npc.getX(), npc.getY() + 1.6, npc.getZ(), clip, SoundCategory.VOICE, 2.0f, 1.0f);
+            if (p != null && p.squaredDistanceTo(npc) > 30 * 30) {
+                p.playSound(clip, SoundCategory.VOICE, 0.6f, 1.0f);
+            }
+        }
+        State s = state(c);
+        if (!c.gotiyaPartner && key.startsWith("c_") && !key.equals("c_happy") && c.cityTick - s.lastComplaintReply > 20 * 60 && w.random.nextInt(2) == 0) {
+            s.lastComplaintReply = c.cityTick;
+            later(20 * 7, () -> sayKey(w, c, p, "complaint_reply"));
+        }
+    }
+
+    /** Anything a player types gets an answer (#retryscene is handled before this is called): what he says depends on what was said,
+     * on the story so far and on how the player has treated him. Kind words build trust; enough of it and he joins the business. */
     public static void onPlayerChat(ServerPlayerEntity sender, String text) {
         Company c = Tycoon.companyOf(sender);
         if (c == null || !c.cityBuilt) {
             return;
         }
-        String car = Text.translatable("entity.tesla_tycoon." + VehicleSpecs.LEVELS.get(c.level - 1).lang).getString();
-        String reply = GotiyaChat.reply(text, sender.getGameProfile().getName(), c.money, c.level, car, c.activeSabotage());
-        later(14 + sender.getRandom().nextInt(22), () -> say(reply));
+        ServerWorld w = Tycoon.worldOf(c);
+        GotiyaChat.Reply r = GotiyaChat.respond(text, ctx(c, sender));
+        c.gotiyaTrust = Math.max(0, Math.min(10, c.gotiyaTrust + r.trustDelta()));
+        later(14 + sender.getRandom().nextInt(22), () -> {
+            speak(w, c, sender, r.line(), r.text());
+            if (r.join() && !c.gotiyaPartner) {
+                later(20 * 6, () -> makePartner(w, c, sender));
+            }
+        });
     }
 
     // ============================================================================================================ NPC
@@ -226,12 +309,15 @@ public final class RivalDirector {
     private static void oneTruck(ServerWorld w, Company c, State s) {
         UUID keep = (s.alarm || s.climax) ? s.truck : s.showTruck;
         Box box = new Box(c.origin.getX() + X0, c.origin.getY() - 4, c.origin.getZ() + Z0, c.origin.getX() + X1, c.origin.getY() + 160, c.origin.getZ() + Z1);
-        for (VehicleEntity v : w.getEntitiesByClass(VehicleEntity.class, box, e -> e.spec == VehicleSpecs.GOTIYA)) {
+        for (VehicleEntity v : w.getEntitiesByClass(VehicleEntity.class, box, e -> e.spec == VehicleSpecs.GOTIYA && e.getCommandTags().contains(STORY_TAG))) {
             if (!v.getUuid().equals(keep)) {
                 v.discard();
             }
         }
     }
+
+    /** The Monster Truck the story drives; any other one (summoned, from the item) belongs to the player and is left alone. */
+    public static final String STORY_TAG = "tt_story_truck";
 
     private static Vec3d home(Company c) {
         return CityBuilder.vec(c, -40.5, 1.0, 20.5 + GOT_DZ);
@@ -258,37 +344,43 @@ public final class RivalDirector {
         }
     }
 
-    /** Sabotage 1: he crosses the whole boulevard west of the showroom and lays a full-width belt of spikes behind him. */
+    // the belts / walls he puts down: [x0, x1] across the whole boulevard (z 0..21), one WEST and one EAST of the showroom + depot
+    static final int[][] SPIKE_BELTS = {{-62, -60}, {-3, -1}};
+    static final int[][] WALLS = {{-70, -69}, {-12, -11}};
+
+    /** Sabotage 1: he crosses the whole boulevard west of the showroom laying a full-width belt of spikes behind him, walks along
+     * the north pavement past the showroom and lays the second belt east of the depot on his way back: the showroom is cut off from
+     * both directions. */
     private static void spikesErrand(ServerWorld w, Company c, State s) {
         Errand e = new Errand(1, ModBlocks.SPIKES);
-        addRows(c, e, -62, -60, 21, 0, -58.5);
+        addRows(c, e, SPIKE_BELTS[0][0], SPIKE_BELTS[0][1], 21, 0, -58.5);
+        addRows(c, e, SPIKE_BELTS[1][0], SPIKE_BELTS[1][1], 0, 21, 0.5);
         s.errand = e;
         e.started = c.cityTick;
         SuitedNpcEntity g = gotiyaNpc(w, s);
         if (g == null) {
             return;
         }
-        List<Vec3d> out = List.of(CityBuilder.vec(c, -58.5, 1, 24), CityBuilder.vec(c, -58.5, 0, 21.4), CityBuilder.vec(c, -58.5, 0, 13.1), CityBuilder.vec(c, -58.5, 1, 12.4),
-                CityBuilder.vec(c, -58.5, 1, 9.6), CityBuilder.vec(c, -58.5, 0, 8.9), CityBuilder.vec(c, -58.5, 0, 0.3), CityBuilder.vec(c, -58.5, 1, -1.6));
-        List<Vec3d> back = new ArrayList<>(out);
-        java.util.Collections.reverse(back);
-        g.walk(out, 0.15, () -> walkHome(c, s, g, back, 0.2));
+        List<Vec3d> out = List.of(CityBuilder.vec(c, -58.5, 1, 24), CityBuilder.vec(c, -58.5, 0, 21.4), CityBuilder.vec(c, -58.5, 0, 0.3), CityBuilder.vec(c, -58.5, 1, -1.6),
+                CityBuilder.vec(c, 0.5, 1, -1.6), CityBuilder.vec(c, 0.5, 0, 0.3), CityBuilder.vec(c, 0.5, 0, 21.4), CityBuilder.vec(c, 0.5, 1, 24));
+        g.walk(out, 0.17, () -> walkHome(c, s, g, List.of(CityBuilder.vec(c, -20, 1, 24.5)), 0.2));
     }
 
-    /** Sabotage 3: two concrete roadblocks across the eastbound lanes, stacked block by block as he walks. */
+    /** Sabotage 3: two concrete walls right across the boulevard (both carriageways), one west of the showroom and one east of the
+     * depot, stacked block by block as he walks. */
     private static void barricadeErrand(ServerWorld w, Company c, State s) {
         Errand e = new Errand(3, ModBlocks.BARRIER);
-        addRows(c, e, -12, -11, 21, 13, -9.5);
-        addRows(c, e, 20, 21, 13, 21, 22.5);
+        addRows(c, e, WALLS[0][0], WALLS[0][1], 21, 0, -67.5);
+        addRows(c, e, WALLS[1][0], WALLS[1][1], 0, 21, -9.5);
         s.errand = e;
         e.started = c.cityTick;
         SuitedNpcEntity g = gotiyaNpc(w, s);
         if (g == null) {
             return;
         }
-        List<Vec3d> out = List.of(CityBuilder.vec(c, -9.5, 1, 24), CityBuilder.vec(c, -9.5, 0, 21.4), CityBuilder.vec(c, -9.5, 0, 13.1), CityBuilder.vec(c, -9.5, 1, 11.5),
-                CityBuilder.vec(c, 22.5, 1, 11.5), CityBuilder.vec(c, 22.5, 0, 13.1), CityBuilder.vec(c, 22.5, 0, 21.4), CityBuilder.vec(c, 22.5, 1, 24));
-        g.walk(out, 0.15, () -> walkHome(c, s, g, List.of(CityBuilder.vec(c, -30, 1, 24)), 0.2));
+        List<Vec3d> out = List.of(CityBuilder.vec(c, -67.5, 1, 24), CityBuilder.vec(c, -67.5, 0, 21.4), CityBuilder.vec(c, -67.5, 0, 0.3), CityBuilder.vec(c, -67.5, 1, -1.6),
+                CityBuilder.vec(c, -9.5, 1, -1.6), CityBuilder.vec(c, -9.5, 0, 0.3), CityBuilder.vec(c, -9.5, 0, 21.4), CityBuilder.vec(c, -9.5, 1, 24));
+        g.walk(out, 0.17, () -> walkHome(c, s, g, List.of(CityBuilder.vec(c, -25, 1, 24.5)), 0.2));
     }
 
     private static void placeRow(ServerWorld w, State s, Errand e, Row r, SuitedNpcEntity g) {
@@ -343,7 +435,7 @@ public final class RivalDirector {
         }
         if (!open && (lost || !g.isWalking())) {
             s.errand = null;
-            s.nextSpy = c.cityTick + 900 + w.random.nextInt(600);
+            s.nextAct = c.cityTick + 400 + w.random.nextInt(300);
         }
     }
 
@@ -360,7 +452,7 @@ public final class RivalDirector {
         List<Vec3d> cross = List.of(CityBuilder.vec(c, -40.5, 1, 22.5), CityBuilder.vec(c, -40.5, 0, 21.2), CityBuilder.vec(c, -40.5, 0, 0.4), CityBuilder.vec(c, -40.5, 1, -1.6));
         switch (s.spy) {
             case 0 -> {
-                if (now >= s.nextSpy && c.activeSabotage() != 5 && !c.gateClosed) {
+                if (now >= s.nextSpy && s.act == 0 && c.activeSabotage() != 5 && !c.gateClosed) {
                     double[] spot = SPY_SPOTS[w.random.nextInt(SPY_SPOTS.length)];
                     List<Vec3d> path = new ArrayList<>(cross);
                     path.add(CityBuilder.vec(c, spot[0], 1, -1.6));
@@ -392,7 +484,8 @@ public final class RivalDirector {
             default -> {
                 if (!g.isWalking()) {
                     s.spy = 0;
-                    s.nextSpy = now + 1800 + w.random.nextInt(1200);
+                    s.nextSpy = Long.MAX_VALUE;
+                    s.nextAct = now + 300 + w.random.nextInt(400);
                 }
             }
         }
@@ -407,9 +500,167 @@ public final class RivalDirector {
         walkHome(c, s, g, back, caught ? 0.36 : 0.16);
         s.spy = 3;
         if (caught) {
-            say(GotiyaChat.caughtSpying());
+            ServerPlayerEntity owner = Tycoon.server == null ? null : Tycoon.server.getPlayerManager().getPlayer(c.owner);
+            sayKey(Tycoon.worldOf(c), c, owner, "caught");
             s.nextTaunt = Math.max(s.nextTaunt, c.cityTick + 600);
         }
+    }
+
+    // ------------------------------------------------------------------------------------------------------ what he does all day
+    /** Every 15 to 35 seconds at home he picks something to do: spy on the player, walk through the player's showroom like a
+     * customer, or walk round his own showroom checking his cars. (Showing a car to a customer of his comes first: RivalShowroom.) */
+    private static void chooseActivity(ServerWorld w, Company c, ServerPlayerEntity p, State s, SuitedNpcEntity g) {
+        long now = c.cityTick;
+        if (s.act != 0 || s.spy != 0 || s.errand != null || now < s.nextAct || g.isWalking() || g.hasVehicle()) {
+            return;
+        }
+        int r = w.random.nextInt(100);
+        boolean canCross = !c.gateClosed && c.activeSabotage() != 5;
+        if (c.gotiyaPartner) {
+            r = 40;                                                    // a partner works in the player's showroom
+        }
+        if (r < 35 && canCross && !c.gotiyaPartner && !c.rivalDestroyed) {
+            s.nextSpy = now;                                           // spyTick takes over
+        } else if (r < 70 && canCross) {
+            startVisit(c, s, g);
+        } else if (!c.rivalDestroyed) {
+            startPatrol(c, s, g);
+        } else {
+            s.nextAct = now + 400;
+        }
+    }
+
+    private static List<Vec3d> crossing(Company c) {
+        return List.of(CityBuilder.vec(c, -40.5, 1, 22.5), CityBuilder.vec(c, -40.5, 0, 21.2), CityBuilder.vec(c, -40.5, 0, 0.4), CityBuilder.vec(c, -40.5, 1, -1.6));
+    }
+
+    private static void activityDone(ServerWorld w, Company c, State s, SuitedNpcEntity g) {
+        s.act = 0;
+        s.nextAct = c.cityTick + 300 + w.random.nextInt(400);
+        g.faceTowards(180f);
+    }
+
+    /** Through the player's front door, past the cars, the reception and the test-drive bay, and back home. */
+    private static void startVisit(Company c, State s, SuitedNpcEntity g) {
+        List<Vec3d> path = new ArrayList<>(crossing(c));
+        path.add(CityBuilder.vec(c, -45.5, 1, -3.0));
+        path.add(CityBuilder.vec(c, -45.5, 1, -8.5));
+        path.add(CityBuilder.vec(c, -50.0, 1, -11.0));
+        path.add(CityBuilder.vec(c, -44.0, 1, -12.5));
+        path.add(CityBuilder.vec(c, -37.5, 1, -10.5));
+        path.add(CityBuilder.vec(c, -45.5, 1, -7.0));
+        path.add(CityBuilder.vec(c, -45.5, 1, -3.0));
+        List<Vec3d> back = new ArrayList<>(crossing(c));
+        java.util.Collections.reverse(back);
+        path.addAll(back);
+        path.add(home(c));
+        s.act = 2;
+        ServerWorld w = (ServerWorld) g.getWorld();
+        g.walk(path, 0.12, () -> activityDone(w, c, s, g));
+    }
+
+    /** Round his own showroom: along the cars, behind them, and back to the forecourt. */
+    private static void startPatrol(Company c, State s, SuitedNpcEntity g) {
+        List<Vec3d> path = List.of(CityBuilder.vec(c, -40.5, 1, 31.5), CityBuilder.vec(c, -40.5, 1, 40.0), CityBuilder.vec(c, -40.5, 1, 44.5),
+                CityBuilder.vec(c, -52.5, 1, 44.5), CityBuilder.vec(c, -52.5, 1, 52.0), CityBuilder.vec(c, -27.5, 1, 52.0), CityBuilder.vec(c, -27.5, 1, 44.5),
+                CityBuilder.vec(c, -40.5, 1, 44.5), CityBuilder.vec(c, -40.5, 1, 40.0), CityBuilder.vec(c, -40.5, 1, 31.5), home(c));
+        s.act = 3;
+        ServerWorld w = (ServerWorld) g.getWorld();
+        g.walk(path, 0.12, () -> activityDone(w, c, s, g));
+    }
+
+    private static void activityTick(ServerWorld w, Company c, ServerPlayerEntity p, State s, SuitedNpcEntity g) {
+        if (s.act == 2 && p.squaredDistanceTo(g) < 6 * 6 && c.cityTick - s.lastVisitLine > 20 * 30) {
+            s.lastVisitLine = c.cityTick;
+            sayKey(w, c, p, c.gotiyaPartner ? "partner" : "visit");
+        }
+    }
+
+    /** A customer of his is waiting at a car: if he is free he walks over (true). */
+    public static boolean requestShow(ServerWorld w, Company c, Vec3d at, Vec3d customer) {
+        State s = state(c);
+        SuitedNpcEntity g = gotiyaNpc(w, s);
+        if (g == null || s.act != 0 || s.spy != 0 || s.errand != null || s.alarm || s.climax || g.isWalking() || g.hasVehicle()) {
+            return false;
+        }
+        s.act = 4;
+        float yaw = (float) (MathHelper.atan2(-(customer.x - at.x), customer.z - at.z) * 180.0 / Math.PI);
+        g.walk(List.of(CityBuilder.vec(c, -40.5, 1, 31.5), CityBuilder.vec(c, -40.5, 1, 40.0), CityBuilder.vec(c, -40.5, 1, 44.5),
+                new Vec3d(at.x, at.y, c.origin.getZ() + 44.5), at), 0.15, () -> g.faceTowards(yaw));
+        return true;
+    }
+
+    /** The sales talk is over: back to the forecourt. */
+    public static void releaseShow(ServerWorld w, Company c) {
+        State s = state(c);
+        SuitedNpcEntity g = gotiyaNpc(w, s);
+        if (s.act != 4 || g == null) {
+            return;
+        }
+        g.walk(List.of(new Vec3d(g.getX(), g.getY(), c.origin.getZ() + 44.5), CityBuilder.vec(c, -40.5, 1, 44.5), CityBuilder.vec(c, -40.5, 1, 40.0),
+                CityBuilder.vec(c, -40.5, 1, 31.5), home(c)), 0.15, () -> activityDone(w, c, s, g));
+    }
+
+    public static SuitedNpcEntity gotiya(ServerWorld w, Company c) {
+        return gotiyaNpc(w, state(c));
+    }
+
+    /** He upgrades his dealership whenever the player levels up. */
+    public static void onRivalUpgrade(ServerWorld w, Company c, ServerPlayerEntity p) {
+        later(20 * 4, () -> sayKey(w, c, p, "rival_up"));
+    }
+
+    private static final Map<UUID, Long> LAST_SALE_LINE = new HashMap<>();
+
+    public static void onRivalSale(ServerWorld w, Company c, ServerPlayerEntity p, com.anant.teslatycoon.vehicle.VehicleSpec car) {
+        long last = LAST_SALE_LINE.getOrDefault(c.owner, -100000L);
+        if (c.cityTick - last > 20 * 75) {
+            LAST_SALE_LINE.put(c.owner, c.cityTick);
+            sayKey(w, c, p, "rival_sale");
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------------------ partnership
+    /** Empathy won: Seth Gotiya joins the business. No more sabotage, his dealership becomes the joint EV + petrol showroom
+     * (rebuilt if it was destroyed), his customers' money flows to the player (+30% income) and he works in the player's showroom. */
+    public static void makePartner(ServerWorld w, Company c, ServerPlayerEntity p) {
+        if (c.gotiyaPartner) {
+            return;
+        }
+        State s = state(c);
+        Tycoon.log("[rival] Seth Gotiya joins the business");
+        c.gotiyaPartner = true;
+        c.rivalDestroyed = false;
+        c.gotiyaTrust = 10;
+        // stop whatever he had going
+        if (s.alarm || s.climax) {
+            killClimaxEntities(w, c, s);
+            s.alarm = false;
+            s.climax = false;
+            c.climaxWon = true;
+            CityBuilder.setGate(w, c, false, null);
+        }
+        s.errand = null;
+        s.pendingAt = -1;
+        clearObstacles(w, c, s);
+        if (c.powerOut) {
+            c.powerOut = false;
+            CityBuilder.setPower(w, c, true);
+        }
+        SuitedNpcEntity g = gotiyaNpc(w, s);
+        if (g != null) {
+            g.stopRiding();
+            g.setCrying(false);
+            s.cryUntil = 0;
+            g.setCustomName(Text.literal("Seth Gotiya (Partner)").formatted(Formatting.GOLD));
+            w.spawnParticles(ParticleTypes.HEART, g.getX(), g.getY() + 2.2, g.getZ(), 12, 0.5, 0.4, 0.5, 0.1);
+        }
+        w.spawnParticles(ParticleTypes.FIREWORK, p.getX(), p.getY() + 2, p.getZ(), 80, 2, 1.5, 2, 0.2);
+        w.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.PLAYERS, 2f, 1f);
+        p.networkHandler.sendPacket(new TitleFadeS2CPacket(10, 90, 30));
+        p.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal("Seth Gotiya joined your business: no more sabotage, +30% income").formatted(Formatting.GOLD)));
+        p.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("NEW PARTNER!").formatted(Formatting.AQUA, Formatting.BOLD)));
+        Tycoon.sync(p, c);
     }
 
     private static SuitedNpcEntity gotiyaNpc(ServerWorld w, State s) {
@@ -428,8 +679,8 @@ public final class RivalDirector {
         if (g != null) {
             g.setCrying(now < s.cryUntil);
         }
-        if (now >= s.nextTaunt && !s.climax) {
-            say(now % 3 == 0 ? GotiyaChat.taunt(p.getGameProfile().getName(), c.level, c.money) : GotiyaChat.idle());
+        if (now >= s.nextTaunt && !s.climax && !s.alarm) {
+            sayKey(w, c, p, c.gotiyaPartner ? "partner" : (c.rivalDestroyed ? "destroyed" : (now % 3 == 0 ? "taunt" : "idle")));
             s.nextTaunt = now + 1500 + w.random.nextInt(900);
         }
         if (now % 40 == 3) {
@@ -440,7 +691,11 @@ public final class RivalDirector {
             s.pendingAt = now;
             s.pendingLevel = 1;
         }
-        if (s.pendingAt >= 0 && now >= s.pendingAt && now - s.lastSabotage >= 20 * 90 && s.errand == null && s.spy == 0 && s.pendingLevel == c.level) {
+        if (c.gotiyaPartner) {
+            s.pendingAt = -1;
+        }
+        boolean free = s.errand == null && s.spy == 0 && (s.act == 0 || s.act == 3) && (g == null || !g.isWalking() || s.act == 3);
+        if (s.pendingAt >= 0 && now >= s.pendingAt && (now - s.lastSabotage >= 20 * 90 || s.pendingLevel == 5) && free && s.pendingLevel == c.level) {
             s.pendingAt = -1;
             s.lastSabotage = now;
             trigger(w, c, p, s.pendingLevel);
@@ -451,6 +706,16 @@ public final class RivalDirector {
             errandTick(w, c, s);
         } else if (!s.alarm && !s.climax) {
             spyTick(w, c, p, s);
+            if (g != null) {
+                chooseActivity(w, c, p, s, g);
+                activityTick(w, c, p, s, g);
+            }
+        }
+        // the last task: once Level 5 stands he comes for the showroom by himself (the launch pad can start it sooner)
+        if (c.level >= 5 && !c.climaxWon && !c.gotiyaPartner && (c.sabTriggered & (1 << 5)) == 0 && s.pendingAt < 0 && !s.alarm && !s.climax) {
+            s.pendingAt = now + 20 * 45;
+            s.pendingLevel = 5;
+            sayKey(w, c, p, "taunt");
         }
         int active = c.activeSabotage();
         if (active != s.seen) {
@@ -468,14 +733,9 @@ public final class RivalDirector {
                 c.ramSmashed = Math.max(c.ramSmashed, 2);              // failsafe: never trap the story behind a missed roadblock
             }
         }
-        if (s.cleanupAt >= 0 && now >= s.cleanupAt) {
-            s.cleanupAt = -1;
-            if (c.owns(Upgrade.HYDRAULICS)) {
-                removeBlocks(w, s.spikes, ModBlocks.SPIKES);
-            }
-            if (c.ramSmashed >= 2) {
-                removeBlocks(w, s.barriers, ModBlocks.BARRIER);
-            }
+        // nothing of his may stay on the road once its sabotage is beaten (also old leftovers after a reload)
+        if (now % 200 == 77 && active != 1 && active != 3 && s.errand == null) {
+            clearObstacles(w, c, s);
         }
         // after a reload the finale may have been running: pick it up again (never leave the story without its ending)
         if (c.level >= 5 && !c.climaxWon && (c.sabTriggered & (1 << 5)) != 0 && !s.alarm && !s.climax && s.pendingAt < 0 && now > 100 && !CityBuilder.busyUrgent()) {
@@ -530,7 +790,15 @@ public final class RivalDirector {
             p.networkHandler.sendPacket(new TitleS2CPacket(Text.literal(head).formatted(Formatting.RED, Formatting.BOLD)));
             w.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ENTITY_WITHER_SPAWN, SoundCategory.AMBIENT, 0.5f, 1.6f);
         }
-        say(GotiyaChat.sabotageLine(k));
+        if (p != null) {
+            sayKey(w, c, p, "sab_" + k);
+            insurance(w, c, p, k);
+            if (k < 5 && w.random.nextInt(100) < 85) {
+                later(20 * (6 + w.random.nextInt(6)), () -> ShowroomDirector.complain(w, c, p, k));
+            }
+        } else {
+            say(GotiyaChat.sabotageLine(k));
+        }
         switch (k) {
             case 1 -> {
                 if (p != null && gotiyaNpc(w, s) != null) {
@@ -562,6 +830,32 @@ public final class RivalDirector {
         }
     }
 
+    /** The counters of sabotage k cost this much: if the player cannot pay it, Tesla Insurance covers the rest - every problem
+     * Gotiya makes can be fixed straight away. */
+    private static void insurance(ServerWorld w, Company c, ServerPlayerEntity p, int k) {
+        long need = 0;
+        for (Upgrade u : switch (k) {
+            case 1 -> new Upgrade[]{Upgrade.HYDRAULICS};
+            case 2 -> new Upgrade[]{Upgrade.SOLAR};
+            case 3 -> new Upgrade[]{Upgrade.RAM};
+            case 4 -> new Upgrade[]{Upgrade.STARLINK, Upgrade.BILLBOARDS};
+            default -> new Upgrade[0];
+        }) {
+            if (!c.owns(u) && !c.pending.contains(u)) {
+                need += u.cost;
+            }
+        }
+        if (need > c.money) {
+            long pay = need - c.money + Math.max(100, need / 20);
+            c.money += pay;
+            later(20 * 3, () -> {
+                p.sendMessage(Text.literal("Tesla Insurance paid out $" + String.format(java.util.Locale.US, "%,d", pay) + " - buy the counter at the Upgrade Depot!").formatted(Formatting.GREEN, Formatting.BOLD), true);
+                w.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.PLAYERS, 1f, 0.8f);
+            });
+            Tycoon.sync(p, c);
+        }
+    }
+
     /** Test entry: runs sabotage {@code k} for a company without a player. */
     public static void triggerForTest(ServerWorld w, Company c, int k) {
         trigger(w, c, null, k);
@@ -578,11 +872,10 @@ public final class RivalDirector {
 
     private static void placeSpikes(ServerWorld w, Company c, State s) {
         s.spikes.clear();
-        int[][] patches = {{-62, 0}};                        // (the same full-width belt he lays by hand)
-        for (int[] pt : patches) {
-            for (int dx = 0; dx < 3; dx++) {
+        for (int[] belt : SPIKE_BELTS) {                     // (the same two full-width belts he lays by hand)
+            for (int x = belt[0]; x <= belt[1]; x++) {
                 for (int dz = 0; dz < 22; dz++) {
-                    BlockPos b = CityBuilder.pos(c, pt[0] + dx, 0, pt[1] + dz);
+                    BlockPos b = CityBuilder.pos(c, x, 0, dz);
                     if (w.getBlockState(b).isAir()) {
                         w.setBlockState(b, ModBlocks.SPIKES.getDefaultState(), Block.NOTIFY_ALL);
                         s.spikes.add(b);
@@ -594,12 +887,11 @@ public final class RivalDirector {
 
     private static void placeBarricades(ServerWorld w, Company c, State s) {
         s.barriers.clear();
-        int[][] walls = {{-12, 13, 2, 9}, {20, 13, 2, 9}};     // x, z, width(x), depth(z): the same two he stacks by hand
-        for (int[] wl : walls) {
-            for (int dx = 0; dx < wl[2]; dx++) {
-                for (int dz = 0; dz < wl[3]; dz++) {
+        for (int[] wl : WALLS) {                             // the same two full-width walls he stacks by hand
+            for (int x = wl[0]; x <= wl[1]; x++) {
+                for (int dz = 0; dz < 22; dz++) {
                     for (int dy = 0; dy < 2; dy++) {
-                        BlockPos b = CityBuilder.pos(c, wl[0] + dx, dy, wl[1] + dz);
+                        BlockPos b = CityBuilder.pos(c, x, dy, dz);
                         if (w.getBlockState(b).isAir()) {
                             w.setBlockState(b, ModBlocks.BARRIER.getDefaultState(), Block.NOTIFY_ALL);
                             s.barriers.add(b);
@@ -621,11 +913,48 @@ public final class RivalDirector {
         list.clear();
     }
 
+    /** Removes everything he put on the road (by scanning the belts and walls, so it works after a reload as well). */
+    static void clearObstacles(ServerWorld w, Company c, State s) {
+        int n = 0;
+        for (int[] belt : SPIKE_BELTS) {
+            n += clearArea(w, c, belt[0], belt[1], 0, 0, ModBlocks.SPIKES);
+        }
+        for (int[] wl : WALLS) {
+            n += clearArea(w, c, wl[0], wl[1], 0, 1, ModBlocks.BARRIER);
+        }
+        n += clearArea(w, c, 20, 21, 0, 1, ModBlocks.BARRIER);                       // (where v3 used to put the second one)
+        s.spikes.clear();
+        s.barriers.clear();
+        if (n > 0) {
+            Tycoon.log("[rival] cleared " + n + " obstacle blocks");
+        }
+    }
+
+    private static int clearArea(ServerWorld w, Company c, int x0, int x1, int y0, int y1, Block block) {
+        int n = 0;
+        for (int x = x0; x <= x1; x++) {
+            for (int z = -1; z <= 22; z++) {
+                for (int y = y0; y <= y1; y++) {
+                    BlockPos b = CityBuilder.pos(c, x, y, z);
+                    if (w.isChunkLoaded(b) && w.getBlockState(b).isOf(block)) {
+                        w.setBlockState(b, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                        if (n % 3 == 0) {
+                            w.spawnParticles(ParticleTypes.POOF, b.getX() + 0.5, b.getY() + 0.5, b.getZ() + 0.5, 3, 0.2, 0.2, 0.2, 0.01);
+                        }
+                        n++;
+                    }
+                }
+            }
+        }
+        return n;
+    }
+
     private static void onResolved(ServerWorld w, Company c, ServerPlayerEntity p, State s, int sab) {
         Tycoon.log("[rival] sabotage " + sab + " countered");
         s.cryUntil = c.cityTick + 20 * 14;
-        say(GotiyaChat.cryLine(sab));
-        s.cleanupAt = c.cityTick + 20 * 30;
+        sayKey(w, c, p, "cry_" + Math.max(1, Math.min(5, sab)));
+        s.cleanupAt = -1;
+        later(30, () -> clearObstacles(w, c, s));                   // task done: his spikes / walls vanish right away
         p.networkHandler.sendPacket(new TitleFadeS2CPacket(5, 45, 15));
         p.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal("Gotiya's plan failed. Income is back to full!").formatted(Formatting.GREEN)));
         p.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("COUNTERED!").formatted(Formatting.GREEN, Formatting.BOLD)));
@@ -648,7 +977,9 @@ public final class RivalDirector {
                 say("Level " + u.target + "?! Itni jaldi? Ruk ja {p}... ab dekh mera agla daav!".replace("{p}", p.getGameProfile().getName()));
             }
             case LEVEL5 -> {
-                // nothing happens until the player steps on the launch pad: that is what starts the finale
+                // the finale starts 45 s later by itself (or sooner, from the launch pad)
+                s.pendingAt = c.cityTick + 20 * 45;
+                s.pendingLevel = 5;
                 spawnRoadster(w, c);
                 say("FLYING ROADSTER?! Chhat pe chadh ke dikha {p}... mera Monster Truck garam ho raha hai!".replace("{p}", p.getGameProfile().getName()));
                 p.sendMessage(Text.literal("The red Flying Roadster is on the roof. Step on the glowing launch pad in the lobby when you are ready.").formatted(Formatting.AQUA), true);
@@ -711,17 +1042,68 @@ public final class RivalDirector {
         if (v.spec == VehicleSpecs.CYBERCAB) {
             v.setFlag(VehicleEntity.F_JAMMED, c.activeSabotage() == 4);
         }
-        if (v.hasFlag(VehicleEntity.F_RAM) && v.measuredSpeed() > 0.42) {
+        // Beast Ram: bought but still in the bag? Sitting in the Cybertruck fits it.
+        if (v.age % 20 == 7 && v.spec.heavy && v.getMode() == VehicleEntity.MODE_DRIVEN && c.pending.contains(Upgrade.RAM)
+                && v.getControllingPassenger() instanceof ServerPlayerEntity driver) {
+            net.minecraft.item.Item ramItem = com.anant.teslatycoon.registry.ModItems.UPGRADES.get(Upgrade.RAM);
+            net.minecraft.item.ItemStack st = new net.minecraft.item.ItemStack(ramItem);
+            for (int i = 0; i < driver.getInventory().size(); i++) {
+                if (driver.getInventory().getStack(i).isOf(ramItem)) {
+                    st = driver.getInventory().getStack(i);
+                    break;
+                }
+            }
+            Tycoon.deploy(driver, Upgrade.RAM, st);
+        }
+        if (v.hasFlag(VehicleEntity.F_RAM) && v.measuredSpeed() > 0.12) {
             ramSmash(w, c, v);
+        }
+        if (v.getMode() == VehicleEntity.MODE_AI && !v.getCommandTags().contains(STORY_TAG)) {
+            squeezePast(w, v);
+        }
+    }
+
+    private static final Map<Integer, Integer> AI_STUCK = new HashMap<>();
+
+    /** Customers' test drives, robotaxis and the delivery truck must not wait forever behind Gotiya's wall: after 4 s wedged in front
+     * of one, the driver finds the gap at the curb (the car is put on the other side). */
+    private static void squeezePast(ServerWorld w, VehicleEntity v) {
+        if (v.measuredSpeed() > 0.03) {
+            AI_STUCK.remove(v.getId());
+            return;
+        }
+        int t = AI_STUCK.merge(v.getId(), 1, Integer::sum);
+        if (t < 80) {
+            return;
+        }
+        AI_STUCK.remove(v.getId());
+        Vec3d fwd = Vec3d.fromPolar(0, v.getYaw());
+        boolean wall = false;
+        for (int step = 1; step <= 4 && !wall; step++) {
+            Vec3d q = v.getPos().add(fwd.multiply(step));
+            wall = w.getBlockState(BlockPos.ofFloored(q.x, v.getY() + 0.5, q.z)).isOf(ModBlocks.BARRIER);
+        }
+        if (!wall) {
+            return;
+        }
+        for (int d = 5; d <= 8; d++) {
+            Vec3d q = v.getPos().add(fwd.multiply(d));
+            BlockPos b = BlockPos.ofFloored(q.x, v.getY() + 0.5, q.z);
+            if (w.getBlockState(b).isAir() && w.getBlockState(b.up()).isAir()) {
+                w.spawnParticles(ParticleTypes.CLOUD, v.getX(), v.getY() + 0.6, v.getZ(), 10, 0.6, 0.3, 0.6, 0.02);
+                v.refreshPositionAndAngles(q.x, v.getY(), q.z, v.getYaw(), 0f);
+                w.playSound(null, q.x, q.y, q.z, SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), SoundCategory.NEUTRAL, 1f, 0.6f);
+                return;
+            }
         }
     }
 
     private static void ramSmash(ServerWorld w, Company c, VehicleEntity v) {
         Vec3d fwd = Vec3d.fromPolar(0, v.getYaw());
         int broken = 0;
-        for (int step = 1; step <= 3; step++) {
-            for (int side = -2; side <= 2; side++) {
-                Vec3d p = v.getPos().add(fwd.multiply(1.6 + step)).add(fwd.z * side * -1.0, 0, fwd.x * side);
+        for (int step = 0; step <= 4; step++) {
+            for (int side = -3; side <= 3; side++) {
+                Vec3d p = v.getPos().add(fwd.multiply(1.2 + step)).add(fwd.z * side * -1.0, 0, fwd.x * side);
                 for (int dy = 0; dy < 3; dy++) {
                     BlockPos b = BlockPos.ofFloored(p.x, v.getY() + dy, p.z);
                     BlockState st = w.getBlockState(b);
@@ -957,7 +1339,8 @@ public final class RivalDirector {
             }
         }
         if (now >= s.nextBoast) {
-            say(GotiyaChat.truckBoast(p.getGameProfile().getName(), s.boasts++));
+            sayKey(w, c, p, "truck");
+            s.boasts++;
             s.nextBoast = now + 20 * 14;
         }
         if (now % 6 == 0) {
@@ -1109,6 +1492,7 @@ public final class RivalDirector {
     public static VehicleEntity spawnChargeTruck(ServerWorld w, Company c) {
         VehicleEntity truck = new VehicleEntity(ModEntities.vehicle(VehicleSpecs.GOTIYA), w);
         truck.setOwner(c.owner);
+        truck.addCommandTag(STORY_TAG);
         Vec3d start = CityBuilder.vec(c, -39.5, 1.0, 46.0);
         truck.refreshPositionAndAngles(start.x, start.y, start.z, 180f, 0f);
         truck.setAi(chargeRoute(c));
@@ -1162,7 +1546,7 @@ public final class RivalDirector {
             s.truck = null;
         }
         Box box = new Box(c.origin.getX() + X0, c.origin.getY() - 2, c.origin.getZ() + Z0, c.origin.getX() + X1, c.origin.getY() + 60, c.origin.getZ() + Z1);
-        for (VehicleEntity v : w.getEntitiesByClass(VehicleEntity.class, box, e -> e.spec == VehicleSpecs.GOTIYA && e.getMode() == VehicleEntity.MODE_AI)) {
+        for (VehicleEntity v : w.getEntitiesByClass(VehicleEntity.class, box, e -> e.spec == VehicleSpecs.GOTIYA && e.getCommandTags().contains(STORY_TAG))) {
             v.discard();
         }
     }
@@ -1219,12 +1603,13 @@ public final class RivalDirector {
                 p.networkHandler.sendPacket(new TitleFadeS2CPacket(5, 80, 20));
                 p.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal("Type #retryscene to restart the finale").formatted(Formatting.YELLOW)));
                 p.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("SHOWROOM DOWN!").formatted(Formatting.RED, Formatting.BOLD)));
-                say("HAHAHA! Mera Monster Truck jeet gaya! Tera showroom ab kabaadi hai, {p}!".replace("{p}", p.getGameProfile().getName()));
+                sayKey(w, c, p, "truck_win");
             }
             return;
         }
         if (now >= s.nextBoast) {
-            say(GotiyaChat.truckBoast(p.getGameProfile().getName(), s.boasts++));
+            sayKey(w, c, p, "truck");
+            s.boasts++;
             s.nextBoast = now + 20 * 12;
         }
         // impact with the glass front

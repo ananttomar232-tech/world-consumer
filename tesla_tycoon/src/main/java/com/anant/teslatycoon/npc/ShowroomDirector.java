@@ -65,7 +65,12 @@ public final class ShowroomDirector {
         long nextTruck = 700;
         Truck truck;
         long lastPayment;
+        long lastComplaint = -100000;
+        boolean fromEast;
     }
+
+    private static final String[] NAMES = {"Mrs_Kapoor", "Priya_Malhotra", "Neha_Singhania", "Mrs_Oberoi", "Anjali_Mehta", "Kavya_Reddy",
+            "Ritu_Agarwal", "Simran_Bajaj"};
 
     private static final Map<UUID, Session> SESSIONS = new HashMap<>();
     private static final String AUTO_TAG = "tt_auto";
@@ -185,13 +190,13 @@ public final class ShowroomDirector {
     public static void ensureStaff(ServerWorld w, Company c) {
         Session s = session(c);
         if (!alive(w, s.manager)) {
-            SuitedNpcEntity m = spawnNpc(w, CityBuilder.vec(c, -53.5, 2.0, -14.1), 0f, SuitedNpcEntity.MANAGER, 0, "Manager Rohan");
+            SuitedNpcEntity m = spawnNpc(w, CityBuilder.vec(c, -53.5, 2.0, -14.1), 0f, SuitedNpcEntity.MANAGER, SuitedNpcEntity.TESLA_FACE, "Manager Rohan");
             m.setSitting(true);
             m.faceTowards(0f);
             s.manager = m.getUuid();
         }
         if (!alive(w, s.clerk)) {
-            SuitedNpcEntity m = spawnNpc(w, CityBuilder.vec(c, -14.0, 1.0, -15.0), 0f, SuitedNpcEntity.CLERK, 5, "Upgrade Depot Clerk");
+            SuitedNpcEntity m = spawnNpc(w, CityBuilder.vec(c, -14.0, 1.0, -15.0), 0f, SuitedNpcEntity.CLERK, SuitedNpcEntity.TESLA_FACE, "Tesla Shopkeeper");
             m.faceTowards(0f);
             s.clerk = m.getUuid();
         }
@@ -269,11 +274,11 @@ public final class ShowroomDirector {
             return;
         }
         // new customers
-        long interval = 200;                                   // a new customer every 10 to 15 seconds
-        int maxCustomers = 7;
-        if (c.cityTick >= s.nextCustomer && s.customers.size() < maxCustomers && !c.powerOut && com.anant.teslatycoon.rival.RivalDirector.alarmStage(c) == 0) {
+        long interval = 100;                                   // a new customer every 5 to 8 seconds (they come in the dark too - and complain)
+        int maxCustomers = 10;
+        if (c.cityTick >= s.nextCustomer && s.customers.size() < maxCustomers && com.anant.teslatycoon.rival.RivalDirector.alarmStage(c) == 0) {
             spawnCustomer(w, c, s);
-            s.nextCustomer = c.cityTick + interval + w.random.nextInt(101);
+            s.nextCustomer = c.cityTick + interval + w.random.nextInt(61);
         }
         tickCustomers(w, c, s, owner);
         tickTruck(w, c, s, owner);
@@ -294,8 +299,11 @@ public final class ShowroomDirector {
     // ------------------------------------------------------------------------------------------------------ customers
     private static void spawnCustomer(ServerWorld w, Company c, Session s) {
         Customer cu = new Customer();
-        SuitedNpcEntity n = spawnNpc(w, CityBuilder.vec(c, -72.5, 1.0, -3.0), -90f, SuitedNpcEntity.CUSTOMER, 1 + w.random.nextInt(3), "Rich Customer");
-        n.walk(List.of(CityBuilder.vec(c, -45.5, 1.0, -3.0), CityBuilder.vec(c, -45.5, 1.0, -8.5), CityBuilder.vec(c, -53.5, 1.0, -9.2)), 0.16, null);
+        // they walk in along the pavement in front of the showroom, from the west and from the east by turns
+        s.fromEast = !s.fromEast;
+        Vec3d from = CityBuilder.vec(c, s.fromEast ? -1.5 : -72.5, 1.0, -3.0);
+        SuitedNpcEntity n = spawnNpc(w, from, s.fromEast ? 90f : -90f, SuitedNpcEntity.CUSTOMER, 1 + w.random.nextInt(3), "Rich Customer");
+        n.walk(List.of(CityBuilder.vec(c, -45.5, 1.0, -3.0), CityBuilder.vec(c, -45.5, 1.0, -8.5), CityBuilder.vec(c, -53.5, 1.0, -9.2)), 0.18, null);
         cu.npc = n.getUuid();
         s.customers.add(cu);
     }
@@ -317,6 +325,14 @@ public final class ShowroomDirector {
                         cu.stage = 1;
                         cu.t = 0;
                         npc.faceTowards(180f);               // look at the manager behind the desk
+                        int sab = c.activeSabotage();
+                        if (sab > 0 && sab < 5 && c.cityTick - s.lastComplaint > 20 * 25) {
+                            s.lastComplaint = c.cityTick;
+                            com.anant.teslatycoon.rival.RivalDirector.customerSays(w, c, owner, npc, NAMES[w.random.nextInt(NAMES.length)], "c_" + sab);
+                        } else if (sab == 0 && c.cityTick - s.lastComplaint > 20 * 90 && w.random.nextInt(4) == 0) {
+                            s.lastComplaint = c.cityTick;
+                            com.anant.teslatycoon.rival.RivalDirector.customerSays(w, c, owner, npc, NAMES[w.random.nextInt(NAMES.length)], "c_happy");
+                        }
                     }
                 }
                 case 1 -> {
@@ -423,6 +439,27 @@ public final class ShowroomDirector {
         w.spawnParticles(ParticleTypes.GLOW, npc.getX(), npc.getY() + 1.2, npc.getZ(), 10, 0.5, 0.3, 0.5, 0.1);
         w.playSound(null, npc.getX(), npc.getY(), npc.getZ(), SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.NEUTRAL, 1.0f, 1.3f);
         owner.sendMessage(Text.literal("Customer paid at reception: +$" + String.format(java.util.Locale.US, "%,d", tip)).formatted(Formatting.GREEN), true);
+    }
+
+    /** Gotiya just struck: one of the customers in the showroom (or the next one through the door) tells the owner about it. */
+    public static void complain(ServerWorld w, Company c, ServerPlayerEntity owner, int sabotage) {
+        Session s = session(c);
+        SuitedNpcEntity who = null;
+        for (Customer cu : s.customers) {
+            if (w.getEntity(cu.npc) instanceof SuitedNpcEntity n && n.isAlive() && !n.hasVehicle()) {
+                who = n;
+                break;
+            }
+        }
+        if (who == null) {
+            Entity m = s.manager == null ? null : w.getEntity(s.manager);
+            who = m instanceof SuitedNpcEntity n ? n : null;
+        }
+        if (who == null || c.activeSabotage() != sabotage) {
+            return;
+        }
+        s.lastComplaint = c.cityTick;
+        com.anant.teslatycoon.rival.RivalDirector.customerSays(w, c, owner, who, NAMES[w.random.nextInt(NAMES.length)], "c_" + sabotage);
     }
 
     // ------------------------------------------------------------------------------------------------------ delivery truck

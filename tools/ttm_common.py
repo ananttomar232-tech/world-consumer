@@ -258,3 +258,103 @@ def standard_views():
     u = np.cross(r, f)
     iso = ("iso", r, u, f)
     return [side, front, top, iso]
+
+
+# ----------------------------------------------------------------------------------------------------------------- Wavefront OBJ
+class ObjScene:
+    """The same interface as Gltf (primitives(), material()) for an .obj + .mtl export (Blockbench, Maya ...).
+    Every `o` / `g` block with its own `usemtl` becomes one primitive; path = "/<object name>#<running index>"."""
+
+    def __init__(self, obj_path):
+        self.dir = os.path.dirname(obj_path)
+        self.mats = {}
+        self._prims = []
+        V, VT, VN = [], [], []
+        cur = {"name": "root", "mat": None, "f": []}
+        blocks = [cur]
+        mtllib = None
+        count = 0
+
+        def new_block(name=None, mat=None):
+            nonlocal cur, count
+            count += 1
+            cur = {"name": name if name is not None else cur["name"], "mat": mat if mat is not None else cur["mat"], "f": [], "i": count}
+            blocks.append(cur)
+
+        with open(obj_path, encoding="utf-8", errors="ignore") as fh:
+            for ln in fh:
+                t = ln.split()
+                if not t:
+                    continue
+                k = t[0]
+                if k == "v":
+                    V.append([float(x) for x in t[1:4]])
+                elif k == "vt":
+                    VT.append([float(x) for x in t[1:3]])
+                elif k == "vn":
+                    VN.append([float(x) for x in t[1:4]])
+                elif k in ("o", "g"):
+                    new_block(name=" ".join(t[1:]) or "unnamed")
+                elif k == "usemtl":
+                    if cur["f"]:
+                        new_block(mat=" ".join(t[1:]))
+                    else:
+                        cur["mat"] = " ".join(t[1:])
+                elif k == "mtllib":
+                    mtllib = " ".join(t[1:])
+                elif k == "f":
+                    corners = []
+                    for c in t[1:]:
+                        s = c.split("/")
+                        vi = int(s[0])
+                        ti = int(s[1]) if len(s) > 1 and s[1] else 0
+                        ni = int(s[2]) if len(s) > 2 and s[2] else 0
+                        corners.append((vi - 1 if vi > 0 else len(V) + vi, ti - 1 if ti > 0 else (len(VT) + ti if ti < 0 else -1),
+                                        ni - 1 if ni > 0 else (len(VN) + ni if ni < 0 else -1)))
+                    for j in range(1, len(corners) - 1):
+                        cur["f"].append((corners[0], corners[j], corners[j + 1]))
+        if mtllib and os.path.exists(os.path.join(self.dir, mtllib)):
+            self._read_mtl(os.path.join(self.dir, mtllib))
+        V, VT, VN = np.array(V, np.float64), np.array(VT or [[0, 0]], np.float64), np.array(VN or [[0, 1, 0]], np.float64)
+        for b in blocks:
+            if not b["f"]:
+                continue
+            corners = np.array([c for tri in b["f"] for c in tri], dtype=np.int64)
+            pos = V[corners[:, 0]].astype(np.float32)
+            uv = VT[np.maximum(corners[:, 1], 0)].astype(np.float32)
+            uv[:, 1] = 1.0 - uv[:, 1]                                   # OBJ: v up; glTF / the game: v down
+            if (corners[:, 2] >= 0).all():
+                nrm = VN[corners[:, 2]].astype(np.float32)
+            else:                                                       # flat normals
+                P = pos.reshape(-1, 3, 3).astype(np.float64)
+                n = np.cross(P[:, 1] - P[:, 0], P[:, 2] - P[:, 0])
+                n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
+                nrm = np.repeat(n, 3, axis=0).astype(np.float32)
+            self._prims.append({"pos": pos, "nrm": nrm, "uv": uv, "idx": np.arange(len(pos), dtype=np.uint32),
+                                "mat": b["mat"], "path": "/%s#%d" % (b["name"], b.get("i", 0)), "node": b.get("i", 0)})
+
+    def _read_mtl(self, path):
+        cur = None
+        with open(path, encoding="utf-8", errors="ignore") as fh:
+            for ln in fh:
+                t = ln.split()
+                if not t:
+                    continue
+                if t[0] == "newmtl":
+                    cur = " ".join(t[1:])
+                    self.mats[cur] = {"Kd": [1, 1, 1], "map": None}
+                elif cur and t[0] == "Kd":
+                    self.mats[cur]["Kd"] = [float(x) for x in t[1:4]]
+                elif cur and t[0] == "map_Kd" and len(t) > 1:
+                    self.mats[cur]["map"] = " ".join(t[1:]).replace("\\", "/").split("/")[-1]      # (Windows paths of the exporter)
+
+    def primitives(self):
+        return self._prims
+
+    def material(self, name):
+        m = self.mats.get(name, {"Kd": [1, 1, 1], "map": None})
+        tex = m["map"]
+        if tex is not None and not os.path.exists(os.path.join(self.dir, tex)):
+            tex = next((tex + e for e in (".png", ".jpg", ".jpeg") if os.path.exists(os.path.join(self.dir, tex + e))), None)
+        return {"name": name or "default", "base": list(m["Kd"]) + [1.0], "tex": tex, "emis": [0, 0, 0], "emis_tex": None,
+                "emis_strength": 1.0, "metal": 0.0, "rough": 0.8, "alpha": "OPAQUE", "cutoff": 0.5}

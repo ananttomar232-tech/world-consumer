@@ -16,7 +16,7 @@ public final class Company {
     public static final double SABOTAGE_FACTOR = 0.60;
     public static final double BILLBOARD_BONUS = 0.06;      // per placed billboard
     public static final double DRIVE_BONUS = 1.0;           // +100% while the owner drives a company car
-    public static final double TIP_SECONDS = 26.0;          // a customer pays this many seconds of income at reception
+    public static final double TIP_SECONDS = 13.0;          // a customer pays this many seconds of income at reception
     public static final double DELIVERY_SECONDS = 8.0;      // the delivery truck's stock bonus
     public static final double FARE_SECONDS = 0.7;          // one robotaxi ride
     public static final int BILLBOARDS_NEEDED = 3;
@@ -46,6 +46,12 @@ public final class Company {
     public boolean gateClosed;            // the finale's security gate (level 5) stands
     public boolean gateBroken;            // ... and the Monster Truck has smashed a hole in it
     public int deliveries;
+    // ---- Seth Gotiya (v4)
+    public int rivalBuilt;                // which version of his dealership stands (level * 10 + 1 destroyed / + 2 partner); 0 = old world
+    public boolean rivalDestroyed;        // /destroy (or the EMP finale cinematic) flattened his dealership
+    public boolean gotiyaPartner;         // he joined the business
+    public int gotiyaTrust;               // kind words from the player (empathy -> partnership)
+    public long gotiyaSales;              // his own sales, for his boasting
 
     // ---- city
     public boolean cityBuilt;
@@ -65,7 +71,7 @@ public final class Company {
 
     /** The sabotage (1..5) that is hurting the business right now, or 0. */
     public int activeSabotage() {
-        if ((sabTriggered & (1 << level)) == 0) {
+        if (gotiyaPartner || (sabTriggered & (1 << level)) == 0) {
             return 0;
         }
         return switch (level) {
@@ -95,6 +101,9 @@ public final class Company {
         }
         if (climaxWon) {
             r *= 1.25;
+        }
+        if (gotiyaPartner) {
+            r *= 1.30;                    // Anant & Gotiya Motors: his customers are ours now
         }
         return r * speed;
     }
@@ -171,6 +180,11 @@ public final class Company {
         n.putBoolean("PowerOut", powerOut);
         n.putInt("Deliveries", deliveries);
         n.putInt("Smashed", ramSmashed);
+        n.putInt("RivalBuilt", rivalBuilt);
+        n.putBoolean("RivalDestroyed", rivalDestroyed);
+        n.putBoolean("GotiyaPartner", gotiyaPartner);
+        n.putInt("GotiyaTrust", gotiyaTrust);
+        n.putLong("GotiyaSales", gotiyaSales);
         n.putBoolean("City", cityBuilt);
         n.putBoolean("Complete", cityComplete);
         n.putLong("Origin", origin.asLong());
@@ -210,6 +224,11 @@ public final class Company {
         c.powerOut = n.getBoolean("PowerOut");
         c.deliveries = n.getInt("Deliveries");
         c.ramSmashed = n.getInt("Smashed");
+        c.rivalBuilt = n.getInt("RivalBuilt");
+        c.rivalDestroyed = n.getBoolean("RivalDestroyed");
+        c.gotiyaPartner = n.getBoolean("GotiyaPartner");
+        c.gotiyaTrust = n.getInt("GotiyaTrust");
+        c.gotiyaSales = n.getLong("GotiyaSales");
         c.cityBuilt = n.getBoolean("City");
         c.cityComplete = !n.contains("Complete") || n.getBoolean("Complete");
         c.origin = BlockPos.fromLong(n.getLong("Origin"));

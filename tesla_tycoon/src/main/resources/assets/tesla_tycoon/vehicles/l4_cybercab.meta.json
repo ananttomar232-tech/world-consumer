@@ -83,11 +83,12 @@
  "emissiveMap": false,
  "lods": 3,
  "tris": [
-  21199,
-  6450,
+  21075,
+  6338,
   1575
  ],
  "occ": 0.8385,
  "floor": 0.36,
- "roof": 1.74
+ "roof": 1.74,
+ "wheelStyle": 9
 }

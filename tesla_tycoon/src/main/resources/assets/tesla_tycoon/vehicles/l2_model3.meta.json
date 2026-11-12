@@ -89,5 +89,6 @@
  ],
  "occ": 0.7462,
  "floor": 0.22,
- "roof": 1.54
+ "roof": 1.54,
+ "wheelStyle": 0
 }

@@ -33,7 +33,7 @@ public final class VehicleSpec {
         this.model = model;
         this.lang = lang;
         this.meta = ModelMeta.load(model);
-        boolean car = model.startsWith("l");               // l1..l5: the five Tesla cars; the trucks keep their size
+        boolean car = model.startsWith("l") || model.startsWith("p");      // the Teslas and Gotiya's petrol cars; the trucks keep their size
         this.hitW = car ? CAR_HIT_W : Math.max(meta.width + 0.3f, 0.55f * meta.length);
         this.hitH = car ? CAR_HIT_H : meta.height + 0.1f;
         this.maxSpeed = maxSpeed;

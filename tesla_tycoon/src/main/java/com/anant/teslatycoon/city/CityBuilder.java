@@ -287,7 +287,7 @@ public final class CityBuilder {
     }
 
     /** A small edit near the showroom: runs before the background build. */
-    private static void edit(ServerWorld w, Company c, Plan plan, boolean lit, Runnable done) {
+    public static void edit(ServerWorld w, Company c, Plan plan, boolean lit, Runnable done) {
         URGENT.add(new Job(w, c.origin, works(plan.ops, c.origin, false), false, lit, true, done, null, 0f, 1f));
     }
 

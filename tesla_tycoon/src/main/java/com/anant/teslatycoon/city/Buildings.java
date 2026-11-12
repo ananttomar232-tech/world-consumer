@@ -401,7 +401,120 @@ public final class Buildings {
             }
             p.fill(x, 1, GZ0, x, 4, GZ0, Blocks.OAK_FENCE.getDefaultState());
         }
+        p.ops.addAll(rivalShowroom(1, false, false).ops);
         return p;
+    }
+
+    // ============================================================================================================ Gotiya's showroom (v4)
+    /** The display spots in his showroom (x, z of the car centre); the middle lane x -44..-35 stays free for the Monster Truck. */
+    public static final double[][] RIVAL_SPOTS = {{-55.5, 48.5}, {-49.0, 48.5}, {-30.0, 48.5}, {-23.5, 48.5}};
+
+    /**
+     * The old workshop behind the pumps becomes Seth Gotiya's petrol-car showroom: a glass front, a polished floor, ceiling lights, red
+     * neon and lit display spots. It grows with the player's level (he "upgrades" too): more lights, gold trim, spotlights, a neon roof.
+     * destroyed: the ruin after /destroy. partner: the joint EV + petrol showroom (cyan neon) once he joins the player.
+     */
+    public static Plan rivalShowroom(int level, boolean destroyed, boolean partner) {
+        Plan p = new Plan();
+        int d = GOT_DZ;
+        int wz = 34 + d;
+        BlockState red = Blocks.RED_CONCRETE.getDefaultState();
+        BlockState orange = Blocks.ORANGE_CONCRETE.getDefaultState();
+        if (destroyed) {
+            ruin(p, wz);
+            return p;
+        }
+        NeonColor neon = partner ? NeonColor.CYAN : NeonColor.RED;
+        // the walls and roof again (a ruin can be rebuilt by the partnership)
+        p.fill(GX0, 1, wz, GX1, 7, wz, red);
+        p.fill(GX0, 1, GZ1, GX1, 7, GZ1, red);
+        p.fill(GX0, 1, wz, GX0, 7, GZ1, red);
+        p.fill(GX1, 1, wz, GX1, 7, GZ1, red);
+        p.fill(GX0, 8, wz, GX1, 8, GZ1, BLACK);
+        p.clear(GX0 + 1, 1, wz + 1, GX1 - 1, 7, GZ1 - 1);
+        // polished floor, black frames under the cars
+        p.fill(GX0 + 1, 0, wz + 1, GX1 - 1, 0, GZ1 - 1, Blocks.SMOOTH_QUARTZ.getDefaultState());
+        p.fill(-44, 0, wz + 1, -35, 0, GZ1 - 1, Blocks.POLISHED_BLACKSTONE.getDefaultState());       // the truck lane
+        int cars = rivalCars(level);
+        for (int i = 0; i < RIVAL_SPOTS.length; i++) {
+            int cx = (int) Math.floor(RIVAL_SPOTS[i][0]);
+            int cz = (int) Math.floor(RIVAL_SPOTS[i][1]);
+            p.fill(cx - 2, 0, cz - 3, cx + 2, 0, cz + 3, BLACK);
+            if (i < cars && level >= 2) {
+                p.neonFill(cx - 2, 0, cz - 3, cx + 2, 0, cz - 3, neon);                            // a glowing edge in front of each car
+                p.neonFill(cx - 2, 0, cz + 3, cx + 2, 0, cz + 3, neon);
+            }
+        }
+        // the front: big glass shop windows either side of the open middle door
+        p.fill(GX0 + 1, 1, wz, -46, 6, wz, Blocks.GLASS_PANE.getDefaultState());
+        p.fill(-33, 1, wz, GX1 - 1, 6, wz, Blocks.GLASS_PANE.getDefaultState());
+        p.clear(-45, 1, wz, -34, 6, wz);
+        p.fill(-46, 1, wz, -46, 7, wz, orange);
+        p.fill(-33, 1, wz, -33, 7, wz, orange);
+        p.fill(-46, 7, wz, -33, 7, wz, orange);
+        // ceiling lights: more of them every level
+        int step = level >= 3 ? 4 : 6;
+        for (int x = GX0 + 3; x <= GX1 - 3; x += step) {
+            for (int z = wz + 3; z <= GZ1 - 2; z += 5) {
+                p.set(x, 7, z, Blocks.SEA_LANTERN.getDefaultState());
+            }
+        }
+        // red (or cyan) neon along the back wall and a lit sign band over the door
+        p.neonFill(GX0 + 1, 6, GZ1 - 1, GX1 - 1, 6, GZ1 - 1, neon);
+        p.neonFill(-45, 7, wz - 1, -34, 7, wz - 1, neon);
+        // lanterns under the forecourt canopy
+        for (int x = -56; x <= -24; x += 8) {
+            p.set(x, 6, 27 + d, Blocks.LANTERN.getDefaultState().with(net.minecraft.block.LanternBlock.HANGING, true));
+        }
+        if (level >= 3 || partner) {
+            p.fill(GX0, 8, wz - 1, GX1, 8, wz - 1, Blocks.GOLD_BLOCK.getDefaultState());               // gold trim along the facade
+            for (int x : new int[]{GX0 + 1, -46, -33, GX1 - 1}) {
+                p.neonFill(x, 1, wz - 1, x, 6, wz - 1, neon);                                         // neon pillars
+            }
+        }
+        if (level >= 4 || partner) {
+            for (int x = GX0 + 2; x <= GX1 - 2; x += 5) {
+                p.set(x, 9, wz, Blocks.END_ROD.getDefaultState());                                     // spotlights on the roof edge
+            }
+            p.fill(-42, 0, wz - 6, -37, 0, wz - 1, Blocks.RED_WOOL.getDefaultState());                   // the red carpet
+        }
+        if (level >= 5 || partner) {
+            p.neonFill(GX0, 9, GZ1, GX1, 9, GZ1, neon);                                                 // neon roof outline
+            p.neonFill(GX0, 9, wz, GX0, 9, GZ1, neon);
+            p.neonFill(GX1, 9, wz, GX1, 9, GZ1, neon);
+        }
+        return p;
+    }
+
+    /** How many petrol cars he has on show at the player's level (he upgrades as the player does). */
+    public static int rivalCars(int level) {
+        return Math.max(1, Math.min(RIVAL_SPOTS.length, level));
+    }
+
+    /** After /destroy: broken walls, the roof caved in, rubble, smoke from the wreck. Deterministic (the same ruin every time). */
+    private static void ruin(Plan p, int wz) {
+        int d = GOT_DZ;
+        p.clear(GX0, 1, 23 + d, GX1, 8, GZ1);
+        p.fill(GX0, 0, 23 + d, GX1, 0, GZ1, Blocks.COBBLED_DEEPSLATE.getDefaultState());
+        BlockState[] rubble = {Blocks.COBBLESTONE.getDefaultState(), Blocks.GRAVEL.getDefaultState(), Blocks.COAL_BLOCK.getDefaultState(),
+                Blocks.POLISHED_BLACKSTONE_BRICKS.getDefaultState(), Blocks.RED_CONCRETE.getDefaultState(), Blocks.CRACKED_STONE_BRICKS.getDefaultState()};
+        for (int x = GX0; x <= GX1; x++) {
+            for (int z = 23 + d; z <= GZ1; z++) {
+                int h = (int) (Math.floorMod(x * 734287 + z * 912931, 97));
+                boolean wall = x == GX0 || x == GX1 || z == GZ1 || z == wz;
+                int height = wall ? h % 4 : (h < 22 ? 1 : (h < 30 ? 2 : 0));
+                for (int y = 1; y <= height; y++) {
+                    p.set(x, y, z, rubble[(h + y) % rubble.length]);
+                }
+                if (h == 5 || h == 41 || h == 77) {
+                    p.set(x, height + 1, z, Blocks.CAMPFIRE.getDefaultState());                              // smoke rising from the wreck
+                }
+            }
+        }
+        // two canopy pillars still standing, bent
+        p.fill(-58, 1, 24 + d, -58, 4, 24 + d, WALL);
+        p.fill(-22, 1, 31 + d, -22, 3, 31 + d, WALL);
+        p.set(-57, 4, 24 + d, Blocks.ORANGE_CONCRETE.getDefaultState());
     }
 
     // ============================================================================================================ billboards

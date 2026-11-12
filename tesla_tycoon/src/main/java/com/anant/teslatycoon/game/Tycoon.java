@@ -130,6 +130,7 @@ public final class Tycoon {
             ShowroomDirector.tick(w, c, p);
             com.anant.teslatycoon.npc.RobotaxiDirector.tick(w, c, p);
             RivalDirector.tick(w, c, p);
+            com.anant.teslatycoon.rival.RivalShowroom.tick(w, c, p);
             if (t % 10 == (p.getId() & 7)) {
                 ModNetwork.sendState(p, c, RivalDirector.empCooldown(p));
             }

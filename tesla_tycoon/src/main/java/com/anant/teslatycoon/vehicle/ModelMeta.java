@@ -29,6 +29,8 @@ public final class ModelMeta {
     public float[] seat;
     public float seatHip;
     public float[] steer;
+    /** 0 Tesla yoke-like wheel, 1 classic wood, 2 muscle (aluminium spokes), 3 supercar (flat bottom). */
+    public int wheelStyle;
     /** Scale of the seated driver / passenger (tools/interior_gen.py: the head must stay under the roof lining). 0 = not baked. */
     public float occ;
     public float floor;

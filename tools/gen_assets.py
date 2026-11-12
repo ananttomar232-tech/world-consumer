@@ -198,7 +198,8 @@ def block_models():
         ["asphalt", "neon", "road_spikes", "concrete_barrier", "billboard_panel", "shop_terminal", "robotaxi_terminal", "megapack", "starlink_dish"]]})
     # item models
     w(os.path.join(A, "models/item/wall_poster.json"), {"parent": "minecraft:item/generated", "textures": {"layer0": "%s:item/wall_poster" % NS}})
-    for v in ("tesla_classic", "tesla_model3", "tesla_cybertruck", "tesla_cybercab", "tesla_roadster", "gotiya_monster_truck", "delivery_truck"):
+    for v in ("tesla_classic", "tesla_model3", "tesla_cybertruck", "tesla_cybercab", "tesla_roadster", "gotiya_monster_truck", "delivery_truck",
+              "gotiya_hatch", "gotiya_mustang", "gotiya_lambo"):
         w(os.path.join(A, "models/item/%s_spawner.json" % v), CAR_ITEM)
     # the physical upgrades handed out by the depot pedestals: the car itself (drawn in 3D by the client) or a 3D block model
     for lv in ("level2", "level3", "level4", "level5"):
@@ -242,6 +243,9 @@ LOOKS = [
     dict(jacket=(216, 204, 176), trousers=(190, 178, 150), tie=(120, 30, 90), skin=(160, 108, 76), hair=(16, 12, 10), eyes=(70, 50, 30), cap=None, stache=False),
     dict(jacket=(112, 22, 34), trousers=(70, 16, 24), tie=(230, 190, 60), skin=(190, 130, 92), hair=(20, 16, 14), eyes=(50, 40, 30), cap=(112, 22, 34), stache=True),    # Seth Gotiya
     dict(jacket=(22, 66, 54), trousers=(16, 44, 36), tie=(240, 240, 240), skin=(214, 160, 122), hair=(60, 46, 36), eyes=(60, 130, 70), cap=None, stache=False),
+    # the Tesla staff (shopkeeper / manager): the face IS the Tesla logo - a red head with the white "T" and its arc
+    dict(jacket=(18, 18, 22), trousers=(12, 12, 16), tie=(227, 25, 55), skin=(227, 25, 55), hair=(227, 25, 55), eyes=(255, 255, 255), cap=None,
+         stache=False, tesla=True),
 ]
 
 
@@ -267,6 +271,35 @@ def suit_skin(look):
     for fx in ("right", "left", "back"):
         pass
     fr = head["front"]
+    if L.get("tesla"):
+        red, white, dark = (227, 25, 55), (250, 250, 250), (150, 12, 34)
+        for f in head.values():
+            fill(f, red)
+        for xx in range(8):                                           # metallic edge round the face
+            pix(fr, xx, 9, dark)
+        for xx in range(1, 7):
+            pix(fr, xx, 1, white)                                      # the arc over the T
+        pix(fr, 0, 2, white)
+        pix(fr, 7, 2, white)
+        for xx in range(1, 7):
+            pix(fr, xx, 3, white)                                      # the bar of the T (curving down at the tips)
+        pix(fr, 1, 4, white)
+        pix(fr, 6, 4, white)
+        for yy in range(4, 9):
+            pix(fr, 3, yy, white)                                      # the stem
+            pix(fr, 4, yy, white)
+        nose = cuboid(24, 0, 2, 4, 2)
+        for f in nose.values():
+            fill(f, dark)
+        hat = cuboid(32, 0, 8, 10, 8)
+        fill(hat["top"], dark)                                         # a dark crown so the head reads as a badge
+        L = dict(L, cap=None)
+    else:
+        _face(L, fr, pix, head, fill)
+    return _suit_body(L, t, d, fill, pix, shirt, jacket_dark)
+
+
+def _face(L, fr, pix, head, fill):
     pix(fr, 1, 4, (255, 255, 255))
     pix(fr, 2, 4, L["eyes"])
     pix(fr, 5, 4, L["eyes"])
@@ -283,10 +316,15 @@ def suit_skin(look):
     nose = cuboid(24, 0, 2, 4, 2)
     for f in nose.values():
         fill(f, tuple(max(0, v - 22) for v in L["skin"]))
+
+
+def _suit_body(L, t, d, fill, pix, shirt, jacket_dark):
     # hair / cap on the "hat" layer (same layout as the head, at u=32)
     hat = cuboid(32, 0, 8, 10, 8)
     top, right, front, left, back = hat["top"], hat["right"], hat["front"], hat["left"], hat["back"]
-    if L["cap"]:
+    if L.get("tesla"):
+        pass
+    elif L["cap"]:
         for f in (top,):
             fill(f, L["cap"])
         for f in (right, left, back, front):
@@ -361,7 +399,9 @@ def lang():
         L["block.tesla_tycoon.%s" % k] = v
     names = {"tesla_classic": "Tesla Classic Compact", "tesla_model3": "Tesla Model 3 (Autopilot Sedan)", "tesla_cybertruck": "Armored Tesla Cybertruck",
              "tesla_cybercab": "Autonomous Tesla Cybercab (Robotaxi)", "tesla_roadster": "Flying SpaceX Tesla Roadster",
-             "gotiya_monster_truck": "Seth Gotiya's Rival Diesel Monster Truck", "delivery_truck": "Tesla Delivery Truck"}
+             "gotiya_monster_truck": "Seth Gotiya's Rival Diesel Monster Truck", "delivery_truck": "Tesla Delivery Truck",
+             "gotiya_hatch": "Gotiya Motors Diesel Hatchback", "gotiya_mustang": "Ford Mustang Shelby GT500 (Petrol V8)",
+             "gotiya_lambo": "Lamborghini Aventador (Petrol V12)"}
     for k, v in names.items():
         L["entity.tesla_tycoon.%s" % k] = v
         L["item.tesla_tycoon.%s_spawner" % k] = v

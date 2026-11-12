@@ -146,10 +146,10 @@ public final class VehicleRenderer extends EntityRenderer<VehicleEntity> {
                 VehicleGfx.draw(part.buffers[lod], null, null);
             }
         }
-        if (lod == 0 && meta.steer != null) {
+        if (lod == 0 && meta.steer != null && meta.wheelStyle != 9) {        // (9: the Cybercab has no steering wheel)
             float[] s = meta.steer;
             Matrix4f local = new Matrix4f().translate(s[0], s[1], s[2]).rotateX((float) Math.toRadians(-s[3] + 90f - 90f)).rotateZ(steer * 2.2f);
-            VehicleGfx.draw(ProcMesh.steeringWheel(), local, null);
+            VehicleGfx.draw(ProcMesh.steeringWheel(meta.wheelStyle), local, null);
         }
         boolean thrust = e.spec.canFly && (mine ? e.localThrust : e.hasFlag(VehicleEntity.F_THRUST));
         if (meta.thrusters != null && meta.thrusters.length > 0) {

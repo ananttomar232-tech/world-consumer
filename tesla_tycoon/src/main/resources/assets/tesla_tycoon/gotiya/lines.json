@@ -1,0 +1,986 @@
+[
+{
+"id": "greet_1",
+"key": "greet",
+"text": "Oye {p}! Aa gaya? Main soch hi raha tha ki aaj kiska din kharab karun... namaste, namaste!",
+"voice": "g"
+},
+{
+"id": "greet_2",
+"key": "greet",
+"text": "Arre {p}, namaste! Chai piyega? Meri chai mein bhi thoda diesel ka tadka hai... free hai, sirf aaj!",
+"voice": "g"
+},
+{
+"id": "greet_3",
+"key": "greet",
+"text": "Hello hello! Seth Gotiya ki taraf se garma-garam swagat... bas apni bijli wali gaadi bahar park karna.",
+"voice": "g"
+},
+{
+"id": "greet_4",
+"key": "greet",
+"text": "Ram Ram {p}! Subah subah tera chehra dekh liya, ab toh pakka mera petrol mehnga bikega!",
+"voice": "g"
+},
+{
+"id": "greet_5",
+"key": "greet",
+"text": "Oho, Tesla wale babu! Aaj kaunsi nayi bijli ki kahani sunane aaye ho?",
+"voice": "g"
+},
+{
+"id": "bye_1",
+"key": "bye",
+"text": "Ja ja {p}, par yaad rakhna... sadak pe agla surprise mera hi hoga!",
+"voice": "g"
+},
+{
+"id": "bye_2",
+"key": "bye",
+"text": "Chal theek hai, alvida. Raat ko sapne mein bhi dhak-dhak engine sunega tu!",
+"voice": "g"
+},
+{
+"id": "bye_3",
+"key": "bye",
+"text": "Bye bye! Apni gaadi charge karna mat bhoolna... warna dhakka main nahi lagaunga!",
+"voice": "g"
+},
+{
+"id": "who_1",
+"key": "who",
+"text": "Main? Seth Gotiya! Gotiya Petrol Motors ka maalik, sheher ka diesel samrat, aur tera sabse bada sir-dard!",
+"voice": "g"
+},
+{
+"id": "who_2",
+"key": "who",
+"text": "Naam toh suna hi hoga... Seth Gotiya. Teen peedhi se petrol bech rahe hain, chauthi peedhi tujhe hara ke dikhayegi!",
+"voice": "g"
+},
+{
+"id": "who_3",
+"key": "who",
+"text": "Main woh hoon jiske pump pe sheher ka har tank bharta tha... jab tak tu apni bijli ki dukaan le ke nahi aaya.",
+"voice": "g"
+},
+{
+"id": "how_1",
+"key": "how",
+"text": "Main? Ekdum first class! Tere showroom ka bill dekh ke toh aur bhi achha lag raha hai.",
+"voice": "g"
+},
+{
+"id": "how_2",
+"key": "how",
+"text": "Kaisa hoon? Jaise ek diesel engine thand mein... thoda dhuaan, thoda gussa, par chalta rehta hoon.",
+"voice": "g"
+},
+{
+"id": "how_3",
+"key": "how",
+"text": "Sach bataun? Customers kam ho gaye hain... par yeh baat kisi ko mat batana, khaaskar tujhe!",
+"voice": "g"
+},
+{
+"id": "tesla_1",
+"key": "tesla",
+"text": "Tesla?! Gaadi hai ya mobile phone? Raat bhar charging pe lagao, subah update aata hai, gaadi phir bhi wahi ki wahi!",
+"voice": "g"
+},
+{
+"id": "tesla_2",
+"key": "tesla",
+"text": "Bijli ki gaadi! Mere ghar ka inverter do ghante mein haath khade kar deta hai, aur tu paanch sau kilometre ki baat karta hai?",
+"voice": "g"
+},
+{
+"id": "tesla_3",
+"key": "tesla",
+"text": "Tesla mein engine ki awaaz hi nahi aati. Gaadi hai ya Wi-Fi router? Mujhe toh dhak-dhak chahiye, dil wali!",
+"voice": "g"
+},
+{
+"id": "tesla_4",
+"key": "tesla",
+"text": "Autopilot? Meri gaadi ka autopilot Ramu kaka hai. Chai ke liye rukte hain, par kabhi crash nahi karte!",
+"voice": "g"
+},
+{
+"id": "tesla_5",
+"key": "tesla",
+"text": "Cybertruck ko dekh ke lagta hai kisi ne gaadi ko origami bana diya aur bhool gaya kholna!",
+"voice": "g"
+},
+{
+"id": "tesla_6",
+"key": "tesla",
+"text": "Charger dhundhte dhundhte teri zindagi extension board ke aas-paas hi ghoomti rahegi, {p}!",
+"voice": "g"
+},
+{
+"id": "tesla_7",
+"key": "tesla",
+"text": "Thik hai thik hai, maanta hoon... Tesla sundar hai. Bas yeh baat meri biwi ko mat batana, woh khareed legi!",
+"voice": "g"
+},
+{
+"id": "petrol_1",
+"key": "petrol",
+"text": "Petrol ki khushboo! Jab tank bharta hai na, toh lagta hai mandir mein agarbatti jal rahi hai.",
+"voice": "g"
+},
+{
+"id": "petrol_2",
+"key": "petrol",
+"text": "Mera engine bolta hai dhuk dhuk dhuk, tera Tesla bolta hai beep. Bata, mard ki gaadi kaunsi?",
+"voice": "g"
+},
+{
+"id": "petrol_3",
+"key": "petrol",
+"text": "Diesel zindabad! Jis din petrol sasta hoga, us din main Tesla khareed lunga. Matlab kabhi nahi!",
+"voice": "g"
+},
+{
+"id": "petrol_4",
+"key": "petrol",
+"text": "Meri dukaan mein Mustang hai, Lamborghini hai, aur ek desi hatchback bhi. Sab mein asli aag hai, battery nahi!",
+"voice": "g"
+},
+{
+"id": "money_1",
+"key": "money",
+"text": "Paisa? Tere paas sirf ${m} hai aur tu mujhse takkar lega? Mere gallay mein itna toh chillar hai!",
+"voice": "g"
+},
+{
+"id": "money_2",
+"key": "money",
+"text": "Paise ki baat mat kar {p}. Meri tijori mein itna diesel hai ki Ambani bhi sharma jaaye.",
+"voice": "g"
+},
+{
+"id": "money_3",
+"key": "money",
+"text": "Paisa hi sab kuch nahi hota... lekin diesel ke bina kuch bhi nahi hota. Yeh Gotiya ka gyaan hai, muft mein.",
+"voice": "g"
+},
+{
+"id": "money_4",
+"key": "money",
+"text": "Tera galla bhar raha hai, mera khaali ho raha hai. Yeh koi insaaf hai, bhagwan?",
+"voice": "g"
+},
+{
+"id": "cars_1",
+"key": "cars",
+"text": "Gaadi dekhni hai? Meri dukaan mein aa, Lamborghini ki awaaz sunke tere Tesla ki battery khud discharge ho jayegi!",
+"voice": "g"
+},
+{
+"id": "cars_2",
+"key": "cars",
+"text": "Mustang Shelby! Paanch sau ghode andar band hain. Tere Tesla mein toh sirf ek chooha hai jo pahiya ghumata hai.",
+"voice": "g"
+},
+{
+"id": "cars_3",
+"key": "cars",
+"text": "Meri Lamborghini dekh, peeli peeli, jaise garam samosa. Aur tera Cybertruck? Thanda fridge!",
+"voice": "g"
+},
+{
+"id": "insult_1",
+"key": "insult",
+"text": "Mujhe {w} bola?! Main Seth Gotiya hoon! Mere daadaji ke zamaane se petrol bech raha hoon, tu kal ka launda!",
+"voice": "g"
+},
+{
+"id": "insult_2",
+"key": "insult",
+"text": "Zubaan sambhal ke {p}! Mere engines gussa ho gaye toh poora sheher dhuein se kaala ho jayega.",
+"voice": "g"
+},
+{
+"id": "insult_3",
+"key": "insult",
+"text": "Haaye haaye! Itni kadwi baat? Mere dil pe chhura chala diya... diesel ka chhura!",
+"voice": "g"
+},
+{
+"id": "insult_4",
+"key": "insult",
+"text": "Gaali dene se teri bijli nahi badhegi. Main toh sirf kilein bichhata hoon, gaali nahi deta!",
+"voice": "g"
+},
+{
+"id": "compliment_1",
+"key": "compliment",
+"text": "Hain? Meri taareef? Ruk... yeh koi chaal hai kya? Phir bhi... achha laga. Bahut dinon baad.",
+"voice": "g"
+},
+{
+"id": "compliment_2",
+"key": "compliment",
+"text": "Arre, itni meethi baat? Aaj toh main sirf aadhi sadak pe kilein bichhaunga. Pakka.",
+"voice": "g"
+},
+{
+"id": "compliment_3",
+"key": "compliment",
+"text": "Tu bhi na {p}... sharma diya. Mera chehra laal ho gaya, jaise meri Mustang.",
+"voice": "g"
+},
+{
+"id": "laugh_1",
+"key": "laugh",
+"text": "Hans le hans le {p}. Mera agla plan padh ke hasi apne aap gayab ho jayegi.",
+"voice": "g"
+},
+{
+"id": "laugh_2",
+"key": "laugh",
+"text": "Haha! Tu hans raha hai? Mere spikes bhi hanste hain... jab tera tyre phatta hai! Phuss!",
+"voice": "g"
+},
+{
+"id": "laugh_3",
+"key": "laugh",
+"text": "Hahaha! Chal, kam se kam hum dono ek baat pe toh hanse. Shuruaat achhi hai.",
+"voice": "g"
+},
+{
+"id": "thanks_1",
+"key": "thanks",
+"text": "Thanks? Mujhe? Galti se bol diya hoga! Chal khair... welcome. Par yeh dosti nahi hai, samjha?",
+"voice": "g"
+},
+{
+"id": "thanks_2",
+"key": "thanks",
+"text": "Shukriya kis baat ka? Abhi toh maine kuch kiya hi nahi... ruk, kuch karta hoon.",
+"voice": "g"
+},
+{
+"id": "race_1",
+"key": "race",
+"text": "Race? Chal! Main apni Mustang mein, tu apne Tesla mein. Bas beech mein charging ke liye mat rukna!",
+"voice": "g"
+},
+{
+"id": "race_2",
+"key": "race",
+"text": "Udne wali gaadi? Bhai udega toh traffic police challan kahan bhejegi? Badalon pe?",
+"voice": "g"
+},
+{
+"id": "race_3",
+"key": "race",
+"text": "Speed ka shauk hai? Mere spikes pe aa, ek second mein zero ho jayegi teri speed!",
+"voice": "g"
+},
+{
+"id": "why_hate_1",
+"key": "why_hate",
+"text": "Kyun? Kyunki jab se tu aaya hai, mere pump pe line chhoti ho gayi hai. Dhanda hai bhai, dushmani nahi... thodi si hai.",
+"voice": "g"
+},
+{
+"id": "why_hate_2",
+"key": "why_hate",
+"text": "Nafrat nahi hai {p}... darr hai. Agar sab bijli pe chale gaye, toh Gotiya kahan jayega?",
+"voice": "g"
+},
+{
+"id": "why_hate_3",
+"key": "why_hate",
+"text": "Mere daadaji ne yeh pump banaya tha. Tera showroom dekhta hoon toh lagta hai unki yaadein bujh rahi hain.",
+"voice": "g"
+},
+{
+"id": "sab_ask_1",
+"key": "sab_ask",
+"text": "Kilein? Kaunsi kilein? Mujhe kya pata... sadak pe apne aap ugg aayi hongi. Mausam hai.",
+"voice": "g"
+},
+{
+"id": "sab_ask_2",
+"key": "sab_ask",
+"text": "Hatwa le khud! Depot mein jaa, counter khareed, aur meri mehnat pe paani pher de. Tujhe yahi toh aata hai.",
+"voice": "g"
+},
+{
+"id": "sab_ask_3",
+"key": "sab_ask",
+"text": "Business hai bhai. Tu customer khinchta hai, main sadak rokta hoon. Dono apna apna kaam kar rahe hain.",
+"voice": "g"
+},
+{
+"id": "threat_1",
+"key": "threat",
+"text": "Dhamki?! Mujhe? Mere paas Monster Truck hai, tere paas kya hai? Charger ka taar?",
+"voice": "g"
+},
+{
+"id": "threat_2",
+"key": "threat",
+"text": "Ha ha! Darr gaya main... dekh, kaanp raha hoon. Dhuein se, darr se nahi.",
+"voice": "g"
+},
+{
+"id": "love_1",
+"key": "love",
+"text": "Pyaar?! Arre baba... main shaadi-shuda aadmi hoon, aur meri pehli mohabbat diesel hai.",
+"voice": "g"
+},
+{
+"id": "food_1",
+"key": "food",
+"text": "Chai? Haan! Kadak, adrak wali, aur saath mein samosa. Bijli se bani chai mein woh baat kahan.",
+"voice": "g"
+},
+{
+"id": "food_2",
+"key": "food",
+"text": "Bhook lagi hai? Mere dhaabe pe aa, paratha khila dunga. Bas Tesla bahar park karna, ghee mein charge nahi hoti.",
+"voice": "g"
+},
+{
+"id": "family_1",
+"key": "family",
+"text": "Meri biwi kehti hai Tesla le lo. Mere bachche kehte hain Tesla le lo. Sirf main kehta hoon... nahi. Akela hoon, par diesel hai.",
+"voice": "g"
+},
+{
+"id": "family_2",
+"key": "family",
+"text": "Ghar? Ghar mein sab theek hai. Bas mera beta ab cycle chalata hai, kehta hai pollution kam karna hai. Haaye.",
+"voice": "g"
+},
+{
+"id": "sport_1",
+"key": "sport",
+"text": "Cricket? Main toh tere showroom ke bahar fielding laga ke baitha hoon. Har customer catch karunga!",
+"voice": "g"
+},
+{
+"id": "joke_1",
+"key": "joke",
+"text": "Sun ek joke: Tesla wala petrol pump pe aaya. Maine poocha kya chahiye? Bola: bas charger ka rasta. Hahaha!",
+"voice": "g"
+},
+{
+"id": "joke_2",
+"key": "joke",
+"text": "Joke? Tera electricity bill hi sabse bada joke hai. Main roz padhta hoon, roz hasta hoon.",
+"voice": "g"
+},
+{
+"id": "joke_3",
+"key": "joke",
+"text": "Ek baar ek Cybertruck ne aaina dekha... aaina bola: bhai pehle khud ko unfold kar!",
+"voice": "g"
+},
+{
+"id": "weather_1",
+"key": "weather",
+"text": "Mausam? Garmi mein mera engine garam, sardi mein mera dil garam. Tera Tesla? Dono mein battery kam!",
+"voice": "g"
+},
+{
+"id": "game_1",
+"key": "game",
+"text": "Yeh sab ek game hai kya? Agar hai, toh main villain hoon... aur villain sabse achhe dialogue bolta hai!",
+"voice": "g"
+},
+{
+"id": "yes_1",
+"key": "yes",
+"text": "Haan? Kis baat pe haan? Main ne toh kuch poocha hi nahi... ya poocha tha? Dhuein mein yaad nahi.",
+"voice": "g"
+},
+{
+"id": "no_1",
+"key": "no",
+"text": "Na? Theek hai, na sahi. Gotiya ko na sunne ki aadat hai... customers roz sunate hain.",
+"voice": "g"
+},
+{
+"id": "question_1",
+"key": "question",
+"text": "Sawaal pe sawaal! Main Gotiya hoon, Google nahi. Par jawab hamesha ek hi hai: diesel best hai.",
+"voice": "g"
+},
+{
+"id": "question_2",
+"key": "question",
+"text": "Achha sawaal hai {p}. Itna achha ki main iska jawab apne vakil se poochh ke dunga.",
+"voice": "g"
+},
+{
+"id": "question_3",
+"key": "question",
+"text": "Pata nahi. Aur pata hota bhi toh nahi batata. Competition hai bhai, competition!",
+"voice": "g"
+},
+{
+"id": "question_4",
+"key": "question",
+"text": "Hmm... soch raha hoon. Soch raha hoon. Nahi, kuch nahi aaya. Chai ke baad poochna.",
+"voice": "g"
+},
+{
+"id": "fallback_1",
+"key": "fallback",
+"text": "Hmm, '{w}'... interesting. Yeh main apni diary mein likh raha hoon, agle sabotage ke liye.",
+"voice": "g"
+},
+{
+"id": "fallback_2",
+"key": "fallback",
+"text": "Tu bolta bahut achha hai {p}. Isi liye toh meri dukaan tere showroom ke saamne hai... jasoosi ke liye.",
+"voice": "g"
+},
+{
+"id": "fallback_3",
+"key": "fallback",
+"text": "Dekh, main shaant hoon. Par mere andar ka engine garam hai. Dhuaan nikal raha hai, dekh!",
+"voice": "g"
+},
+{
+"id": "fallback_4",
+"key": "fallback",
+"text": "Accha accha, sun liya. Ab tu meri sun: level {lv} pe aa ke bhi tu mere dhuein ke aage kuch nahi!",
+"voice": "g"
+},
+{
+"id": "fallback_5",
+"key": "fallback",
+"text": "Itni baatein? Mere customers bhi itna nahi bolte. Woh bas aate hain, dekhte hain, aur tere paas chale jaate hain.",
+"voice": "g"
+},
+{
+"id": "fallback_6",
+"key": "fallback",
+"text": "'{w}'? Yeh shabd mere dadaji ne kabhi nahi bola. Woh sirf 'tank full' bolte the.",
+"voice": "g"
+},
+{
+"id": "fallback_7",
+"key": "fallback",
+"text": "Main sun raha hoon {p}... ek kaan se. Dusre kaan mein meri Mustang ka engine baj raha hai.",
+"voice": "g"
+},
+{
+"id": "fallback_8",
+"key": "fallback",
+"text": "Haan haan, bilkul. Waise... tu kabhi akela mehsoos karta hai? Kuch nahi, bhool ja maine kya poocha.",
+"voice": "g"
+},
+{
+"id": "hint_0_1",
+"key": "hint_0",
+"text": "Abhi koi museebat nahi hai... matlab abhi tak. Customers ko khush rakh, gaadi chala, paise jod. Main dekh raha hoon!",
+"voice": "g"
+},
+{
+"id": "hint_1_1",
+"key": "hint_1",
+"text": "Theek hai, bata deta hoon: Depot mein Jump Hydraulics aur Armor Tires khareed, right-click kar ke laga. Meri kilein bekaar. Haaye!",
+"voice": "g"
+},
+{
+"id": "hint_2_1",
+"key": "hint_2",
+"text": "Andhera hai na? Depot se Solar Roof aur MegaPack le, laga de. Bijli wapas. Mujhe kyun pooch raha hai yaar!",
+"voice": "g"
+},
+{
+"id": "hint_3_1",
+"key": "hint_3",
+"text": "Barricade? Beast Ram Mode khareed, Cybertruck mein baith, V daba ke zor se thok de. Mera cement... sniff.",
+"voice": "g"
+},
+{
+"id": "hint_4_1",
+"key": "hint_4",
+"text": "GPS jam hai? Starlink aur Billboard pack le, phir highway ke teen billboard pe apna ad laga. Mera dhanda chaupat.",
+"voice": "g"
+},
+{
+"id": "hint_5_1",
+"key": "hint_5",
+"text": "Mere truck se bachna hai? Chhat pe laal Roadster hai. Space se ud, aur R daba ke EMP maar. Ya phir type kar slash destroy... nahi nahi, mat karna!",
+"voice": "g"
+},
+{
+"id": "empathy_soft_1",
+"key": "empathy_soft",
+"text": "Tu... tu sach mein aisa soch raha hai? Kisi ne itne saalon mein mujhse aise baat nahi ki.",
+"voice": "g"
+},
+{
+"id": "empathy_soft_2",
+"key": "empathy_soft",
+"text": "Hmm. Pata nahi kyun, aaj kilein bichhane ka mann nahi kar raha. Tu ajeeb aadmi hai, {p}.",
+"voice": "g"
+},
+{
+"id": "empathy_soft_3",
+"key": "empathy_soft",
+"text": "Dosti? Mujhse? Seth Gotiya se? Ruk... aankh mein dhuaan chala gaya. Bas dhuaan hai, aansu nahi.",
+"voice": "g"
+},
+{
+"id": "empathy_soft_4",
+"key": "empathy_soft",
+"text": "Sach kahun? Main thak gaya hoon ladte ladte. Par mera pump... mere daadaji ka pump...",
+"voice": "g"
+},
+{
+"id": "empathy_soft_5",
+"key": "empathy_soft",
+"text": "Tu mujhe maaf kar raha hai? Itne spikes ke baad bhi? Hmm... soch ke bataunga. Dil se nahi, dimaag se.",
+"voice": "g"
+},
+{
+"id": "empathy_join_1",
+"key": "empathy_join",
+"text": "Theek hai {p}... haath mila. Aaj se Anant and Gotiya Motors! Tu bijli la, main customers laata hoon. Aur chai bhi!",
+"voice": "g"
+},
+{
+"id": "empathy_join_2",
+"key": "empathy_join",
+"text": "Yaar, ladai mein kuch nahi rakha. Chal saath mein kaam karte hain. Mere pump pe charger lagwa de... naya zamana!",
+"voice": "g"
+},
+{
+"id": "partner_1",
+"key": "partner",
+"text": "Partner! Aaj teen customer bheje tere paas. Commission ki baat baad mein, pehle chai.",
+"voice": "g"
+},
+{
+"id": "partner_2",
+"key": "partner",
+"text": "Socha nahi tha main Tesla bechunga. Par dekh, Cybertruck ke saath selfie bhi le li. Mast hai!",
+"voice": "g"
+},
+{
+"id": "partner_3",
+"key": "partner",
+"text": "Haan partner, bol! Jo bhi kaam ho, Gotiya hazir hai. Bas mujhe bijli ka jhatka mat dena.",
+"voice": "g"
+},
+{
+"id": "partner_4",
+"key": "partner",
+"text": "Kal raat maine apni Mustang ko bataya ki hum partner hain. Woh naraz hai, par main khush hoon.",
+"voice": "g"
+},
+{
+"id": "partner_5",
+"key": "partner",
+"text": "Tere saath kaam karke pata chala: dushman se achha partner hota hai. Aur paisa bhi zyada hai!",
+"voice": "g"
+},
+{
+"id": "cold_1",
+"key": "cold",
+"text": "Meethi baatein band kar. Gotiya itni aasani se nahi pighalta. Pehle mera dil jeet, phir dukaan.",
+"voice": "g"
+},
+{
+"id": "sab_1_1",
+"key": "sab_1",
+"text": "Haha! Maine saari sadak pe KILEIN bichha di, dono taraf! Ab dekhta hoon kaunsi Tesla test drive pe jaati hai!",
+"voice": "g"
+},
+{
+"id": "sab_2_1",
+"key": "sab_2",
+"text": "Bijli ka main switch mere haath mein hai! Khatak! Ab andhere mein showroom chala, {p}!",
+"voice": "g"
+},
+{
+"id": "sab_3_1",
+"key": "sab_3",
+"text": "Concrete ke barricade, poori sadak pe, dono taraf! Dekhta hoon ab tera Cybertruck kaise nikalta hai!",
+"voice": "g"
+},
+{
+"id": "sab_4_1",
+"key": "sab_4",
+"text": "Cybercab ka GPS jam! Ab tera robotaxi gol gol ghoomega, jaise shaadi mein dulha ki ghodi!",
+"voice": "g"
+},
+{
+"id": "sab_5_1",
+"key": "sab_5",
+"text": "BAS! Ab bahut ho gaya! Meri Monster Truck ready hai! Showroom ko mitti mein mila dunga! BOOM BOOM!",
+"voice": "g"
+},
+{
+"id": "cry_1_1",
+"key": "cry_1",
+"text": "Mere spikes... mere pyaare spikes! Kisne hata diye? Sniff... wapas do mere kile!",
+"voice": "g"
+},
+{
+"id": "cry_2_1",
+"key": "cry_2",
+"text": "Solar roof?! MegaPack?! Mera blackout... meri mehnat... Hai Ram! Mere switch ka kya kasoor tha!",
+"voice": "g"
+},
+{
+"id": "cry_3_1",
+"key": "cry_3",
+"text": "Mera barricade! Paanch saal ka cement, ek Cybertruck ne tod diya! Baah baah baah!",
+"voice": "g"
+},
+{
+"id": "cry_4_1",
+"key": "cry_4",
+"text": "Starlink?! Billboard?! Mere saare customers udhar ja rahe hain... mere paas koi nahi... Mummy!",
+"voice": "g"
+},
+{
+"id": "cry_5_1",
+"key": "cry_5",
+"text": "NAHI! Mera truck band ho gaya! Meri Monster Truck ki aatma bijli ke jhatke se chali gayi... hoo hoo hoo!",
+"voice": "g"
+},
+{
+"id": "truck_1",
+"key": "truck",
+"text": "Monster Truck, aage badh! Kaanch ka showroom toh mere liye bas ek bada sa biscuit hai!",
+"voice": "g"
+},
+{
+"id": "truck_2",
+"key": "truck",
+"text": "Crunch crunch! Aaj showroom ko chai ke saath khaunga!",
+"voice": "g"
+},
+{
+"id": "truck_3",
+"key": "truck",
+"text": "Udne wali gaadi se EMP maarega? Pehle meri truck ke tyre se bach ke dikha!",
+"voice": "g"
+},
+{
+"id": "truck_4",
+"key": "truck",
+"text": "Truck ka ek tyre tere poore gate se bada hai! Dhaaaam!",
+"voice": "g"
+},
+{
+"id": "truck_5",
+"key": "truck",
+"text": "Diesel ki shakti! Dekh mera dhuaan, aasmaan tak jaata hai, tere rocket se pehle!",
+"voice": "g"
+},
+{
+"id": "truck_win_1",
+"key": "truck_win",
+"text": "HAHAHA! Mera Monster Truck jeet gaya! Tera showroom ab kabaadi hai, {p}!",
+"voice": "g"
+},
+{
+"id": "taunt_1",
+"key": "taunt",
+"text": "Arre {p}, level {lv} pe pahunch ke itna ud raha hai? Gotiya ke aage sab chhote hain!",
+"voice": "g"
+},
+{
+"id": "taunt_2",
+"key": "taunt",
+"text": "Tera showroom chamak raha hai... par chamak ke neeche meri saazish tik tik kar rahi hai.",
+"voice": "g"
+},
+{
+"id": "taunt_3",
+"key": "taunt",
+"text": "Dekh, mere paas bhi naya stock aaya hai. Tera ek customer mere paas aaya, aur waapas nahi gaya!",
+"voice": "g"
+},
+{
+"id": "idle_1",
+"key": "idle",
+"text": "Aaiye aaiye! Gotiya Petrol Motors! Aaj ka offer: ek litre petrol pe ek litre hawa bilkul free!",
+"voice": "g"
+},
+{
+"id": "idle_2",
+"key": "idle",
+"text": "Kal raat sapna aaya: ek Tesla mere pump pe aayi aur boli, uncle thoda diesel dena. Maza aa gaya!",
+"voice": "g"
+},
+{
+"id": "idle_3",
+"key": "idle",
+"text": "Gotiya Petrol Motors: jahan har tank mein zindagi hai, aur har customer ke paas bahaana.",
+"voice": "g"
+},
+{
+"id": "idle_4",
+"key": "idle",
+"text": "Ek Tesla ki keemat mein main poore mohalle ko diesel pila sakta hoon... aur chai bhi!",
+"voice": "g"
+},
+{
+"id": "idle_5",
+"key": "idle",
+"text": "Dhuaan dhuaan dhuaan! Meri kismat bhi dhuein jaisi hai: upar uthti hai aur sabko dikhti hai.",
+"voice": "g"
+},
+{
+"id": "idle_6",
+"key": "idle",
+"text": "Suno suno! Jo Lamborghini dekhne aayega, usko garma garam chai free. Tesla wale ko thanda paani.",
+"voice": "g"
+},
+{
+"id": "idle_7",
+"key": "idle",
+"text": "Mere showroom ki lights dekh! Bijli ki gaadi wale se zyada bijli toh main jala raha hoon. Irony!",
+"voice": "g"
+},
+{
+"id": "caught_1",
+"key": "caught",
+"text": "Arre arre... main toh bas rasta dekh raha tha! Bhaago!",
+"voice": "g"
+},
+{
+"id": "caught_2",
+"key": "caught",
+"text": "Kuch nahi dekha maine. Kuch nahi. Bye!",
+"voice": "g"
+},
+{
+"id": "caught_3",
+"key": "caught",
+"text": "Oye peeche mat aa! Main ja raha hoon, ja raha hoon!",
+"voice": "g"
+},
+{
+"id": "caught_4",
+"key": "caught",
+"text": "Bas window shopping kar raha tha yaar, itna gussa kyun?",
+"voice": "g"
+},
+{
+"id": "caught_5",
+"key": "caught",
+"text": "Tera showroom dekhne nahi aaya tha... apna chashma dhundh raha tha!",
+"voice": "g"
+},
+{
+"id": "visit_1",
+"key": "visit",
+"text": "Waah, kya showroom hai... matlab, theek hai. Chalta hai. Mera zyada achha hai.",
+"voice": "g"
+},
+{
+"id": "visit_2",
+"key": "visit",
+"text": "Main customer hoon aaj! Dikha, sabse sasti Tesla kaunsi hai? Haha, mazaak kar raha hoon.",
+"voice": "g"
+},
+{
+"id": "visit_3",
+"key": "visit",
+"text": "Tera reception wala bhi Tesla ke logo jaisa dikhta hai. Yeh kya sci-fi hai bhai!",
+"voice": "g"
+},
+{
+"id": "visit_4",
+"key": "visit",
+"text": "Bas ghoom raha hoon. Dekh raha hoon tu itne customers kahan se laata hai. Note kar raha hoon!",
+"voice": "g"
+},
+{
+"id": "touch_car_1",
+"key": "touch_car",
+"text": "Haath mat laga! Pehle paise dikha, phir Lamborghini ki chabi!",
+"voice": "g"
+},
+{
+"id": "touch_car_2",
+"key": "touch_car",
+"text": "Oye oye! Ungliyon ke nishaan pad jayenge! Yeh petrol ki gaadi hai, touchscreen nahi!",
+"voice": "g"
+},
+{
+"id": "touch_car_3",
+"key": "touch_car",
+"text": "Pasand aayi? Le ja! Bas ek shart: Tesla ka showroom band kar de. Haha!",
+"voice": "g"
+},
+{
+"id": "rival_up_1",
+"key": "rival_up",
+"text": "Tu upgrade karega toh main bhi karunga! Dekh mera showroom: nayi lights, nayi gaadi, naya Gotiya!",
+"voice": "g"
+},
+{
+"id": "rival_up_2",
+"key": "rival_up",
+"text": "Naya level? Mubarak ho. Maine bhi apni dukaan mein Lamborghini khadi kar di. Ab bol!",
+"voice": "g"
+},
+{
+"id": "rival_up_3",
+"key": "rival_up",
+"text": "Gold ki patti, neon ki batti, aur Mustang ki garmi! Gotiya Motors ab level up!",
+"voice": "g"
+},
+{
+"id": "rival_up_4",
+"key": "rival_up",
+"text": "Spotlight laga di maine chhat pe. Ab raat ko bhi sheher ko pata chalega asli dukaan kaunsi hai!",
+"voice": "g"
+},
+{
+"id": "rival_sale_1",
+"key": "rival_sale",
+"text": "Ek aur bik gayi! Dekh {p}, petrol ki demand abhi zinda hai!",
+"voice": "g"
+},
+{
+"id": "rival_sale_2",
+"key": "rival_sale",
+"text": "Cash payment! Na EMI, na charger. Yeh hota hai business!",
+"voice": "g"
+},
+{
+"id": "rival_sale_3",
+"key": "rival_sale",
+"text": "Hahaha, mera customer muskura ke gaya! Tere customers toh charging ka intezaar karte hain.",
+"voice": "g"
+},
+{
+"id": "destroyed_1",
+"key": "destroyed",
+"text": "Meri dukaan... meri gaadiyan... sab khatam. Daadaji, maaf karna. Main haar gaya.",
+"voice": "g"
+},
+{
+"id": "destroyed_2",
+"key": "destroyed",
+"text": "Tune sab tod diya {p}... ab main kahan jaun? Koi toh kuch bolo...",
+"voice": "g"
+},
+{
+"id": "destroyed_3",
+"key": "destroyed",
+"text": "Teen peedhi ki mehnat, ek pal mein dhuaan. Shayad yahi sabak hai... zamana badal gaya.",
+"voice": "g"
+},
+{
+"id": "destroyed_4",
+"key": "destroyed",
+"text": "Sniff... koi mujhse do meethe bol bhi nahi bolta. Sab bas jeetna chahte hain.",
+"voice": "g"
+},
+{
+"id": "cinematic_1",
+"key": "cinematic",
+"text": "Nahi nahi nahi! Mera truck! Meri Lamborghini! Meri dukaan! RUKO!",
+"voice": "g"
+},
+{
+"id": "complaint_reply_1",
+"key": "complaint_reply",
+"text": "Haha! Sun liya na apne customer ki? Gotiya ka kamaal hai yeh!",
+"voice": "g"
+},
+{
+"id": "complaint_reply_2",
+"key": "complaint_reply",
+"text": "Madam, mere showroom aa jaiye! Wahan kilein nahi, sirf chai hai!",
+"voice": "g"
+},
+{
+"id": "c_1_1",
+"key": "c_1",
+"text": "Excuse me! Road pe kilein bichhi hain! Meri Rolls ka tyre phat gaya, aap kuch karte kyun nahi?",
+"voice": "f"
+},
+{
+"id": "c_1_2",
+"key": "c_1",
+"text": "Test drive kaise karun? Showroom ke dono taraf spikes hain! Yeh kaisa service hai?",
+"voice": "f"
+},
+{
+"id": "c_1_3",
+"key": "c_1",
+"text": "Bhaiya, saamne wale petrol uncle ne phir se kilein daal di. Please jaldi hatwaiye!",
+"voice": "f"
+},
+{
+"id": "c_2_1",
+"key": "c_2",
+"text": "Itna andhera kyun hai? Mujhe toh gaadi ka colour bhi nahi dikh raha!",
+"voice": "f"
+},
+{
+"id": "c_2_2",
+"key": "c_2",
+"text": "Bijli chali gayi? Tesla showroom mein bijli nahi? Yeh toh bahut funny hai, par main naraz hoon.",
+"voice": "f"
+},
+{
+"id": "c_2_3",
+"key": "c_2",
+"text": "Main mobile ki torch jala ke gaadi dekh rahi hoon. Please lights theek karwaiye!",
+"voice": "f"
+},
+{
+"id": "c_3_1",
+"key": "c_3",
+"text": "Sadak pe concrete ki deewar khadi hai! Main ghar kaise jaun?",
+"voice": "f"
+},
+{
+"id": "c_3_2",
+"key": "c_3",
+"text": "Roadblock dono taraf! Meri meeting chhoot jayegi. Koi Cybertruck se tod do yeh!",
+"voice": "f"
+},
+{
+"id": "c_4_1",
+"key": "c_4",
+"text": "Mera robotaxi gol gol ghoom raha hai! Mujhe chakkar aa rahe hain!",
+"voice": "f"
+},
+{
+"id": "c_4_2",
+"key": "c_4",
+"text": "GPS kaam nahi kar raha. Cybercab mujhe teen baar petrol pump le gaya!",
+"voice": "f"
+},
+{
+"id": "c_5_1",
+"key": "c_5",
+"text": "Woh truck showroom ki taraf aa raha hai! Bachao! Koi kuch karo!",
+"voice": "f"
+},
+{
+"id": "c_happy_1",
+"key": "c_happy",
+"text": "Wow, kitna sundar showroom hai! Main toh do gaadiyan le jaungi.",
+"voice": "f"
+},
+{
+"id": "c_happy_2",
+"key": "c_happy",
+"text": "Sab kuch itna smooth hai. Aapka service number one hai!",
+"voice": "f"
+}
+]

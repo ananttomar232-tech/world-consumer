@@ -95,6 +95,7 @@ class Cabin:
     lining_front: float = None     # z where the headliner meets the windscreen header (default: 0.55 in front of the driver)
     lining_hw: float = 0.62        # half width of the headliner
     pal: Palette = field(default_factory=Palette)
+    style: str = "tesla"           # tesla (touch screen) | classic (wood, analog) | muscle (twin cowl, gauges, shifter) | supercar (hex cluster)
     k: float = 0.8                 # scale of the seated occupant (computed from the roof)
 
 
@@ -303,6 +304,14 @@ def dashboard(m, c, lod):
     if lod == 0:
         for s in (-1, 1):
             m.box(s * 0.62 - 0.17, top - 0.2, zb - 0.015, s * 0.62 + 0.17, top - 0.185, zb - 0.002, (6, 6, 8, 255), GLOSS)
+    if c.style in ("classic", "muscle", "supercar"):
+        petrol_cockpit(m, c, lod, zb, top, x_in)
+        return
+    if c.style in ("jugaad", "cyber", "cab", "roadster"):
+        tesla_variant(m, c, lod, zb, top, x_in)
+        if lod == 0:
+            m.box(-x_in + 0.12, top - 0.30, zb - 0.02, -0.28, top - 0.17, zb, shade(dark, 1.35), SOFT)
+        return
     # instrument hood in front of the driver
     m.squircle(c.sx, top + 0.0, zb + 0.06, 0.26, 0.04, 0.09, 0.4, dark, SOFT, 8, 4, ao=0.2)
     # the touch screen, in the middle of the dash, tilted a little towards the driver
@@ -311,6 +320,134 @@ def dashboard(m, c, lod):
     # glove box / passenger side panel
     if lod == 0:
         m.box(-x_in + 0.12, top - 0.30, zb - 0.02, -0.28, top - 0.17, zb, shade(dark, 1.35), SOFT)
+
+
+def tesla_variant(m, c, lod, zb, top, x_in):
+    """The Teslas each get their own cockpit:
+       jugaad   (Level 1)  a phone in a clip-on holder as the screen, one round dial, a marigold garland along the dash, a little
+                           golden idol and the lemon-and-chilli charm against the evil eye
+       cyber    (Cybertruck) a long stainless slab, the huge 18.5-inch landscape screen, nothing in front of the driver
+       cab      (Cybercab)  no wheel and no pedals: a lounge with one wide 21-inch screen in the middle
+       roadster (Roadster)  a digital cluster right behind the butterfly yoke and a centre screen angled at the driver"""
+    pal = c.pal
+    trim = rgb(pal.dash_trim)
+    if c.style == "jugaad":
+        dial(m, c.sx, top - 0.02, zb + 0.005, 0.07, (236, 230, 214, 255), (20, 20, 20, 255), (210, 40, 20, 255), -35, lod)
+        m.squircle(c.sx, top + 0.01, zb + 0.06, 0.12, 0.035, 0.07, 0.4, rgb(pal.dash), SOFT, 8, 4, ao=0.2)
+        # the phone holder: a clip on a short arm, the phone in portrait with the navigation app
+        m.box(-0.012, top - 0.02, zb + 0.05, 0.012, top + 0.08, zb + 0.07, (30, 30, 34, 255), PLASTIC)
+        screen_ui(m, c, 0.0, top + 0.16, zb + 0.05, 0.13, 0.22, math.radians(8), lod)
+        if lod == 0:
+            # marigold garland: orange and yellow flowers in a sagging line across the dash top
+            for k in range(23):
+                u = k / 22.0
+                x = -x_in + 0.1 + u * (2 * x_in - 0.2)
+                y = top + 0.02 - 0.05 * math.sin(math.pi * ((u * 3) % 1.0))
+                col = (255, 140, 0, 255) if k % 2 == 0 else (255, 205, 30, 255)
+                m.squircle(x, y, zb + 0.0, 0.022, 0.022, 0.022, 1.0, col, SOFT, 6, 4, ao=0)
+            # the golden idol on the passenger side of the dash
+            m.box(-0.32, top + 0.0, zb + 0.08, -0.26, top + 0.08, zb + 0.12, (230, 180, 40, 255), CHROME)
+            m.squircle(-0.29, top + 0.1, zb + 0.1, 0.022, 0.022, 0.022, 1.0, (230, 180, 40, 255), CHROME, 6, 4, ao=0)
+            # nimbu-mirchi: a lemon and seven green chillies on a string from the roof
+            mx, mz = 0.0, c.dash_front - 0.12
+            m.box(mx - 0.003, top + 0.1, mz - 0.003, mx + 0.003, c.roof - 0.05, mz + 0.003, (230, 230, 230, 255), FABRIC)
+            m.squircle(mx, top + 0.12, mz, 0.03, 0.025, 0.025, 1.0, (245, 225, 40, 255), SOFT, 6, 4, ao=0)
+            for k in range(4):
+                m.box(mx - 0.008, top + 0.15 + k * 0.03, mz - 0.008, mx + 0.008, top + 0.175 + k * 0.03, mz + 0.008, (40, 150, 40, 255), SOFT)
+    elif c.style == "cyber":
+        m.box(-x_in + 0.04, top - 0.06, zb - 0.02, x_in - 0.04, top - 0.03, zb + 0.004, trim, CHROME)            # the stainless band
+        screen_ui(m, c, -0.05, top + 0.15, zb + 0.12, 0.70, 0.40, math.radians(14), lod)                        # 18.5 inch
+        m.box(-0.06, top - 0.02, zb + 0.08, -0.03, top + 0.0, zb + 0.13, (10, 10, 12, 255), PLASTIC)
+        if lod == 0:
+            m.box(-x_in + 0.1, top - 0.11, zb - 0.025, x_in - 0.1, top - 0.1, zb - 0.015, rgb(pal.glow), glow(220))  # light bar
+    elif c.style == "cab":
+        screen_ui(m, c, 0.0, top + 0.17, zb + 0.06, 0.86, 0.36, math.radians(12), lod)                           # 21 inch
+        m.box(-x_in + 0.06, top - 0.09, zb - 0.02, x_in - 0.06, top - 0.075, zb - 0.004, rgb(pal.glow), glow(230))
+        if lod == 0:
+            for s in (-1, 1):                                                                            # speaker grilles
+                m.box(s * 0.62 - 0.12, top - 0.2, zb - 0.02, s * 0.62 + 0.12, top - 0.14, zb - 0.005, (150, 148, 140, 255), SOFT)
+    else:  # roadster
+        screen_ui(m, c, c.sx, top + 0.05, zb + 0.08, 0.26, 0.11, math.radians(20), lod)                          # cluster behind the yoke
+        m.squircle(c.sx, top + 0.03, zb + 0.12, 0.17, 0.03, 0.06, 0.4, rgb(pal.dash), SOFT, 8, 4, ao=0.2)
+        R = rot_y(math.radians(-14))
+        screen_ui(m, c, 0.02, top + 0.06, zb + 0.06, 0.30, 0.2, math.radians(25), lod)                           # centre screen
+        m.box(-x_in + 0.06, top - 0.13, zb - 0.02, x_in - 0.06, top - 0.11, zb - 0.004, trim, CHROME)
+
+
+def dial(m, cx, cy, z, r, face, ring, needle, deg, lod, ticks=True):
+    """A round analog gauge looking back at the driver (-z): bezel, face, glowing tick ring and a needle at `deg` (0 = straight up)."""
+    seg = 18 if lod == 0 else 10
+    m.cylinder((cx, cy, z + 0.012), (cx, cy, z - 0.004), r + 0.012, (150, 152, 158, 255), CHROME, seg)        # chrome bezel
+    m.cylinder((cx, cy, z - 0.004), (cx, cy, z - 0.006), r, face, glow(70), seg)                              # the face
+    if lod == 0 and ticks:
+        for k in range(9):                                                                                   # tick marks, -135 .. +135 deg
+            a = math.radians(-135 + k * 33.75)
+            tx, ty = cx - math.sin(a) * r * 0.82, cy + math.cos(a) * r * 0.82
+            m.box(tx - 0.005, ty - 0.005, z - 0.009, tx + 0.005, ty + 0.005, z - 0.007, ring, glow(230))
+    R = rot_z(math.radians(-deg))
+    piv = np.array([cx, cy, z - 0.01])
+    m.box(cx - 0.004, cy, z - 0.012, cx + 0.004, cy + r * 0.78, z - 0.009, needle, glow(255), R, piv)
+    m.cylinder((cx, cy, z - 0.008), (cx, cy, z - 0.014), 0.012, (20, 20, 22, 255), PLASTIC, 8)
+
+
+def petrol_cockpit(m, c, lod, zb, top, x_in):
+    """No touch screen in Gotiya's petrol and diesel cars: analog instruments, a radio, real switches."""
+    pal = c.pal
+    trim = rgb(pal.dash_trim)
+    glowc = rgb(pal.glow)
+    face = (14, 14, 16, 255)
+    zf = zb + 0.035                                              # the plane of the instrument faces
+    if c.style == "classic":
+        # a wooden fascia across the dash, two big round dials under a little leather brow, a cassette radio and three climate knobs
+        m.squircle(c.sx, top + 0.06, zb + 0.08, 0.2, 0.025, 0.06, 0.4, rgb(pal.seat_dark), LEATHER, 8, 4, ao=0.2)
+        m.box(-x_in + 0.04, top - 0.16, zb - 0.02, x_in - 0.04, top - 0.03, zb - 0.004, trim, GLOSS)
+        for dx, deg in ((-0.085, 40), (0.085, -60)):
+            dial(m, c.sx + dx, top - 0.02, zf - 0.03, 0.068, (236, 230, 214, 255), (20, 20, 20, 255), (200, 30, 20, 255), deg, lod)
+        m.box(-0.13, top - 0.15, zb - 0.03, 0.13, top - 0.07, zb - 0.012, (18, 18, 20, 255), PLASTIC)              # radio
+        m.box(-0.08, top - 0.125, zb - 0.034, 0.05, top - 0.095, zb - 0.03, (90, 255, 140, 255), glow(255))         # its green display
+        for k in range(3):
+            m.cylinder((-0.1 + k * 0.1, top - 0.24, zb - 0.025), (-0.1 + k * 0.1, top - 0.24, zb - 0.05), 0.026, (190, 190, 196, 255), CHROME, 10)
+    elif c.style == "muscle":
+        # the twin-cowl dash: two deep hoods, a big tachometer and speedometer, three auxiliary gauges on top of the centre stack,
+        # an aluminium band and a row of toggle switches
+        for s in (1, -1):
+            m.squircle(s * c.sx, top + 0.03, zb + 0.10, 0.27, 0.06, 0.08, 0.35, rgb(pal.dash), SOFT, 10, 4, ao=0.2)
+        m.box(-x_in + 0.05, top - 0.17, zb - 0.02, x_in - 0.05, top - 0.12, zb - 0.004, trim, CHROME)
+        dial(m, c.sx + 0.075, top - 0.025, zf - 0.03, 0.074, face, (240, 240, 240, 255), (255, 60, 30, 255), 70, lod)   # tachometer
+        dial(m, c.sx - 0.085, top - 0.025, zf - 0.03, 0.074, face, (240, 240, 240, 255), (255, 60, 30, 255), -20, lod)  # speedometer
+        for k, deg in enumerate((-30, 15, 45)):
+            dial(m, -0.07 + k * 0.07, top - 0.06, zb - 0.02, 0.026, face, glowc, (255, 120, 40, 255), deg, lod, ticks=False)
+        m.box(-0.12, top - 0.26, zb - 0.03, 0.12, top - 0.19, zb - 0.01, (16, 16, 18, 255), PLASTIC)              # radio
+        m.box(-0.09, top - 0.235, zb - 0.034, 0.04, top - 0.21, zb - 0.03, (255, 150, 40, 255), glow(255))
+        if lod == 0:
+            for k in range(5):
+                x = -0.12 + k * 0.06
+                m.box(x - 0.008, top - 0.31, zb - 0.06, x + 0.008, top - 0.29, zb - 0.02, (200, 200, 205, 255), CHROME, rot_x(math.radians(-25)), np.array([x, top - 0.3, zb - 0.02]))
+    else:
+        # supercar: a hexagonal digital cluster under a carbon hood, a flight-style switch panel with the red start-button cover
+        m.squircle(c.sx, top + 0.04, zb + 0.12, 0.24, 0.05, 0.06, 0.25, (24, 24, 26, 255), GLOSS, 10, 4, ao=0.2)
+        n = 6
+        cx, cy, r = c.sx, top - 0.03, 0.1
+        pts = [(cx + r * math.cos(math.radians(60 * k)), cy + r * 0.62 * math.sin(math.radians(60 * k))) for k in range(n)]
+        cid = m._v((cx, cy, zf - 0.03), (0, 0, -1), (10, 10, 12, 255), glow(60))
+        ring = [m._v((x, y, zf - 0.03), (0, 0, -1), (10, 10, 12, 255), glow(60)) for x, y in pts]
+        for k in range(n):
+            m.I += [cid, ring[(k + 1) % n], ring[k]]
+        # the big central rev bar (yellow -> red) and the gear digit
+        for k in range(12):
+            a = math.radians(200 - k * 18)
+            x, y = cx + math.cos(a) * 0.07, cy + math.sin(a) * 0.045
+            col = (255, 210, 40, 255) if k < 9 else (255, 40, 30, 255)
+            m.box(x - 0.007, y - 0.007, zf - 0.034, x + 0.007, y + 0.007, zf - 0.031, col, glow(255))
+        m.box(cx - 0.012, cy - 0.025, zf - 0.034, cx + 0.012, cy + 0.015, zf - 0.031, (240, 240, 240, 255), glow(255))
+        m.box(-x_in + 0.05, top - 0.15, zb - 0.02, x_in - 0.05, top - 0.11, zb - 0.004, trim, GLOSS)            # carbon band
+        m.box(-0.13, top - 0.30, zb - 0.04, 0.13, top - 0.17, zb - 0.01, (20, 20, 22, 255), PLASTIC)            # switch panel
+        if lod == 0:
+            for k in range(6):
+                x = -0.1 + k * 0.04
+                m.box(x - 0.007, top - 0.27, zb - 0.07, x + 0.007, top - 0.25, zb - 0.04, (190, 190, 196, 255), CHROME)
+            m.box(-0.025, top - 0.22, zb - 0.06, 0.025, top - 0.19, zb - 0.04, (220, 20, 20, 255), glow(200))         # START cover
+        m.box(-0.12, top - 0.16, zb - 0.025, 0.12, top - 0.155, zb - 0.02, glowc, glow(230))                     # ambient strip
 
 
 def console(m, c, lod):
@@ -325,7 +462,20 @@ def console(m, c, lod):
     if lod == 0:
         for s in (-1, 1):
             m.cylinder((s * cw * 0.45, top - 0.01, c.sz + 0.38), (s * cw * 0.45, top - 0.0, c.sz + 0.38), min(0.036, cw * 0.4), (4, 4, 6, 255), PLASTIC, 10)        # cup holders
-        m.box(-cw * 0.7, top - 0.01, c.sz + 0.43, cw * 0.7, top + 0.005, c.sz + 0.5, (6, 6, 8, 255), GLOSS)                       # the gear / shift pad
+        if c.style in ("classic", "muscle"):
+            # a real manual gear stick: chrome gate plate, leather gaiter, the lever and its ball knob
+            gz = c.sz + 0.42
+            m.box(-cw * 0.75, top - 0.005, gz - 0.07, cw * 0.75, top + 0.006, gz + 0.07, (160, 162, 168, 255), CHROME)
+            m.squircle(0.0, top + 0.02, gz, 0.045, 0.03, 0.045, 0.6, rgb(pal.seat), LEATHER, 8, 4)
+            m.cylinder((0.0, top + 0.02, gz), (0.0, top + 0.17, gz - 0.03), 0.009, (170, 172, 178, 255), CHROME, 8)
+            knob = (230, 230, 232, 255) if c.style == "muscle" else (95, 55, 28, 255)
+            m.squircle(0.0, top + 0.19, gz - 0.035, 0.03, 0.03, 0.03, 1.0, knob, GLOSS, 8, 6, ao=0)
+        elif c.style == "supercar":
+            # no lever: the carbon tunnel with the reverse / launch switches
+            m.box(-cw * 0.7, top - 0.01, c.sz + 0.36, cw * 0.7, top + 0.02, c.sz + 0.5, (24, 24, 26, 255), GLOSS)
+            m.box(-0.02, top + 0.02, c.sz + 0.42, 0.02, top + 0.04, c.sz + 0.46, (220, 20, 20, 255), glow(200))
+        else:
+            m.box(-cw * 0.7, top - 0.01, c.sz + 0.43, cw * 0.7, top + 0.005, c.sz + 0.5, (6, 6, 8, 255), GLOSS)                       # the gear / shift pad
     # rear of the console: air vents for the back seats
     if lod == 0 and c.rear_seats:
         m.box(-0.06, c.floor + 0.12, c.sz - 0.24, 0.06, c.floor + 0.2, c.sz - 0.22, (6, 6, 8, 255), GLOSS)
@@ -354,6 +504,8 @@ def floor_and_pedals(m, c, lod):
     y = c.floor + 0.012
     m.box(-c.hw + 0.05, c.floor, c.sz - (1.15 if c.rear_seats else 0.55), c.hw - 0.05, y, c.wz + 0.38, carpet, CARPET, None, None, 1.0, 1.0, 1.0)
     m.box(-0.17, y, c.sz - (1.1 if c.rear_seats else 0.5), 0.17, y + 0.02, c.wz + 0.3, shade(carpet, 0.8), CARPET)          # tunnel
+    if c.style == "cab":
+        return                                                   # the robotaxi has no pedals
     # pedals: brake + accelerator + dead pedal
     pz = c.wz + 0.2
     m.box(c.sx - 0.09, c.floor + 0.12, pz, c.sx - 0.01, c.floor + 0.125 + 0.08, pz + 0.03, (30, 30, 34, 255), PLASTIC, rot_x(math.radians(-18)), np.array([c.sx, c.floor + 0.12, pz]))
@@ -364,6 +516,8 @@ def floor_and_pedals(m, c, lod):
 
 def column(m, c, lod):
     """The steering column shroud between the dash and the wheel hub (the wheel itself is the animated part drawn by the renderer)."""
+    if c.style == "cab":
+        return
     a = np.array([c.sx, c.wy - 0.02, c.wz + 0.02])
     b = np.array([c.sx, c.wy - 0.1, c.wz + 0.2])
     m.cylinder(a, b, 0.045, (14, 14, 17, 255), PLASTIC, 10)
@@ -471,7 +625,7 @@ CABINS = {
     "l1_classic": Cabin("l1_classic", sx=0.36, sz=0.05, hip=0.46, floor=0.17, roof=1.45, belt=1.0, hw=0.74, wz=0.55, wy=0.76, dash_top=0.90,
                         dash_front=1.30, rear_z=-1.8, rear_seats=True, glass_roof=False, seat_w=0.48,
                         pal=Palette(seat="#d8d0c0", seat_dark="#b9b09f", accent="#2a2a2c", dash="#141416", dash_trim="#8a8d93", door="#1d1e21",
-                                    carpet="#1a1a1c", headliner="#c9c6bd", console="#17171a", glow="#7fe8ff")),
+                                    carpet="#1a1a1c", headliner="#c9c6bd", console="#17171a", glow="#7fe8ff"), style="jugaad"),
     "l2_model3": Cabin("l2_model3", sx=0.38, sz=0.0, hip=0.50, floor=0.22, roof=1.54, belt=1.0, hw=0.90, wz=0.50, wy=0.80, dash_top=0.93,
                        dash_front=1.20, rear_z=-2.0, rear_seats=True, glass_roof=True, seat_w=0.52,
                        pal=Palette(seat="#17171a", seat_dark="#0e0e10", accent="#e6e4df", dash="#121214", dash_trim="#cfd2d6", door="#1c1d20",
@@ -479,15 +633,28 @@ CABINS = {
     "l3_cybertruck": Cabin("l3_cybertruck", sx=0.42, sz=-0.05, hip=0.66, floor=0.34, roof=1.83, belt=1.30, hw=0.88, wz=0.52, wy=0.96, dash_top=1.08,
                            dash_front=1.65, rear_z=-1.0, rear_seats=True, glass_roof=True, seat_w=0.54,
                            pal=Palette(seat="#2b2d31", seat_dark="#1a1b1f", accent="#a3a7ae", dash="#1c1e22", dash_trim="#7c8087", door="#24262a",
-                                       carpet="#1a1b1e", headliner="#a8abb0", console="#1a1b1f", glow="#7fe8ff")),
+                                       carpet="#1a1b1e", headliner="#a8abb0", console="#1a1b1f", glow="#7fe8ff"), style="cyber"),
     "l4_cybercab": Cabin("l4_cybercab", sx=0.42, sz=0.05, hip=0.58, floor=0.36, roof=1.74, belt=1.25, hw=0.93, wz=0.60, wy=0.87, dash_top=1.0,
                          dash_front=1.05, rear_z=-2.6, rear_seats=True, glass_roof=True, seat_w=0.54,
                          pal=Palette(seat="#ecebe5", seat_dark="#d5d2ca", accent="#bdb9af", dash="#e9e7e1", dash_trim="#f6f5f2", door="#e3e1db",
-                                     carpet="#4a4b4f", headliner="#f2f1ed", console="#d9d7d0", glow="#ffe9b0")),
+                                     carpet="#4a4b4f", headliner="#f2f1ed", console="#d9d7d0", glow="#ffe9b0"), style="cab"),
     "l5_roadster": Cabin("l5_roadster", sx=0.36, sz=-0.10, hip=0.42, floor=0.14, roof=1.47, belt=0.90, hw=0.83, wz=0.42, wy=0.68, dash_top=0.80,
                          dash_front=1.20, rear_z=-0.8, rear_seats=False, glass_roof=False, seat_w=0.50, lining_front=0.78, lining_hw=0.8,
                          pal=Palette(seat="#8c1118", seat_dark="#5d0b10", accent="#141416", dash="#111113", dash_trim="#b7b9be", door="#17171a",
-                                     carpet="#141416", headliner="#2a2a2c", console="#141416", glow="#ff4a3a")),
+                                     carpet="#141416", headliner="#2a2a2c", console="#141416", glow="#ff4a3a"), style="roadster"),
+    # ---- Seth Gotiya's petrol and diesel cars: no screens, every one of them different
+    "p1_hatch": Cabin("p1_hatch", sx=0.38, sz=0.0, hip=0.50, floor=0.26, roof=1.56, belt=1.05, hw=0.78, wz=0.56, wy=0.86, dash_top=0.98,
+                      dash_front=1.12, rear_z=-1.85, rear_seats=True, glass_roof=False, seat_w=0.50, lining_front=0.62, lining_hw=0.68,
+                      pal=Palette(seat="#6b4a2f", seat_dark="#4a3220", accent="#d9c7a6", dash="#2a211b", dash_trim="#7a4a24", door="#3a2c22",
+                                  carpet="#2b2420", headliner="#d8cfbd", console="#2a211b", glow="#ffb347"), style="classic"),
+    "p2_mustang": Cabin("p2_mustang", sx=0.38, sz=-0.15, hip=0.40, floor=0.20, roof=1.30, belt=0.95, hw=0.78, wz=0.42, wy=0.76, dash_top=0.90,
+                        dash_front=1.30, rear_z=-1.05, rear_seats=True, glass_roof=False, seat_w=0.50, lining_front=0.95, lining_hw=0.66,
+                        pal=Palette(seat="#121214", seat_dark="#a3141c", accent="#c81e26", dash="#121214", dash_trim="#9a9ea6", door="#18181b",
+                                    carpet="#141416", headliner="#1e1e21", console="#121214", glow="#ff5a2a"), style="muscle"),
+    "p3_lambo": Cabin("p3_lambo", sx=0.34, sz=-0.10, hip=0.32, floor=0.17, roof=1.04, belt=0.84, hw=0.62, wz=0.40, wy=0.64, dash_top=0.76,
+                      dash_front=0.98, rear_z=-0.55, rear_seats=False, glass_roof=False, seat_w=0.44, lining_front=0.55, lining_hw=0.48,
+                      pal=Palette(seat="#141416", seat_dark="#e8b400", accent="#f2c200", dash="#0f0f11", dash_trim="#2b2b2e", door="#151517",
+                                  carpet="#121214", headliner="#1a1a1c", console="#121214", glow="#ffcc1a"), style="supercar"),
 }
 for _c in CABINS.values():
     _c.k = occupant_scale(_c)

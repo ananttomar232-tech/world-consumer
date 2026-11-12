@@ -16,6 +16,10 @@ public final class GameVehicleHook implements VehicleEntity.ServerHook {
     @Override
     public void interactDisplay(ServerPlayerEntity player, VehicleEntity display) {
         Company c = Tycoon.companyOf(player);
+        if (display.getCommandTags().contains(RivalShowroom.CAR_TAG)) {
+            RivalShowroom.touched(player, display);
+            return;
+        }
         if (c != null && c.cityBuilt) {
             ShowroomDirector.testDrive(player, display, c);
         }

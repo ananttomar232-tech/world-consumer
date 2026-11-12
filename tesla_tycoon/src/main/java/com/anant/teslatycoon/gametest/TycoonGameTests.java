@@ -251,7 +251,7 @@ public final class TycoonGameTests implements FabricGameTest {
     private static double[] playThrough(boolean driving, boolean automatic, double[] firstRates) {
         Company c = new Company(UUID.randomUUID(), "pacing");
         Upgrade[] order = {Upgrade.HYDRAULICS, Upgrade.LEVEL2, Upgrade.SOLAR, Upgrade.LEVEL3, Upgrade.RAM, Upgrade.LEVEL4, Upgrade.STARLINK, Upgrade.BILLBOARDS, Upgrade.LEVEL5};
-        double[] customerEvery = {0, 12.5, 12.5, 12.5, 12.5, 12.5};       // a customer every 10 to 15 seconds
+        double[] customerEvery = {0, 6.5, 6.5, 6.5, 6.5, 6.5};            // a customer every 5 to 8 seconds
         double t = 0;
         double levelStart = 0;
         double lastBuy = 0;

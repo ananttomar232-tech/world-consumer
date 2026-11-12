@@ -1,0 +1,94 @@
+{
+ "name": "p3_lambo",
+ "title": "Lamborghini Aventador",
+ "units": "blocks",
+ "bbox": [
+  -1.1289,
+  0.0004,
+  -2.2921,
+  1.1287,
+  1.1533,
+  2.5079
+ ],
+ "length": 4.8,
+ "width": 2.258,
+ "height": 1.153,
+ "wheelbase": 2.696,
+ "track": 1.6758,
+ "wheelRadius": 0.3389,
+ "wheels": [
+  {
+   "name": "FL",
+   "pivot": [
+    0.8064,
+    0.3393,
+    1.3484
+   ],
+   "radius": 0.3389,
+   "hw": 0.15,
+   "front": true,
+   "left": true
+  },
+  {
+   "name": "FR",
+   "pivot": [
+    -0.8058,
+    0.3393,
+    1.3484
+   ],
+   "radius": 0.3389,
+   "hw": 0.15,
+   "front": true,
+   "left": false
+  },
+  {
+   "name": "RL",
+   "pivot": [
+    0.8213,
+    0.3571,
+    -1.3477
+   ],
+   "radius": 0.3567,
+   "hw": 0.1579,
+   "front": false,
+   "left": true
+  },
+  {
+   "name": "RR",
+   "pivot": [
+    -0.8214,
+    0.3571,
+    -1.3477
+   ],
+   "radius": 0.3567,
+   "hw": 0.1579,
+   "front": false,
+   "left": false
+  }
+ ],
+ "seat": [
+  0.34,
+  0.0,
+  -0.1
+ ],
+ "seatHip": 0.32,
+ "steer": [
+  0.34,
+  0.64,
+  0.4,
+  20.0
+ ],
+ "thrusters": [],
+ "texture": "tesla_tycoon:textures/vehicle/p3_lambo.png",
+ "emissiveMap": false,
+ "lods": 3,
+ "tris": [
+  12314,
+  6297,
+  1510
+ ],
+ "occ": 0.55,
+ "floor": 0.17,
+ "roof": 1.04,
+ "wheelStyle": 3
+}

@@ -18,6 +18,7 @@ public final class TeslaTycoon implements ModInitializer {
         com.anant.teslatycoon.registry.ModBlocks.register();
         com.anant.teslatycoon.registry.ModEntities.register();
         com.anant.teslatycoon.registry.ModItems.register();
+        com.anant.teslatycoon.registry.ModSounds.register();
         com.anant.teslatycoon.game.Tycoon.init();
         com.anant.teslatycoon.net.ModNetwork.registerServer();
         LOGGER.info("Tesla Tycoon ready");

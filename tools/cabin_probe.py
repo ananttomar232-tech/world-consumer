@@ -19,7 +19,7 @@ import ttm_common as T  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VEH = os.path.join(ROOT, "tesla_tycoon", "src", "main", "resources", "assets", "tesla_tycoon", "vehicles")
-NAMES = ["l1_classic", "l2_model3", "l3_cybertruck", "l4_cybercab", "l5_roadster"]
+NAMES = ["l1_classic", "l2_model3", "l3_cybertruck", "l4_cybercab", "l5_roadster", "p1_hatch", "p2_mustang", "p3_lambo"]
 
 
 def load(name, lod=0):

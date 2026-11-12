@@ -15,7 +15,7 @@ public final class ClientBridgeImpl implements VehicleEntity.ClientBridge {
     public static KeyBinding RAM;
     public static KeyBinding EMP;
     public static KeyBinding GUIDE;
-    public static boolean ramOn;
+    public static boolean ramOn = true;             // Beast Ram is armed as soon as it is bought (V turns it off)
     /** The on-screen guides (what to buy next, Gotiya's alerts, key hints) are hidden until the player presses Right Shift. */
     public static boolean guideOn;
     /** Scripted controls for the headless smoke test (set by /tycoon drive, honoured only with -Dtesla_tycoon.debugdrive=true). */

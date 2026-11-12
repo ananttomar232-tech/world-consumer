@@ -1,0 +1,1478 @@
+{
+ "voice.greet_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/greet_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.greet_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/greet_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.greet_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/greet_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.greet_4": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/greet_4",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.greet_5": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/greet_5",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.bye_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/bye_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.bye_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/bye_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.bye_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/bye_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.who_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/who_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.who_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/who_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.who_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/who_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.how_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/how_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.how_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/how_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.how_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/how_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.tesla_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/tesla_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.tesla_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/tesla_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.tesla_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/tesla_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.tesla_4": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/tesla_4",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.tesla_5": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/tesla_5",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.tesla_6": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/tesla_6",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.tesla_7": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/tesla_7",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.petrol_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/petrol_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.petrol_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/petrol_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.petrol_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/petrol_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.petrol_4": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/petrol_4",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.money_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/money_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.money_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/money_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.money_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/money_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.money_4": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/money_4",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.cars_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/cars_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.cars_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/cars_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.cars_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/cars_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.insult_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/insult_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.insult_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/insult_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.insult_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/insult_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.insult_4": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/insult_4",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.compliment_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/compliment_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.compliment_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/compliment_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.compliment_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/compliment_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.laugh_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/laugh_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.laugh_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/laugh_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.laugh_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/laugh_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.thanks_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/thanks_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.thanks_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/thanks_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.race_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/race_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.race_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/race_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.race_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/race_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.why_hate_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/why_hate_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.why_hate_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/why_hate_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.why_hate_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/why_hate_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.sab_ask_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/sab_ask_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.sab_ask_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/sab_ask_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.sab_ask_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/sab_ask_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.threat_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/threat_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.threat_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/threat_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.love_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/love_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.food_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/food_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.food_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/food_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.family_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/family_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.family_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/family_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.sport_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/sport_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.joke_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/joke_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.joke_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/joke_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.joke_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/joke_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.weather_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/weather_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.game_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/game_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.yes_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/yes_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.no_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/no_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.question_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/question_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.question_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/question_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.question_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/question_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.question_4": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/question_4",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.fallback_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/fallback_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.fallback_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/fallback_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.fallback_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/fallback_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.fallback_4": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/fallback_4",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.fallback_5": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/fallback_5",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.fallback_6": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/fallback_6",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.fallback_7": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/fallback_7",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.fallback_8": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/fallback_8",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.hint_0_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/hint_0_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.hint_1_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/hint_1_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.hint_2_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/hint_2_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.hint_3_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/hint_3_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.hint_4_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/hint_4_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.hint_5_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/hint_5_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.empathy_soft_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/empathy_soft_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.empathy_soft_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/empathy_soft_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.empathy_soft_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/empathy_soft_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.empathy_soft_4": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/empathy_soft_4",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.empathy_soft_5": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/empathy_soft_5",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.empathy_join_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/empathy_join_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.empathy_join_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/empathy_join_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.partner_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/partner_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.partner_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/partner_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.partner_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/partner_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.partner_4": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/partner_4",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.partner_5": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/partner_5",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.cold_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/cold_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.sab_1_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/sab_1_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.sab_2_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/sab_2_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.sab_3_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/sab_3_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.sab_4_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/sab_4_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.sab_5_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/sab_5_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.cry_1_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/cry_1_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.cry_2_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/cry_2_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.cry_3_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/cry_3_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.cry_4_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/cry_4_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.cry_5_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/cry_5_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.truck_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/truck_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.truck_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/truck_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.truck_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/truck_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.truck_4": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/truck_4",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.truck_5": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/truck_5",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.truck_win_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/truck_win_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.taunt_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/taunt_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.taunt_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/taunt_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.taunt_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/taunt_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.idle_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/idle_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.idle_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/idle_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.idle_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/idle_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.idle_4": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/idle_4",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.idle_5": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/idle_5",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.idle_6": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/idle_6",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.idle_7": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/idle_7",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.caught_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/caught_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.caught_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/caught_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.caught_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/caught_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.caught_4": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/caught_4",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.caught_5": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/caught_5",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.visit_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/visit_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.visit_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/visit_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.visit_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/visit_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.visit_4": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/visit_4",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.touch_car_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/touch_car_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.touch_car_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/touch_car_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.touch_car_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/touch_car_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.rival_up_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/rival_up_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.rival_up_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/rival_up_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.rival_up_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/rival_up_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.rival_up_4": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/rival_up_4",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.rival_sale_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/rival_sale_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.rival_sale_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/rival_sale_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.rival_sale_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/rival_sale_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.destroyed_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/destroyed_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.destroyed_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/destroyed_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.destroyed_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/destroyed_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.destroyed_4": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/destroyed_4",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.cinematic_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/cinematic_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.complaint_reply_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/complaint_reply_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.complaint_reply_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/complaint_reply_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.gotiya"
+ },
+ "voice.c_1_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/c_1_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.customer"
+ },
+ "voice.c_1_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/c_1_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.customer"
+ },
+ "voice.c_1_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/c_1_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.customer"
+ },
+ "voice.c_2_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/c_2_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.customer"
+ },
+ "voice.c_2_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/c_2_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.customer"
+ },
+ "voice.c_2_3": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/c_2_3",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.customer"
+ },
+ "voice.c_3_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/c_3_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.customer"
+ },
+ "voice.c_3_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/c_3_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.customer"
+ },
+ "voice.c_4_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/c_4_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.customer"
+ },
+ "voice.c_4_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/c_4_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.customer"
+ },
+ "voice.c_5_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/c_5_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.customer"
+ },
+ "voice.c_happy_1": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/c_happy_1",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.customer"
+ },
+ "voice.c_happy_2": {
+  "sounds": [
+   {
+    "name": "tesla_tycoon:voice/c_happy_2",
+    "stream": false
+   }
+  ],
+  "subtitle": "subtitles.tesla_tycoon.voice.customer"
+ }
+}
