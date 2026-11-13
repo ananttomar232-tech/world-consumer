@@ -1027,7 +1027,7 @@ public final class RivalDirector {
             }
             case HYDRAULICS -> p.sendMessage(Text.literal("Jump Hydraulics + Armor Tires fitted: press SPACE to hop, and spikes get crushed.").formatted(Formatting.AQUA), true);
             case SOLAR -> p.sendMessage(Text.literal("Tesla Solar Roof + MegaPack online: the neon is back!").formatted(Formatting.AQUA), true);
-            case RAM -> p.sendMessage(Text.literal("Beast Ram Mode unlocked. Drive the Cybertruck, press V, and smash 2 roadblocks.").formatted(Formatting.AQUA), true);
+            case RAM -> p.sendMessage(Text.literal("Beast Ram Mode unlocked and armed (B toggles it). Drive the Cybertruck into 2 roadblocks.").formatted(Formatting.AQUA), true);
             case STARLINK -> p.sendMessage(Text.literal("Starlink dish installed. Finish the GPS counter: Billboard pack + " + Company.BILLBOARDS_NEEDED + " billboards put up around the city.").formatted(Formatting.AQUA), true);
             case BILLBOARDS -> p.sendMessage(Text.literal("Marketing pack ready: drive out to the billboards on the highway turns around the city and right-click them.").formatted(Formatting.AQUA), true);
             default -> {

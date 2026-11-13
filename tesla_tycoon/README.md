@@ -1,11 +1,56 @@
-# Tesla Tycoon for Fabric 1.20.1  -  v4.0.0
+# Tesla Tycoon for Fabric 1.20.1  -  v4.1.0
 
 Build **Anant Tesla Showroom** in a real metropolis, out-sell **Seth Gotiya's Petrol Motors** across the Grand Boulevard, survive his
 sabotage and win the finale in pure **Survival**: alarm, gate, rooftop launch pad, the red Flying SpaceX Roadster, the EMP. The six cars
 are your uploaded 3D models, the showroom banner, billboards and wall posters are your uploaded images (shipped unchanged).
 
 * Minecraft **1.20.1**, Fabric Loader 0.15+, **Fabric API** (0.92.x), Java 17+
-* Jar: `dist/tesla_tycoon-4.0.0.jar` (drop it in `mods/`). In a world type **`/tycoon start`**.
+* Jar: `dist/tesla_tycoon-4.1.0.jar` (drop it in `mods/`). In a world type **`/tycoon start`**.
+
+## What is new in 4.1.0 - voice chat (push-to-talk)
+**Hold V and speak; release V.** What you said is typed into chat for you, and Seth Gotiya answers it (out loud, as before).
+Beast Ram moved from V to **B** (all keys can be changed in Options > Controls > Tesla Tycoon).
+
+* **Push-to-talk only.** The microphone opens when you press V and closes the instant you let go - nothing is recorded before or after.
+  A soft click marks both. Under the crosshair: `Listening - speak now` / `Listening - talking` with a live mic-level bar, then
+  `Understanding what you said...`.
+* **Auto-send on a pause.** While you keep V held, a pause of `silenceSeconds` (2.5 s by default, 2 to 4 s allowed) after you spoke
+  sends that sentence and keeps listening for the next. Releasing V sends what is left straight away.
+* **Offline recognition** with whisper.cpp (the "base" model): nothing leaves your computer. It understands Indian English, Hindi and
+  Hinglish; Hindi comes out in Roman letters ("namaste bhai kaise ho") because that is how the chat - and Gotiya - read it. A
+  vocabulary prompt teaches it the game's words (Gotiya, Cybertruck, Lamborghini, petrol, spikes...).
+* **Built for a bad laptop mic.** Before recognition the clip is cleaned:
+  1. a 90 Hz high-pass removes rumble and mains hum,
+  2. gentle noise reduction removes fan noise and hiss (measured from the quiet moments of the clip itself),
+  3. silence is trimmed, keeping 0.5 s around the words so soft first and last syllables survive,
+  4. automatic gain brings a quiet or far-away voice up by as much as +30 dB, with soft limiting so loud speech does not distort.
+
+  48 / 44.1 kHz and stereo microphones are converted on the fly. The speech detector tracks the background level, so fan noise does
+  not count as talking, and a press with only noise sends **nothing** (the recogniser is never fed silence - that is where
+  speech-to-text normally invents phrases). Its known phantom phrases ("thanks for watching", "[Music]"...) and repeated loops are
+  filtered out too.
+* **First use:** the speech model (148 MB) downloads once from the official whisper.cpp repository into `config/tesla_tycoon/` and is
+  checked against its SHA-256; a progress line shows under the crosshair. After that it works offline and loads in the background when
+  you join a world.
+* **Settings:** `config/tesla_tycoon/voice.json`, edited while the game is closed:
+
+  | Setting | What it does |
+  |---|---|
+  | `silenceSeconds` | How long a pause sends a sentence: 2.0 to 4.0, default 2.5 |
+  | `language` | `auto`, `en` or `hi` |
+  | `model` | `base`; `small` (488 MB) is better at Hindi but needs a fast CPU; `tiny` (75 MB) is for old laptops |
+  | `quality` | `best` or `fast` |
+  | `denoise` | Background noise removal, on by default |
+  | `micDevice` | Part of a microphone's name. The game log lists them at start: look for `[voice] microphones:` |
+  | `threads` | CPU threads for recognition |
+  | `enabled` | Turns voice chat on or off |
+* **Tested here** (no real microphone in the build machine): synthetic voices degraded to a bad laptop mic. That meant band-limiting
+  to 280 to 3800 Hz, pink noise at 6 dB SNR (and at 1 dB for "far away"), 50 / 150 Hz hum, a very low level and 48 kHz stereo input.
+  English came out word-perfect or nearly, even at 1 dB SNR, and the game's words like "Seth Gotiya", "spikes" and "Lamborghini"
+  were recognised. Noise alone produced no message. Each sentence took 0.5 to 2 s here; inside the running game, on a slow shared
+  build machine with software rendering, 1.3 to 3.7 s. Hindi works best clearly spoken.
+  The real game client was also run end to end: the recording went in where the mic would, two sentences were split at the pause,
+  sent to chat, and Gotiya answered both.
 
 ## What is new in 4.0.0
 * **Gotiya's own showroom** across the boulevard: glass front, polished floor, ceiling lights, red neon and lit display spots with
@@ -115,7 +160,8 @@ are your uploaded 3D models, the showroom banner, billboards and wall posters ar
 | **SPACE** | hydraulic hop (after *Jump Hydraulics*) | **hold: ignite the twin rocket thrusters**, release: hover | |
 | **CTRL** | | descend | |
 | **Mouse** | free look (camera follows the car's turns) | **pitch + yaw steering in the air** | |
-| **V** | | | **Beast Ram Mode** on/off (after the Ram module) |
+| **V** (hold) | **push-to-talk: speak to Gotiya** (see *Voice chat*) | | |
+| **B** | | | **Beast Ram Mode** on/off (armed by default after the Ram module) |
 | **R** | | **EMP shockwave** | |
 | **Shift** | get out (not possible while flying) | | |
 | **Right Shift** | show / hide the on-screen guide (next purchase, Gotiya's alert, key hints) | | |

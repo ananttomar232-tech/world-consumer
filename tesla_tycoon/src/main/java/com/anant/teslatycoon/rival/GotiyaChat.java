@@ -33,11 +33,11 @@ public final class GotiyaChat {
 
     // checked in this order: the first match wins
     static {
-        intent("help", "\\b(help|hint|tip|guide|stuck|madad|how (do|can|should) i|what (do|should|can) i|kya kar(u|oon|un)|kaise (hata|theek|fix|kar)\\w*|how to (fix|remove|beat|stop|win))\\b");
-        intent("empathy", "\\b(sorry|maaf|maafi|forgive|friend|friends|dost|dosti|partner|together|saath|join|respect|izzat|understand|samajh(ta|ti)? hoon|it'?s ok(ay)?|koi baat nahi|don'?t cry|mat ro|ro mat|care|hug|gale|peace|shanti|help you|madad karu\\w*|feel (bad|sorry)|bura laga|we can (work|share|do)|work together|chalo saath|i like you|proud of you|sympathy|empathy|calm down|relax|fikar mat|chinta mat|tension mat|you('| a)re (good|nice|great|kind|a good)|tum (ache|achhe) ho|aap (ache|achhe) ho|let'?s be|truce|sulah|bhai bhai|no hard feelings)\\b");
+        intent("help", "\\b(help|hint|tip|guide|stuck|madad|madat|kya karu\\w*|kya kar(e|en|ein)|how (do|can|should) i|what (do|should|can) i|kya kar(u|oon|un)|kaise (hata|theek|fix|kar)\\w*|how to (fix|remove|beat|stop|win))\\b");
+        intent("empathy", "\\b(sorry|maaf|maafi|maf|maph\\w*|mav\\w*kar|mafi|kaam kar(te|enge|ege|ein)|saath (mein|me|men) kaam|sath (me|men|mein) kam|milkar|mil ke|forgive|friend|friends|dost|dosti|partner|together|saath|join|respect|izzat|understand|samajh(ta|ti)? hoon|it'?s ok(ay)?|koi baat nahi|don'?t cry|mat ro|ro mat|care|hug|gale|peace|shanti|help you|madad karu\\w*|feel (bad|sorry)|bura laga|we can (work|share|do)|work together|chalo saath|i like you|proud of you|sympathy|empathy|calm down|relax|fikar mat|chinta mat|tension mat|you('| a)re (good|nice|great|kind|a good)|tum (ache|achhe) ho|aap (ache|achhe) ho|let'?s be|truce|sulah|bhai bhai|no hard feelings)\\b");
         intent("insult", "\\b(noob|loser|fake|scam|trash|useless|bakwas|bekar|idiot|stupid|ugly|pagal|nalayak|chor|cheat|hacker|dumb|moron|gadha|ullu|bewakoof|hate you|shut up|chup|kamina)\\b");
         intent("who", "\\b(who are you|who r u|your name|tera naam|tumhara naam|aapka naam|kaun ho|kon ho|introduce)\\b");
-        intent("how", "\\b(how are you|how r u|how('| i)s it going|kaise ho|kaisa hai|kya haal|kaisi chal|what'?s up|wassup|sup)\\b");
+        intent("how", "\\b(how are you|how r u|how('| i)s it going|kaise ho|kaisa hai|kese ho|keise ho|kaise hain|kaise hai|kya hal|kya haal|kaisi chal|what'?s up|wassup|sup)\\b");
         intent("why_hate", "\\b(why (do you )?hate|why are you (doing|so)|kyun (karte|kar raha|nafrat)|why (me|tesla)|what did i do|maine kya kiya|problem kya hai)\\b");
         intent("sab_ask", "\\b(spike|spikes|kil(e|ein|en)|barricade|roadblock|blackout|bijli (kyun|kaat)|gps|jam|remove|hatao|hata do|why (did|the) (you )?(block|cut|put))\\b");
         intent("greet", "\\b(hi+|hello|hey|yo|namaste|namaskar|ram ram|salaam|good (morning|evening|afternoon)|gm)\\b");

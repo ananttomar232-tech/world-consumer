@@ -197,6 +197,20 @@ def tour_v4b():
     return steps
 
 
+def tour_voice():
+    """Push-to-talk voice chat, fed from a recording (TT_VOICETEST=file.wav): what is said is sent to chat and Gotiya answers."""
+    P = "execute as @p run "
+    return [("00_setup", BASE + KILL_ALL + ["tp @p 0 -60 0 0 0"], 4),
+            ("01_start", [P + "tycoon start"], 45),
+            ("02_near_gotiya", [cam(-40, -57.5, 16, -40.5, -58.5, 28.5)], 11),
+            ("03_listening", [], 2),
+            ("04_listening2", [], 2),
+            ("05_understanding", [], 3),
+            ("06_first_sent", [], 4),
+            ("07_second", [], 5),
+            ("08_answers", [], 6)]
+
+
 def tour_city():
     """Build the metropolis (origin 0,-61,0 in the flat test world) and photograph every part of it: the HUD, the Grand Boulevard, an
     intersection from above, the skyline, a robotaxi station, a highway billboard, the petrol station, the depot, the aerial view."""
@@ -390,7 +404,7 @@ def tour_firstperson():
     return steps
 
 
-TOURS = {"v4": tour_v4, "v4b": tour_v4b, "depot": tour_depot, "gotiya": tour_gotiya, "emp": tour_emp, "vehicles": tour_vehicles, "seat": tour_seat, "seatback": tour_seatback, "city": tour_city, "hud": tour_hud, "robotaxi": tour_robotaxi, "story": tour_story, "finale": tour_finale, "truck": tour_truck, "shop": tour_shop, "delivery": tour_delivery, "guide": tour_guide, "occupants": tour_occupants, "firstperson": tour_firstperson}
+TOURS = {"voice": tour_voice, "v4": tour_v4, "v4b": tour_v4b, "depot": tour_depot, "gotiya": tour_gotiya, "emp": tour_emp, "vehicles": tour_vehicles, "seat": tour_seat, "seatback": tour_seatback, "city": tour_city, "hud": tour_hud, "robotaxi": tour_robotaxi, "story": tour_story, "finale": tour_finale, "truck": tour_truck, "shop": tour_shop, "delivery": tour_delivery, "guide": tour_guide, "occupants": tour_occupants, "firstperson": tour_firstperson}
 
 
 def have(tool):
@@ -485,7 +499,8 @@ def main():
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     time.sleep(2)
     env = dict(os.environ, DISPLAY=display, LIBGL_ALWAYS_SOFTWARE="1", GALLIUM_DRIVER="llvmpipe")
-    env["JAVA_TOOL_OPTIONS"] = (env.get("JAVA_TOOL_OPTIONS", "") + " -Xmx2g -Dtesla_tycoon.debugdrive=true -Dtesla_tycoon.guide=" + ("true" if a.tour == "guide" else "false") + " -Dtesla_tycoon.thirdperson=" + ("front" if a.tour == "seat" else ("true" if a.tour in ("finale", "truck", "seatback") else "false")) + " -Dtesla_tycoon.chase=" + ("0.3" if a.tour in ("seat", "seatback") else "1")).strip()
+    env["JAVA_TOOL_OPTIONS"] = (env.get("JAVA_TOOL_OPTIONS", "") + " -Xmx2g -Dtesla_tycoon.debugdrive=true -Dtesla_tycoon.guide=" + ("true" if a.tour == "guide" else "false") + " -Dtesla_tycoon.thirdperson=" + ("front" if a.tour == "seat" else ("true" if a.tour in ("finale", "truck", "seatback") else "false")) + " -Dtesla_tycoon.chase=" + ("0.3" if a.tour in ("seat", "seatback") else "1")
+                                 + (" -Dtesla_tycoon.voicetest=" + os.environ["TT_VOICETEST"] if os.environ.get("TT_VOICETEST") else "")).strip()
     lf = open(log, "w")
     client = subprocess.Popen([GRADLE, "runClient", "-PttQuickPlay=" + SAVE, "--args=--width %s --height %s" % (w, h), "--console=plain"],
                               cwd=ROOT, env=env, stdout=lf, stderr=subprocess.STDOUT, start_new_session=True)

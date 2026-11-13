@@ -94,7 +94,9 @@ public final class TeslaTycoonClient implements ClientModInitializer {
                 client.options.setPerspective(net.minecraft.client.option.Perspective.THIRD_PERSON_BACK);
             }
         }));
+        com.anant.teslatycoon.client.voice.VoiceChat.init();
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            com.anant.teslatycoon.client.voice.VoiceChat.tick(client);
             while (ClientBridgeImpl.GUIDE.wasPressed()) {
                 ClientBridgeImpl.guideOn = !ClientBridgeImpl.guideOn;       // Right Shift shows / hides the guides
             }
@@ -108,6 +110,7 @@ public final class TeslaTycoonClient implements ClientModInitializer {
             }
         });
         HudRenderCallback.EVENT.register(TycoonHud::render);
+        HudRenderCallback.EVENT.register((ctx, delta) -> com.anant.teslatycoon.client.voice.VoiceChat.renderHud(ctx));
         ClientPlayNetworking.registerGlobalReceiver(ModNetwork.STATE, (client, handler, buf, sender) -> {
             long money = buf.readLong();
             float income = buf.readFloat();

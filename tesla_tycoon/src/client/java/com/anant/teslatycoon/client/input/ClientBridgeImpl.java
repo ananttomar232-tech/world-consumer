@@ -15,7 +15,7 @@ public final class ClientBridgeImpl implements VehicleEntity.ClientBridge {
     public static KeyBinding RAM;
     public static KeyBinding EMP;
     public static KeyBinding GUIDE;
-    public static boolean ramOn = true;             // Beast Ram is armed as soon as it is bought (V turns it off)
+    public static boolean ramOn = true;             // Beast Ram is armed as soon as it is bought (B turns it off)
     /** The on-screen guides (what to buy next, Gotiya's alerts, key hints) are hidden until the player presses Right Shift. */
     public static boolean guideOn;
     /** Scripted controls for the headless smoke test (set by /tycoon drive, honoured only with -Dtesla_tycoon.debugdrive=true). */
@@ -25,7 +25,7 @@ public final class ClientBridgeImpl implements VehicleEntity.ClientBridge {
 
     public static void registerKeys() {
         guideOn = Boolean.getBoolean("tesla_tycoon.guide");        // (only the screenshot tours set this: players start with the guide hidden)
-        RAM = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.tesla_tycoon.ram", GLFW.GLFW_KEY_V, "key.categories.tesla_tycoon"));
+        RAM = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.tesla_tycoon.ram", GLFW.GLFW_KEY_B, "key.categories.tesla_tycoon"));
         EMP = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.tesla_tycoon.emp", GLFW.GLFW_KEY_R, "key.categories.tesla_tycoon"));
         GUIDE = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.tesla_tycoon.guide", GLFW.GLFW_KEY_RIGHT_SHIFT, "key.categories.tesla_tycoon"));
     }

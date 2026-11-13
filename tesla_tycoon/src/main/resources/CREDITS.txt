@@ -45,3 +45,8 @@ Voices (assets/tesla_tycoon/sounds/voice/*.ogg)
   https://huggingface.co/rhasspy/piper-voices - both licensed CC BY-NC-SA 4.0 (http://creativecommons.org/licenses/by-nc-sa/4.0/),
   trained on the AI4Bharat IndicNLP corpus by PravalX. Non-commercial use only. The lines are written for this mod
   (tools/gotiya_lines.py); Gotiya's clips are pitched down a little.
+
+Voice chat (push-to-talk speech recognition)
+  whisper-jni 1.7.1 (https://github.com/GiviMAD/whisper-jni), Apache License 2.0, bundled in the jar with its whisper.cpp natives
+  (whisper.cpp by Georgi Gerganov, MIT licence). The Whisper model (OpenAI, MIT licence) is downloaded on first use from
+  https://huggingface.co/ggerganov/whisper.cpp and verified by SHA-256; it is not part of the jar.

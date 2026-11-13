@@ -413,6 +413,7 @@ def lang():
     L["subtitles.tesla_tycoon.voice.gotiya"] = "Seth Gotiya talks"
     L["subtitles.tesla_tycoon.voice.customer"] = "A customer talks"
     L["key.categories.tesla_tycoon"] = "Tesla Tycoon"
+    L["key.tesla_tycoon.talk"] = "Push to talk (voice chat to Gotiya)"
     L["key.tesla_tycoon.ram"] = "Beast Ram Mode (Cybertruck)"
     L["key.tesla_tycoon.emp"] = "Fire EMP Shockwave (Roadster)"
     L["key.tesla_tycoon.guide"] = "Show / hide the guide"
@@ -421,7 +422,7 @@ def lang():
         "level2": ("Tesla Model 3", "Adds a glass floor. The Model 3 (Autopilot Sedan) takes the ground floor; the Classic Compact moves up."),
         "solar": ("Tesla Solar Roof + MegaPack", "Counter to the blackout: brings the neon back and adds solar panels and MegaPacks."),
         "level3": ("Armored Cybertruck", "Adds a glass floor and unlocks the Armored Cybertruck."),
-        "ram": ("Beast Ram Mode Module", "Counter to Gotiya's roadblocks: press V in the Cybertruck, then smash 2 concrete roadblocks."),
+        "ram": ("Beast Ram Mode Module", "Counter to Gotiya's roadblocks: drive the Cybertruck into them (armed automatically, B toggles it) and smash 2 roadblocks."),
         "level4": ("Cybercab Robotaxi", "Adds a glass floor, the Robotaxi Terminal and 4 autonomous Cybercabs that loop the whole city and carry passengers between the sidewalk stations."),
         "starlink": ("Starlink Satellite Dish", "Part 1 of the GPS counter: a dish on the roof."),
         "billboards": ("Billboard Marketing Pack", "Part 2 of the GPS counter: right-click empty billboards on the highway turns around the city to run the Anant Tesla ad (+6% income each, 3 needed)."),
@@ -443,12 +444,12 @@ def lang():
     L["hud.tesla_tycoon.fly"] = "SPACE thrusters  |  CTRL descend  |  mouse: pitch + yaw"
     L["hud.tesla_tycoon.emp_ready"] = "[R] EMP shockwave READY"
     L["hud.tesla_tycoon.emp_cooldown"] = "[R] EMP recharging %ss"
-    L["hud.tesla_tycoon.ram_on"] = "[V] BEAST RAM MODE: ON"
-    L["hud.tesla_tycoon.ram_off"] = "[V] Beast Ram Mode: off"
+    L["hud.tesla_tycoon.ram_on"] = "[B] BEAST RAM MODE: ON"
+    L["hud.tesla_tycoon.ram_off"] = "[B] Beast Ram Mode: off"
     L["hud.tesla_tycoon.hop"] = "SPACE: hydraulic hop"
     s = {1: ("GOTIYA'S ROAD SPIKES on the road!", "Buy Jump Hydraulics + Armor Tires at the Upgrade Depot"),
          2: ("GOTIYA CUT THE POWER! Neon is dead", "Buy the Tesla Solar Roof + MegaPack at the Upgrade Depot"),
-         3: ("GOTIYA'S CONCRETE ROADBLOCKS!", "Buy Beast Ram Mode, then smash 2 roadblocks with the Cybertruck (V)"),
+         3: ("GOTIYA'S CONCRETE ROADBLOCKS!", "Buy Beast Ram Mode, then smash 2 roadblocks with the Cybertruck"),
          4: ("GOTIYA JAMMED THE CYBERCAB GPS!", "Buy the Starlink dish + Billboard pack, then put up 3 billboards"),
          5: ("MONSTER TRUCK ATTACK ON THE SHOWROOM!", "Fly the Roadster: SPACE thrusters, then R = EMP on the truck")}
     for k, (a, b) in s.items():
